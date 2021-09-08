@@ -2,7 +2,7 @@
 name: Feature request
 about: New plots & metrics or updates to existing plots & metrics
 title: ''
-labels: ''
+labels: 'issue type: feature request'
 assignees: ''
 
 ---

@@ -2,7 +2,7 @@
 name: QC Issue
 about: QC issues or trends that are not captured by current reporting system
 title: ''
-labels: ''
+labels: 'issue type: QC Issue'
 assignees: ''
 
 ---
