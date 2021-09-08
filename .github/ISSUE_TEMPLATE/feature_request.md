@@ -1,8 +1,8 @@
 ---
 name: Feature request
-about: 'New Metrics and/or plots '
+about: New plots & metrics or updates to existing plots & metrics
 title: ''
-labels: feature request
+labels: ''
 assignees: ''
 
 ---
