@@ -3,7 +3,7 @@ name: Bug report
 about: Mouse-seeks & QC Bugs (e.g. plots not populating, metric no longer works as
   expected)
 title: ''
-labels: 'Issue type: bug'
+labels: ''
 assignees: ''
 
 ---

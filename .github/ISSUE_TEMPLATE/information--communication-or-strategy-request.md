@@ -3,7 +3,7 @@ name: Information, Communication or Strategy request
 about: Decision point needed, request for information, standardized communication
   or conveyance of strategy
 title: ''
-labels: ''
+labels: 'issue type: information &/or decision'
 assignees: ''
 
 ---
