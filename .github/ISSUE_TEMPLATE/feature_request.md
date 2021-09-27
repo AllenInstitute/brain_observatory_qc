@@ -7,12 +7,12 @@ assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Provide links/ issue numbers to related QC Issues or Bug Reports. 
+**Feature Request Motivation**
+A clear and concise description of problems related to the feature request or the general motivation for the feature such as gaps in information.
 
-If no issue exists please describe the gap in information that this new metric or plot would be addressing.
+If related to issue:  Provide links/ issue numbers to related QC Issues or Bug Reports. 
 
-**Describe the solution you'd like**
+**Requested Feature/Solution**
 General description: A clear and concise description of what you want to happen.  If suggesting a specific metric or plot please provide additional information:
  - data streams / files that are used
  - formulas/calculations
