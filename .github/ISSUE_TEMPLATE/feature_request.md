@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: New plots & metrics or updates to existing plots & metrics
+about: New plots, metrics or software features
 title: ''
 labels: 'issue type: feature request'
 assignees: ''
@@ -21,6 +21,7 @@ General description: A clear and concise description of what you want to happen.
 
 
 **Screenshots or example plots**
+
 
 **Scope**
 Is this metric or feature specific to a certain project, or type of microscope etc?
