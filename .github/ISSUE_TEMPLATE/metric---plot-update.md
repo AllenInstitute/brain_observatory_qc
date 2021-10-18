@@ -2,7 +2,7 @@
 name: Metric / Plot Update
 about: Update to an existing plot, metric or threshold
 title: ''
-labels: ''
+labels: 'issue type: metric update'
 assignees: ''
 
 ---
