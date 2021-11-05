@@ -3,9 +3,13 @@ import h5py
 import warnings
 import numpy as np
 import pandas as pd
+from psycopg2 import extras
 
 
 from allensdk.internal.api import PostgresQueryMixin
+from allensdk.core.authentication import credential_injector
+from allensdk.core.auth_config import LIMS_DB_CREDENTIAL_MAP
+
 import visual_behavior.data_access.utilities as utils
 import visual_behavior.data_access.from_lims_utilities as lims_utils
 import mindscope_qc.utilities.pre_post_conditions as conditions
@@ -37,20 +41,140 @@ except Exception as e:
     warnings.warn(warn_string)
 
 
+def get_psql_dict_cursor():
+    """Set up a connection to a psql db server with a dict cursor
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    api = (credential_injector(LIMS_DB_CREDENTIAL_MAP)(PostgresQueryMixin)())
+    con = api.get_connection()
+    con.set_session(readonly=True, autocommit=True)
+    return con.cursor(cursor_factory=extras.RealDictCursor)
+
+
 ### ID TYPES ###      # noqa: E266
 
 ID_TYPES_DICT = {
-    "donor_id": {"lims_table": "specimens", "id_column": "donor_id"},                 # noqa: E241
-    "cell_roi_id": {"lims_table": "cell_rois", "id_column": "id" },                      # noqa: E241
-    "specimen_id": {"lims_table": "specimens", "id_column": "id"},                       # noqa: E241
-    "cell_specimen_id": {"lims_table": "cell_rois", "id_column": "cell_specimen_id"},         # noqa: E241
-    "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id"},                       # noqa: E241
-    "ophys_session_id": {"lims_table": "ophys_sessions", "id_column": "id"},                       # noqa: E241
-    "behavior_session_id": {"lims_table": "behavior_sessions", "id_column": "id"},                       # noqa: E241
-    "ophys_container_id": {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},   # noqa: E241
-    "supercontainer_id": {"lims_table": "visual_behavior_supercontainers", "id_column": "id"},   # noqa: E241
-    "isi_experiment_id": {"lims_table": "isi_experiments", "id_column": "id"},   # noqa: E241
-    "extracellular_ephys_session_id": {"lims_table": "ecephys_sessions", "id_column": "id"}}   # noqa: E241
+    "donor_id":            {"lims_table": "specimens",                             "id_column": "donor_id"},                 # noqa: E241
+    "cell_roi_id":         {"lims_table": "cell_rois",                             "id_column": "id" },                      # noqa: E241
+    "specimen_id":         {"lims_table": "specimens",                             "id_column": "id"},                       # noqa: E241
+    "cell_specimen_id":    {"lims_table": "cell_rois",                             "id_column": "cell_specimen_id"},         # noqa: E241
+    "ophys_experiment_id": {"lims_table": "ophys_experiments",                     "id_column": "id"},                       # noqa: E241
+    "ophys_session_id":    {"lims_table": "ophys_sessions",                        "id_column": "id"},                       # noqa: E241
+    "behavior_session_id": {"lims_table": "behavior_sessions",                     "id_column": "id"},   # noqa: E241
+    "ophys_container_id":  {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},   # noqa: E241
+    "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},   # noqa: E241
+    "isi_experiment_id":   {"lims_table": "isi_experiments",                       "id_column": "id"},   # noqa: E241
+    "extracellular_ephys_session_id": {"lims_table": "ecephys_sessions",           "id_column": "id"}}   # noqa: E241
+
+
+def lims_query(query):
+    '''
+    execute a SQL query in LIMS
+    returns:
+        * the result if the result is a single element
+        * results in a pandas dataframe otherwise
+
+    Examples:
+
+        >> lims_query('select ophys_session_id from ophys_experiments where id = 878358326')
+
+        returns 877907546
+
+        >> lims_query('select * from ophys_experiments where id = 878358326')
+
+        returns a single line dataframe with all columns from the ophys_experiments table for ophys_experiment_id =  878358326
+
+        >> lims_query('select * from ophys_sessions where id in (877907546, 876522267, 869118259)')
+
+        returns a three line dataframe with all columns from the ophys_sessions table for ophys_session_id in the list [877907546, 876522267, 869118259]
+
+        >> lims_query('select * from ophys_sessions where specimen_id = 830901424')
+
+        returns all rows and columns in the ophys_sessions table for specimen_id = 830901424
+    '''
+    api = (credential_injector(LIMS_DB_CREDENTIAL_MAP)(PostgresQueryMixin)())
+    conn = api.get_connection()
+
+    df = pd.read_sql(query, conn)
+
+    conn.close()
+
+    if df.shape == (1, 1):
+        # if the result is a single element, return only that element
+        return df.iloc[0][0]
+    else:
+        # otherwise return in dataframe format
+        return df
+
+
+def get_value_from_table(search_key, search_value, target_table, target_key):
+    '''
+    a general function for getting a value from a LIMS table
+    '''
+    api = (credential_injector(LIMS_DB_CREDENTIAL_MAP)
+           (PostgresQueryMixin)())
+    query = '''
+        select {}
+        from {}
+        where {} = '{}'
+    '''
+    result = pd.read_sql(query.format(target_key, target_table, search_key, search_value), api.get_connection())
+    if len(result) == 1:
+        return result[target_key].iloc[0]
+    else:
+        return None
+
+
+def get_mouse_ids(id_type, id_number):
+    '''
+    returns a dataframe of all variations of mouse ID for a given input ID
+
+    inputs:
+        id_type: (string) the type of ID to search on
+        id_number: (int,string, list of ints or list of strings) the associated ID number(s)
+
+    allowable id_types:
+        donor_id: LIMS donor_id
+        specimen_id: LIMS specimen ID
+        labtracks_id: Labtracks ID (6 digit ID on mouse cage)
+        external_specimen_name: alternate name for labtracks_id (used in specimens table)
+        external_donor_name: alternate name for labtracks_id (used in donors table)
+
+    returns:
+        a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
+
+    Note: in rare cases, a single donor_id/labtracks_id was associated with multiple specimen_ids
+          this occured for IDs used as test_mice (e.g. labtracks_id 900002)
+          and should not have occured for real experimental mice
+    '''
+
+    if id_type.lower() == 'donor_id':
+        id_type_string = 'donors.id'
+    elif id_type.lower() == 'specimen_id':
+        id_type_string = 'specimens.id'
+    elif id_type.lower() in ['labtracks_id', 'external_specimen_name', 'external_donor_name']:
+        id_type_string = 'donors.external_donor_name'
+    else:
+        raise TypeError('invalid `id_type` {}'.format(id_type))
+
+    if isinstance(id_number, (str, int, np.int64)):
+        id_number = [id_number]
+    id_number = [str(i) for i in id_number]
+
+    query = """
+    select donors.id donor_id, donors.external_donor_name as labtracks_id, specimens.id as specimen_id
+    from donors
+    join specimens on donors.external_donor_name = specimens.external_specimen_name
+    where {} in {}
+    """.format(id_type_string, tuple(id_number)).replace(',)', ')')
+
+    return lims_query(query)
+
+
 
 
 def general_id_type_query(input_id, id_type):
