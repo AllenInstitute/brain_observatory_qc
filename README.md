@@ -1,5 +1,5 @@
 # mindscope_qc
-Mindscope_qc is inteded to be both a standalone repo for_________  and a central location for for tracking data quality issues related to ongoing Mindscope projects.
+Mindscope_qc is inteded to be both a standalone repo of quality control metrics and plots for Mindscope program projects that utilitze 2-photon imaging, and a central location for for tracking data quality issues related to ongoing Mindscope projects.The repo is internally facing only.
 
 
 Anyone with data quality concerns should log issues here to ensure that they are tracked and followed up on. This repository should be a central place to log and track issues, along with any associated documents (Jupyter Notebooks, PDF writeups, slide decks, etc.) that were prepared in the process of tracking or following up on issues.
@@ -45,7 +45,7 @@ Contributing to this repo is welcome an encouraged! We hope to build a collabora
 
 
 ### Documentation and Style
-Please follow the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/). 
+Please follow the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/).
 
 
 Documentation is required. 
