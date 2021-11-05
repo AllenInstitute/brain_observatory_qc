@@ -1,11 +1,11 @@
 # mindscope_qc
-This is a central location for tracking data quality issues related to ongoing Mindscope projects.
+Mindscope_qc is inteded to be both a standalone repo for_________  and a central location for for tracking data quality issues related to ongoing Mindscope projects.
+
 
 Anyone with data quality concerns should log issues here to ensure that they are tracked and followed up on. This repository should be a central place to log and track issues, along with any associated documents (Jupyter Notebooks, PDF writeups, slide decks, etc.) that were prepared in the process of tracking or following up on issues.
 
-This is not intended to be a code repository.
 
-## Creating Issues
+## Creating & Tracking Issues
 If you note a new data issue, here are steps to follow to log it:
 1. Click on the 'Issues' tab to the top/left of the page:
 ![image](https://user-images.githubusercontent.com/19944442/128929021-1cde3fab-414e-4e92-bca3-f5d16b79007c.png)
@@ -37,3 +37,69 @@ If you note a new data issue, here are steps to follow to log it:
 8. Follow up! If you have additional information or context to provide later, return to the issue and add new comments. Try to avoid editing previous comments as this makes tracking difficult.
 
 9. Close the issue when it is solved.
+
+
+
+## Code Contributions
+Contributing to this repo is welcome an encouraged! We hope to build a collaborative code base that is both durable in it's ability to access data and provide qc metrics and plots, and flexible in it's ability to accomodate many different projects. 
+
+
+### Documentation and Style
+Please follow the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/). 
+
+
+Documentation is required. 
+In addition to all inline comments, please provide numpy style docstrings for all functions. 
+```
+    """[summary]
+
+    Parameters
+    ----------
+    input_variable : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+```
+
+### Pull Requests
+Pull requests are welcome!
+
+1. Fork the repo
+2. Create a feature branch
+3. Commit your changes
+4. Create a pull request
+5. Tag `@downtoncrabby`, `@matchings`  and `@seanmcculloch`  to review
+
+
+
+## Contributors:
+
+- Nicholas Cain - @nicain
+- Marina Garrett - marinag@alleninstitute.org, @matchings
+- Nile Graddis - nileg@alleninstitute.org, @nilegraddis
+- Justin Kiggins - @neuromusic
+- Jerome Lecoq - jeromel@alleninstitute.org, @jeromelecoq
+- Sahar Manavi - saharm@alleninstitute.org, @saharmanavi
+- Sean McCulloch - sean.mcculloch@alleninstitute.org, @seanmcculloch
+- Nicholas Mei - nicholas.mei@alleninstitute.org, @njmei
+- Christopher Mochizuki - chrism@alleninstitute.org, @mochic
+- Doug Ollerenshaw - dougo@alleninstitute.org, @dougollerenshaw
+- Natalia Orlova - nataliao@alleninstitute.org, @nataliaorlova
+- Jed Perkins - @jfperkins
+- Alex Piet - alex.piet@alleninstitute.org, @alexpiet
+- Nick Ponvert - @nickponvert
+- Kate Roll - kater@alleninstitute.org, @downtoncrabby
+- Ryan Valenza - @ryval
+- Farzaneh Najafi - farzaneh.najafi@alleninstitute.org
+- Iryna Yavorska - iryna.yavorska@alleninstitute.org
+
+
+## Additional Links
+
+- [AllenSDK](https://github.com/AllenInstitute/AllenSDK)
+- [BrainTV Visual Behavior Project Page](http://confluence.corp.alleninstitute.org/display/CP/Brain+Observatory%3A+Visual+Behavior)
+- [Details on Cohort Training](http://confluence.corp.alleninstitute.org/display/CP/_EXPERIMENTS)
