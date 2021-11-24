@@ -7,6 +7,8 @@
 
 ## IMPORTS ##                                                             # noqa: E266
 
+import numpy as np
+import unittest as test
 from mindscope_qc.data_access import from_lims, from_lims_utilities
 
 
@@ -21,6 +23,54 @@ def validate_not_none(input, input_name):
 def validate_string_not_empty(input_string, string_name):
     assert bool(input_string) and bool(input_string.strip()), "Error: \
         {} is empty".format(string_name)
+
+
+### DATA TYPES ###                                                         # noqa: E266
+
+def is_int(n):
+    return isinstance(n, (int, np.integer))
+
+
+def validate_int(n):
+    test.assertTrue(is_int(n),  "Error: incorrect data type.\
+        Integer is required.")
+
+
+def is_float(n):
+    return isinstance(n, (float, np.float))
+
+
+def validate_float(n):
+    test.assertTrue(is_float(n), "Error: incorrect data type.\
+        Float is required.")
+
+
+def is_uuid(n):
+    return isinstance(n, uuid.UUID)
+
+
+def validate_uuid(n):
+    test.assertTrue(is_uuid(n), "Error, incorrect data type.\
+        uuid is required.")
+
+
+def is_bool(n):
+    return isinstance(n, (bool, np.bool_))
+
+
+def validate_bool(n):
+    test.assertTrue(is_bool(n), "Error, incorrect data type.\
+        Bool is required.")
+
+
+def is_array(n):
+    return isinstance(n, np.ndarray)
+
+
+def validate_array(n):
+    test.assertTrue(is_array(n), "Error, incorrect data type.\
+        Array is required.")
+
 
 
 ### NUMERIC THRESHOLDS ###                                                # noqa: E266
@@ -59,6 +109,8 @@ def validate_equals_threshold(input_value, threshold_value, variable_name):
 
 
 ### TYPES ###                                                             # noqa: E266
+
+
 def validate_microscope_type(ophys_session_id, correct_microscope_type):
     session_microscope_type = from_lims_utilities.get_microscope_type(ophys_session_id)
     assert session_microscope_type == correct_microscope_type, "Error: incorrect microscope type.\
@@ -78,7 +130,7 @@ def validate_id_type(input_id, correct_id_type):
     correct_id_type : string
         [description]
     """
-    validate_value_in_dict_keys(correct_id_type, from_lims.ID_TYPES_DICT, "ID_TYPES_DICT")
+    validate_value_in_dict_keys(correct_id_type, from_lims.ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
     input_id_type = from_lims.get_id_type(input_id)
     assert input_id_type == correct_id_type, "Incorrect id type. Entered Id type is {},\
         correct id type is {}".format(input_id_type, correct_id_type)
