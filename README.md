@@ -4,6 +4,53 @@ Mindscope_qc is inteded to be both a standalone repo of quality control metrics 
 
 Anyone with data quality concerns should log issues here to ensure that they are tracked and followed up on. This repository should be a central place to log and track issues, along with any associated documents (Jupyter Notebooks, PDF writeups, slide decks, etc.) that were prepared in the process of tracking or following up on issues.
 
+Functions in this repository depend on the AllenSDK
+https://github.com/AllenInstitute/AllenSDK
+
+
+
+# Installation
+
+Set up a dedicated conda environment:
+
+```
+conda create -n mindscope_qc python=3.8 
+```
+
+Activate the new environment:
+
+```
+conda activate mindscope_qc
+```
+
+Make the new environment visible in the Jupyter 
+```
+pip install ipykernel
+python -m ipykernel install --user --name mindscope_qc
+```
+
+Install mindscope_qc
+```
+pip install mindscope_qc
+```
+
+Or if you intend to edit the source code, install in developer mode:
+```
+git clone https://github.com/AllenInstitute/mindscope_qc.git
+cd mindscope_qc
+pip install -e .
+```
+
+# Testing
+
+Tests are run on CircleCI on every github commit.
+
+Tests can be run locally by running the following at the command line:
+```
+flake8 mindscope_utilities
+pytest
+```
+
 
 ## Creating & Tracking Issues
 If you note a new data issue, here are steps to follow to log it:
@@ -78,24 +125,10 @@ Pull requests are welcome!
 
 ## Contributors:
 
-- Nicholas Cain - @nicain
-- Marina Garrett - marinag@alleninstitute.org, @matchings
-- Nile Graddis - nileg@alleninstitute.org, @nilegraddis
-- Justin Kiggins - @neuromusic
-- Jerome Lecoq - jeromel@alleninstitute.org, @jeromelecoq
-- Sahar Manavi - saharm@alleninstitute.org, @saharmanavi
 - Sean McCulloch - sean.mcculloch@alleninstitute.org, @seanmcculloch
-- Nicholas Mei - nicholas.mei@alleninstitute.org, @njmei
-- Christopher Mochizuki - chrism@alleninstitute.org, @mochic
-- Doug Ollerenshaw - dougo@alleninstitute.org, @dougollerenshaw
-- Natalia Orlova - nataliao@alleninstitute.org, @nataliaorlova
-- Jed Perkins - @jfperkins
-- Alex Piet - alex.piet@alleninstitute.org, @alexpiet
-- Nick Ponvert - @nickponvert
-- Kate Roll - kater@alleninstitute.org, @downtoncrabby
-- Ryan Valenza - @ryval
-- Farzaneh Najafi - farzaneh.najafi@alleninstitute.org
-- Iryna Yavorska - iryna.yavorska@alleninstitute.org
+- Clark Roll - kater@alleninstitute.org, @downtoncrabby
+- Doug Ollerenshaw, @dougollerenshaw,
+- Marina Garrett - marinag@alleninstitute.org, @matchings
 
 
 ## Additional Links
