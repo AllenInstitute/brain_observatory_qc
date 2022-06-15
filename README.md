@@ -31,11 +31,6 @@ python -m ipykernel install --user --name mindscope_qc
 
 Install mindscope_qc
 ```
-pip install mindscope_qc
-```
-
-Or if you intend to edit the source code, install in developer mode:
-```
 git clone https://github.com/AllenInstitute/mindscope_qc.git
 cd mindscope_qc
 pip install -e .
