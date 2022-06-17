@@ -3,15 +3,19 @@ import h5py
 import warnings
 import numpy as np
 import pandas as pd
+from psycopg2 import extras
 
 
 from allensdk.internal.api import PostgresQueryMixin
-import visual_behavior.data_access.utilities as utils
-import visual_behavior.data_access.from_lims_utilities as lims_utils
+from allensdk.core.authentication import credential_injector
+from allensdk.core.auth_config import LIMS_DB_CREDENTIAL_MAP
+
+
+import mindscope_qc.data_access.from_lims_utilities as lims_utils
 import mindscope_qc.utilities.pre_post_conditions as conditions
 
 
-# Accessing Lims Database
+### ACCESSING LIMS DATABASE ###      # noqa: E266
 try:
     lims_dbname = os.environ["LIMS_DBNAME"]
     lims_user = os.environ["LIMS_USER"]
@@ -37,30 +41,169 @@ except Exception as e:
     warnings.warn(warn_string)
 
 
+def get_psql_dict_cursor():
+    """Set up a connection to a psql db server with a dict cursor
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    api = (credential_injector(LIMS_DB_CREDENTIAL_MAP)(PostgresQueryMixin)())
+    con = api.get_connection()
+    con.set_session(readonly=True, autocommit=True)
+    return con.cursor(cursor_factory=extras.RealDictCursor)
+
+
+### GENERAL QUERIES ###      # noqa: E266
+
+
 ### ID TYPES ###      # noqa: E266
 
-ID_TYPES_DICT = {
-    "donor_id": {"lims_table": "specimens", "id_column": "donor_id"},                 # noqa: E241
-    "cell_roi_id": {"lims_table": "cell_rois", "id_column": "id" },                      # noqa: E241
-    "specimen_id": {"lims_table": "specimens", "id_column": "id"},                       # noqa: E241
-    "cell_specimen_id": {"lims_table": "cell_rois", "id_column": "cell_specimen_id"},         # noqa: E241
-    "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id"},                       # noqa: E241
-    "ophys_session_id": {"lims_table": "ophys_sessions", "id_column": "id"},                       # noqa: E241
-    "behavior_session_id": {"lims_table": "behavior_sessions", "id_column": "id"},                       # noqa: E241
-    "ophys_container_id": {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},   # noqa: E241
-    "supercontainer_id": {"lims_table": "visual_behavior_supercontainers", "id_column": "id"},   # noqa: E241
-    "isi_experiment_id": {"lims_table": "isi_experiments", "id_column": "id"},   # noqa: E241
-    "extracellular_ephys_session_id": {"lims_table": "ecephys_sessions", "id_column": "id"}}   # noqa: E241
+
+ALL_ID_TYPES_DICT = {
+    "donor_id":            {"lims_table": "specimens",                             "id_column": "donor_id"},                 # noqa: E241, E501
+    "cell_roi_id":         {"lims_table": "cell_rois",                             "id_column": "id"},                       # noqa: E241, E501
+    "specimen_id":         {"lims_table": "specimens",                             "id_column": "id"},                       # noqa: E241, E501
+    "labtracks_id":        {"lims_table": "specimens",                             "id_column": "external_specimen_name"},   # noqa: E241, E501
+    "cell_specimen_id":    {"lims_table": "cell_rois",                             "id_column": "cell_specimen_id"},         # noqa: E241, E501
+    "ophys_experiment_id": {"lims_table": "ophys_experiments",                     "id_column": "id"},                       # noqa: E241, E501
+    "ophys_session_id":    {"lims_table": "ophys_sessions",                        "id_column": "id"},                       # noqa: E241, E501
+    "foraging_id":         {"lims_table": "ophys_sessions",                        "id_column": "foraging_id"},              # noqa: E241, E501
+    "behavior_session_id": {"lims_table": "behavior_sessions",                     "id_column": "id"},                       # noqa: E241, E501
+    "ophys_container_id":  {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},                       # noqa: E241, E501
+    "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},                       # noqa: E241, E501
+    "isi_experiment_id":   {"lims_table": "isi_experiments",                       "id_column": "id"},                       # noqa: E241, E501
+    }
+
+
+OPHYS_ID_TYPES_DICT = {
+    "ophys_experiment_id": {"lims_table": "ophys_experiments",                     "id_column": "id"},           # noqa: E241, E501
+    "ophys_session_id":    {"lims_table": "ophys_sessions",                        "id_column": "id"},           # noqa: E241, E501
+    "foraging_id":         {"lims_table": "ophys_sessions",                        "id_column": "foraging_id"},  # noqa: E241, E501
+    "behavior_session_id": {"lims_table": "behavior_sessions",                     "id_column": "id"},           # noqa: E241, E501
+    "ophys_container_id":  {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},           # noqa: E241, E501
+    "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},           # noqa: E241, E501
+    }
+
+
+MOUSE_IDS_DICT = {
+    "donor_id":               {"lims_table": "specimens", "id_column": "donor_id"},                 # noqa: E241, E501
+    "specimen_id":            {"lims_table": "specimens", "id_column": "id"},                       # noqa: E241, E501
+    "labtracks_id":           {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
+    "external_specimen_name": {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
+    "external_donor_name":    {"lims_table": "donors",    "id_column": "external_donor_name"}       # noqa: E241, E501
+    }
+
+
+MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
+    "Nikon":       ["CAM2P.1", "CAM2P.2"],                     # noqa: E241
+    "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"],     # noqa: E241, E501
+    "Mesoscope":   ["MESO.1", "MESO.2"],                       # noqa: E241, E501
+    "Deepscope":   ["DS.1"]                                    # noqa: E241, E501
+    }
+
+
+def get_all_mouse_ids(id_type, id_number):
+    """[summary]
+
+    Parameters
+    ----------
+    id_type : string
+        the type of ID to search on
+    id_number : [type]
+        [description]
+    """
+    conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
+    query = '''
+    SELECT
+    donors.id donor_id,
+    donors.external_donor_name as labtracks_id,
+    specimens.id as specimen_id
+
+    FROM
+    donors
+    JOIN specimens on donors.external_donor_name = specimens.external_specimen_name
+
+    WHERE {}.{} = {}
+    '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
+    mouse_ids = mixin.select(query)
+    return mouse_ids
+
+
+def get_mouse_ids(id_type, id_number):
+    """
+    returns a dataframe of all variations (donor_id, labtracks_id,
+    specimen_id) of mouse ID for a given input ID.
+
+    Note: in rare cases, a single donor_id/labtracks_id was
+    associated with multiple specimen_ids this occured for IDs used
+    as test_mice (e.g. labtracks_id 900002) and should not have
+    occured for real experimental mice
+
+    Parameters
+    ----------
+    id_type : string
+        the type of ID to search on
+    id_number : int,string, list of ints or list of strings
+        the associated ID number(s)
+
+    allowable id_types:
+        donor_id: LIMS donor_id
+        specimen_id: LIMS specimen ID
+        labtracks_id: Labtracks ID (6 digit ID on mouse cage)
+        external_specimen_name: alternate name for labtracks_id (used
+                                in specimens table)
+        external_donor_name: alternate name for labtracks_id
+                             (used in donors table)
+
+    Returns
+    -------
+    dataframe
+        a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
+
+    Raises
+    ------
+    TypeError
+        [description]
+    """
+    conditions.validate_value_in_dict_keys(id_type,
+                                           MOUSE_IDS_DICT,
+                                           "MOUSE_IDS_DICT")
+    if id_type.lower() == 'donor_id':
+        id_type_string = 'donors.id'
+    elif id_type.lower() == 'specimen_id':
+        id_type_string = 'specimens.id'
+    elif id_type.lower() in ['labtracks_id', 'external_specimen_name', 'external_donor_name']:
+        id_type_string = 'donors.external_donor_name'
+    else:
+        raise TypeError('invalid `id_type` {}'.format(id_type))
+
+    if isinstance(id_number, (str, int, np.int64)):
+        id_number = [id_number]
+    id_number = [str(i) for i in id_number]
+
+    query = '''
+    SELECT
+    donors.id donor_id,
+    donors.external_donor_name as labtracks_id,
+    specimens.id as specimen_id
+
+    FROM donors
+    JOIN specimens on donors.external_donor_name = specimens.external_specimen_name
+    where {} in {}'''.format(id_type_string, tuple(id_number)).replace(',)', ')')
+
+    return lims_utils.lims_query(query)
 
 
 def general_id_type_query(input_id, id_type):
-    conditions.validate_value_in_dict_keys(id_type, ID_TYPES_DICT, "ID_TYPES_DICT")
+    conditions.validate_value_in_dict_keys(id_type, ALL_ID_TYPES_DICT, "ALL_ID_TYPES_DICT")
     query = '''
     SELECT *
     FROM {}
     WHERE {} = {} limit 1
-    '''.format(ID_TYPES_DICT[id_type]["lims_table"],
-               ID_TYPES_DICT[id_type]["id_column"],
+    '''.format(ALL_ID_TYPES_DICT[id_type]["lims_table"],
+               ALL_ID_TYPES_DICT[id_type]["id_column"],
                input_id)
 
     table_row = mixin.select(query)
@@ -69,7 +212,7 @@ def general_id_type_query(input_id, id_type):
 
 def get_id_type(input_id):
     found_id_types = []
-    for id_type_key in ID_TYPES_DICT:
+    for id_type_key in ALL_ID_TYPES_DICT:
         if len(general_id_type_query(input_id, id_type_key)) > 0:
             found_id_types.append(id_type_key)
 
@@ -84,12 +227,6 @@ def get_id_type(input_id):
         id_type = "unknown_id"
 
     return id_type
-
-
-MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
-    "Nikon": ["CAM2P.1", "CAM2P.2"],                     # noqa: E241
-    "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"],
-    "Mesoscope": ["MESO.1", "MESO.2"]}                       # noqa: E241
 
 
 def get_microscope_type(ophys_session_id):
@@ -262,7 +399,9 @@ def get_specimen_id_for_donor_id(donor_id):
 # Cell / ROI related IDS
 def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id):
     '''
-    returns the ophys experiment ID from which a given cell_roi_id was recorded
+    returns the ophys experiment ID from which a given cell_roi_id
+    was recorded
+
     Parameters:
     -----------
     cell_roi_id: int

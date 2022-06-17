@@ -1,11 +1,53 @@
 # mindscope_qc
-This is a central location for tracking data quality issues related to ongoing Mindscope projects.
+Mindscope_qc is inteded to be both a standalone repo of quality control metrics and plots for Mindscope program projects that utilitze 2-photon imaging, and a central location for for tracking data quality issues related to ongoing Mindscope projects.The repo is internally facing only.
+
 
 Anyone with data quality concerns should log issues here to ensure that they are tracked and followed up on. This repository should be a central place to log and track issues, along with any associated documents (Jupyter Notebooks, PDF writeups, slide decks, etc.) that were prepared in the process of tracking or following up on issues.
 
-This is not intended to be a code repository.
+Functions in this repository depend on the AllenSDK
+https://github.com/AllenInstitute/AllenSDK
 
-## Creating Issues
+
+
+# Installation
+
+Set up a dedicated conda environment:
+
+```
+conda create -n mindscope_qc python=3.8 
+```
+
+Activate the new environment:
+
+```
+conda activate mindscope_qc
+```
+
+Make the new environment visible in the Jupyter 
+```
+pip install ipykernel
+python -m ipykernel install --user --name mindscope_qc
+```
+
+Install mindscope_qc
+```
+git clone https://github.com/AllenInstitute/mindscope_qc.git
+cd mindscope_qc
+pip install -e .
+```
+
+# Testing
+
+Tests are run on CircleCI on every github commit.
+
+Tests can be run locally by running the following at the command line:
+```
+flake8 mindscope_utilities
+pytest
+```
+
+
+## Creating & Tracking Issues
 If you note a new data issue, here are steps to follow to log it:
 1. Click on the 'Issues' tab to the top/left of the page:
 ![image](https://user-images.githubusercontent.com/19944442/128929021-1cde3fab-414e-4e92-bca3-f5d16b79007c.png)
@@ -37,3 +79,55 @@ If you note a new data issue, here are steps to follow to log it:
 8. Follow up! If you have additional information or context to provide later, return to the issue and add new comments. Try to avoid editing previous comments as this makes tracking difficult.
 
 9. Close the issue when it is solved.
+
+
+
+## Code Contributions
+Contributing to this repo is welcome an encouraged! We hope to build a collaborative code base that is both durable in it's ability to access data and provide qc metrics and plots, and flexible in it's ability to accomodate many different projects. 
+
+
+### Documentation and Style
+Please follow the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/).
+
+
+Documentation is required. 
+In addition to all inline comments, please provide numpy style docstrings for all functions. 
+```
+    """[summary]
+
+    Parameters
+    ----------
+    input_variable : [type]
+        [description]
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+```
+
+### Pull Requests
+Pull requests are welcome!
+
+1. Fork the repo
+2. Create a feature branch
+3. Commit your changes
+4. Create a pull request
+5. Tag `@downtoncrabby`, `@matchings`  and `@seanmcculloch`  to review
+
+
+
+## Contributors:
+
+- Sean McCulloch - sean.mcculloch@alleninstitute.org, @seanmcculloch
+- Clark Roll - kater@alleninstitute.org, @downtoncrabby
+- Doug Ollerenshaw, @dougollerenshaw,
+- Marina Garrett - marinag@alleninstitute.org, @matchings
+
+
+## Additional Links
+
+- [AllenSDK](https://github.com/AllenInstitute/AllenSDK)
+- [BrainTV Visual Behavior Project Page](http://confluence.corp.alleninstitute.org/display/CP/Brain+Observatory%3A+Visual+Behavior)
+- [Details on Cohort Training](http://confluence.corp.alleninstitute.org/display/CP/_EXPERIMENTS)
