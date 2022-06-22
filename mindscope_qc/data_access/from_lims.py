@@ -2083,36 +2083,108 @@ def get_eye_tracking_h5_filepath(ophys_session_id: int)-> str:
 
 
 def get_eye_screen_mapping_filepath(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'EyeScreenMapping'", ophys_session_id)
     return filepath
 
 
 def get_eyetracking_corneal_reflection(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'EyeTracking Corneal Reflection'", ophys_session_id)
     return filepath
 
 
 def get_eyetracking_pupil_filepath(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'EyeTracking Pupil'", ophys_session_id)
     return filepath
 
 
 def get_ellipse_filepath(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'EyeTracking Ellipses'", ophys_session_id)
     return filepath
 
 
 def get_platform_json_filepath(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'OphysPlatformJson'", ophys_session_id)
     return filepath
 
 
 def get_screen_mapping_h5_filepath(ophys_session_id: int)-> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     filepath = get_well_known_file_path("'EyeDlcScreenMapping'", ophys_session_id)
     return filepath
@@ -2128,6 +2200,18 @@ def get_deepcut_h5_filepath(ophys_session_id: int) -> str:
 
 
 def get_behavior_NWB_filepath(behavior_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    behavior_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_id_type(behavior_session_id, "behavior_session_id")
     filepath = get_well_known_file_path("'BehaviorNwb'", behavior_session_id)
     return filepath
