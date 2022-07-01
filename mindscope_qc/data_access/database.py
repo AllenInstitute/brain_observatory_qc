@@ -332,41 +332,6 @@ def get_manifest(server='visual_behavior_data'):
     return pd.DataFrame(list(man))
 
 
-def get_well_known_files(session_id, attachable_id_type='OphysSession'):
-    '''
-    return well_known_files table with names as index
-    inputs:
-        session_id (int): session id from LIMS
-        attachable_id_type (str): session id type. Choose from 'OphysSession' (default) or 'EcephysSession'
-    returns:
-        pandas dataframe with all LIMS well known files for the given session
-    '''
-
-    query = '''
-    select * from well_known_files wkf
-    join well_known_file_types wkft
-    on wkft.id = wkf.well_known_file_type_id
-    where wkf.attachable_type = '{}'
-    and wkf.attachable_id in ({});
-    '''.format(attachable_id_type, session_id)
-
-    return lims_query(query).set_index('name')
-
-
-def simplify_type(x):
-    if is_int(x):
-        return int(x)
-    elif is_bool(x):
-        return int(x)
-    elif is_float(x):
-        return float(x)
-    elif is_uuid(x):
-        return str(x)
-    elif is_array(x):
-        return[simplify_type(e) for e in x]
-    else:
-        return x
-
 
 def simplify_entry(entry):
     '''
