@@ -1248,6 +1248,32 @@ def get_general_info_for_supercontainer_id(supercontainer_id):
 
 ### TABLES ###    # noqa: E266
 
+def get_value_from_table(search_key, search_value, target_table, target_key):
+    """_summary_
+
+    Parameters
+    ----------
+    search_key : _type_
+        _description_
+    search_value : _type_
+        _description_
+    target_table : _type_
+        _description_
+    target_key : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    query = '''
+        SELECT {}
+        FROM {}
+        WHERE {} = '{}'
+    '''.format(target_key, target_table, search_key, search_value)
+    return mixin.select(query)
+
 
 def get_cell_segmentation_runs_table(ophys_experiment_id):
     """Queries LIMS via AllenSDK PostgresQuery function to retrieve

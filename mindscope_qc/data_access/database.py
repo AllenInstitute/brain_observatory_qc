@@ -173,25 +173,6 @@ def get_behavior_session_summary(exclude_error_sessions=True):
 
 
 
-
-def get_value_from_table(search_key, search_value, target_table, target_key):
-    '''
-    a general function for getting a value from a LIMS table
-    '''
-    api = (credential_injector(LIMS_DB_CREDENTIAL_MAP)
-           (PostgresQueryMixin)())
-    query = '''
-        select {}
-        from {}
-        where {} = '{}'
-    '''
-    result = pd.read_sql(query.format(target_key, target_table, search_key, search_value), api.get_connection())
-    if len(result) == 1:
-        return result[target_key].iloc[0]
-    else:
-        return None
-
-
 def populate_id_dict(input_id_dict):
     '''
     an ophys session has 5 different keys by which it can be identified
