@@ -172,16 +172,6 @@ def get_behavior_session_summary(exclude_error_sessions=True):
     return summary
 
 
-def get_pkl_path(session_id=None, id_type='behavior_session_id'):
-    '''
-    get the path to a pkl file for a given session
-    '''
-    if id_type == 'behavior_session_id':
-        rec = get_well_known_files(session_id, 'BehaviorSession').loc['StimulusPickle']
-    elif id_type == 'ophys_session_id':
-        rec = get_well_known_files(session_id, 'OphysSession').loc['StimulusPickle']
-    pkl_path = ''.join([rec['storage_directory'], rec['filename']])
-    return pkl_path
 
 
 def get_value_from_table(search_key, search_value, target_table, target_key):
