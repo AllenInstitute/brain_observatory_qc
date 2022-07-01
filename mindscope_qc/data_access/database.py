@@ -186,24 +186,7 @@ def get_mouseseeks_qc_results(session_id=None, id_type='behavior_session_uuid'):
         return res[0]
 
 
-def is_int(n):
-    return isinstance(n, (int, np.integer))
 
-
-def is_float(n):
-    return isinstance(n, (float, np.float))
-
-
-def is_uuid(n):
-    return isinstance(n, uuid.UUID)
-
-
-def is_bool(n):
-    return isinstance(n, (bool, np.bool_))
-
-
-def is_array(n):
-    return isinstance(n, np.ndarray)
 
 
 def add_behavior_record(behavior_session_uuid=None, pkl_path=None, overwrite=False, db_connection=None, db_name='behavior_data', data_type='foraging2'):
