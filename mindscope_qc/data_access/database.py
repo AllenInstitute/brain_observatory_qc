@@ -172,48 +172,6 @@ def get_behavior_session_summary(exclude_error_sessions=True):
     return summary
 
 
-def get_alternate_ids(uuid):
-    '''
-    get all LIMS ids for a given session UUID
-    '''
-    return populate_id_dict({'behavior_session_uuid': uuid})
-
-
-def convert_id(input_dict, desired_key):
-    '''
-    an ophys session has 5 different keys by which it can be identified
-    this function will convert between keys.
-
-    It takes the following inputs:
-        a key/value pair that represents one possible ID
-        the desired key
-
-    It returns
-        the value matching the desired key
-
-    The following keys may exist for a given Visual Behavior session:
-
-    * `behavior_session_uuid`: a 36 digit string generated with the UUID python module by camstim at runtime
-    * `foraging_id`: Alternate nomenclature for `behavior_session_uuid` used by LIMS
-    * `behavior_session_id`: a 9 digit integer identifying the behavior session
-    * `ophys_session_id`: a 9 digit integer identifying the ophys session. Every ophys session has an associated behavior session.
-    * `ophys_experiment_id`: a 9 digit integer. Each ophys session has one experiment.
-
-    For example, for the session run by mouse 450471 on 2P3 on June 4, 2019:
-    * behavior_session_uuid = 4d4dfd3e-e1bf-4ad8-9775-1273ce7e5189
-    * LIMS behavior session ID = 880784794
-    * LIMS ophys session ID = 880753403
-    * LIMS ophys_experiment ID = 880961028
-
-    example:
-        >> convert_id({'ophys_session_id': 880753403}, 'behavior_session_uuid')
-
-            '4d4dfd3e-e1bf-4ad8-9775-1273ce7e5189'
-
-    '''
-    all_ids = populate_id_dict(input_dict)
-    return all_ids[desired_key]
-
 
 def get_mouseseeks_qc_results(session_id=None, id_type='behavior_session_uuid'):
     '''get qc results from mouseseeks'''
