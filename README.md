@@ -37,6 +37,7 @@ pip install -e .
 ```
 
 # Testing
+Unit testing is required for new functions. 
 
 Tests are run on CircleCI on every github commit.
 
@@ -83,15 +84,21 @@ If you note a new data issue, here are steps to follow to log it:
 
 
 ## Code Contributions
-Contributing to this repo is welcome an encouraged! We hope to build a collaborative code base that is both durable in it's ability to access data and provide qc metrics and plots, and flexible in it's ability to accomodate many different projects. 
+Contributing to this repo is welcome an encouraged! We hope to build a collaborative code base that is both durable in it's ability to access data and provide qc metrics and plots, and flexible in it's ability to accomodate many different projects. To keep our repo robust we require that contributions include:
+* documentation with numpy style docstrings, and use type hints
+* follow PEP 8 style guide
+* have relevant unit tests, pre-conditions and post-conditions
 
 
 ### Documentation and Style
+Documentation is required. 
+
 Please follow the [PEP 8 style guide](https://www.python.org/dev/peps/pep-0008/).
 
-
-Documentation is required. 
-In addition to all inline comments, please provide numpy style docstrings for all functions. 
+In addition to all inline comments, please provide [numpy style](https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard) docstrings for all functions and includes the following items at a minimum:
+* summary
+* parameters
+* returns 
 ```
     """[summary]
 
@@ -106,6 +113,26 @@ In addition to all inline comments, please provide numpy style docstrings for al
         [description]
     """
 ```
+pro-tip: if using Visual Studio Code the extension AutoDocstring from publisher:"Nils Werner" will automatically generate docstring template for you.
+
+[Type hints](https://docs.python.org/3/library/typing.html) in the function definition are also highly encouraged.
+Example: 
+```
+def cast_int_to_string(input_integer:int) -> str:
+    """casts an integer into a string
+
+    Parameters
+    ----------
+    input_integer : int
+        any integer
+
+    Returns
+    -------
+    str
+        a string of the input integer
+    """
+```
+
 
 ### Pull Requests
 Pull requests are welcome!
@@ -122,7 +149,7 @@ Pull requests are welcome!
 
 - Sean McCulloch - sean.mcculloch@alleninstitute.org, @seanmcculloch
 - Clark Roll - kater@alleninstitute.org, @downtoncrabby
-- Doug Ollerenshaw, @dougollerenshaw,
+- Doug Ollerenshaw - @dougollerenshaw
 - Marina Garrett - marinag@alleninstitute.org, @matchings
 
 

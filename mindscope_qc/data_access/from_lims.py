@@ -111,6 +111,8 @@ GEN_INFO_QUERY_DICT = {
     "ophys_container_id":  {"table_column": "vbec.id"},
     "supercontainer_id":   {"table_column": "os.visual_behavior_supercontainer_id"}
     }
+def generic_lims_query(query):
+    """_summary_
 
 def get_all_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     """[summary]
@@ -487,6 +489,18 @@ def get_donor_id_for_specimen_id(specimen_id:int):
 
 
 def get_specimen_id_for_donor_id(donor_id):
+    """_summary_
+
+    Parameters
+    ----------
+    donor_id : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     conditions.validate_id_type(donor_id, "donor_id")
     donor_id = int(donor_id)
     query = '''
@@ -1385,6 +1399,8 @@ def get_general_info_for_supercontainer_id(supercontainer_id: int) -> pd.DataFra
 
 ### TABLES ###    # noqa: E266
 
+def get_value_from_table(search_key, search_value, target_table, target_key):
+    """_summary_
 
 def get_cell_segmentation_runs_table(ophys_experiment_id: int) -> pd.DataFrame:
     """Queries LIMS via AllenSDK PostgresQuery function to retrieve
@@ -2287,7 +2303,7 @@ def load_neuropil_traces_array(ophys_experiment_id: int) -> array:
     return neuropil_traces_array
 
 
-def load_motion_corrected_movie(ophys_experiment_id: int):
+def load_motion_corrected_movie(ophys_experiment_id, frame_limit=None):
     """uses well known file system to get motion_corrected_movie.h5
         filepath and then loads the h5 file with h5py function.
         Gets the motion corrected movie array in the h5 from the only
@@ -2308,7 +2324,11 @@ def load_motion_corrected_movie(ophys_experiment_id: int):
     """
     filepath = get_motion_corrected_movie_filepath(ophys_experiment_id)
     motion_corrected_movie_file = h5py.File(filepath, 'r')
-    motion_corrected_movie = motion_corrected_movie_file['data']
+    if not frame_limit:        
+        motion_corrected_movie = motion_corrected_movie_file['data']
+    else:
+        motion_corrected_movie = motion_corrected_movie_file['data'][0:frame_limit]
+
     return motion_corrected_movie
 
 
