@@ -103,6 +103,52 @@ MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
     "Deepscope":   ["DS.1"]                                    # noqa: E241, E501
     }
 
+def generic_lims_query(query):
+    """_summary_
+
+    Parameters
+    ----------
+    query : string
+        sql query for lims. Must include 
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    '''
+    execute a SQL query in LIMS
+    returns:
+        * the result if the result is a single element
+        * results in a pandas dataframe otherwise
+
+    Examples:
+
+        >> lims_query('select ophys_session_id from ophys_experiments where id = 878358326')
+
+        returns 877907546
+
+        >> lims_query('select * from ophys_experiments where id = 878358326')
+
+        returns a single line dataframe with all columns from the ophys_experiments table for ophys_experiment_id =  878358326
+
+        >> lims_query('select * from ophys_sessions where id in (877907546, 876522267, 869118259)')
+
+        returns a three line dataframe with all columns from the ophys_sessions table for ophys_session_id in the list [877907546, 876522267, 869118259]
+
+        >> lims_query('select * from ophys_sessions where specimen_id = 830901424')
+
+        returns all rows and columns in the ophys_sessions table for specimen_id = 830901424
+    '''
+    df = mixin.select(query)
+    if df.shape == (1, 1):
+        # if the result is a single element, return only that element
+        return df.iloc[0][0]
+    else:
+        # otherwise return in dataframe format
+        return df
+
 
 def get_all_mouse_ids(id_type, id_number):
     """[summary]
@@ -363,6 +409,18 @@ def all_ids_for_id_query():
 ### ID TYPES ###      # noqa: E266
 
 def get_donor_id_for_specimen_id(specimen_id):
+    """_summary_
+
+    Parameters
+    ----------
+    specimen_id : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     conditions.validate_id_type(specimen_id, "specimen_id")
     specimen_id = int(specimen_id)
     query = '''
@@ -380,6 +438,18 @@ def get_donor_id_for_specimen_id(specimen_id):
 
 
 def get_specimen_id_for_donor_id(donor_id):
+    """_summary_
+
+    Parameters
+    ----------
+    donor_id : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     conditions.validate_id_type(donor_id, "donor_id")
     donor_id = int(donor_id)
     query = '''
@@ -455,9 +525,17 @@ def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id)
 
 
 def get_ophys_session_id_for_ophys_experiment_id(ophys_experiment_id):
-    """uses an sqlite to query lims2 database. Gets the ophys_session_id
-       for a given ophys_experiment_id from the ophys_experiments table
-       in lims.
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_experiment_id : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
     """
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     query = '''
@@ -1248,6 +1326,32 @@ def get_general_info_for_supercontainer_id(supercontainer_id):
 
 ### TABLES ###    # noqa: E266
 
+def get_value_from_table(search_key, search_value, target_table, target_key):
+    """_summary_
+
+    Parameters
+    ----------
+    search_key : _type_
+        _description_
+    search_value : _type_
+        _description_
+    target_table : _type_
+        _description_
+    target_key : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    query = '''
+        SELECT {}
+        FROM {}
+        WHERE {} = '{}'
+    '''.format(target_key, target_table, search_key, search_value)
+    return mixin.select(query)
+
 
 def get_cell_segmentation_runs_table(ophys_experiment_id):
     """Queries LIMS via AllenSDK PostgresQuery function to retrieve
@@ -2003,7 +2107,7 @@ def load_neuropil_traces_array(ophys_experiment_id):
     return neuropil_traces_array
 
 
-def load_motion_corrected_movie(ophys_experiment_id):
+def load_motion_corrected_movie(ophys_experiment_id, frame_limit=None):
     """uses well known file system to get motion_corrected_movie.h5
         filepath and then loads the h5 file with h5py function.
         Gets the motion corrected movie array in the h5 from the only
@@ -2024,7 +2128,11 @@ def load_motion_corrected_movie(ophys_experiment_id):
     """
     filepath = get_motion_corrected_movie_filepath(ophys_experiment_id)
     motion_corrected_movie_file = h5py.File(filepath, 'r')
-    motion_corrected_movie = motion_corrected_movie_file['data']
+    if not frame_limit:        
+        motion_corrected_movie = motion_corrected_movie_file['data']
+    else:
+        motion_corrected_movie = motion_corrected_movie_file['data'][0:frame_limit]
+
     return motion_corrected_movie
 
 
