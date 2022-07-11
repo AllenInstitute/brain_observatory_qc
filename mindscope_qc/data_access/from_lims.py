@@ -487,9 +487,64 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     return all_ids
 
 
+def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_type : str
+        options are the keys in the OPHYS_ID_TYPES_DICT
+        "ophys_experiment_id"
+        "ophys_session_id"
+        "foraging_id"
+        "behavior_session_id"
+        "ophys_container_id"
+        "supercontainer_id"
+    id_number : int
+        usually 9 digits, foraging IDs are the exception
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with the following columns:
+        "experiment_storage_directory"
+        "session_storage_directory"
+        "container_storage_directory"
+    """
+
+    query = '''
+    oe.storage_directory AS experiment_storage_directory,
+    os.storage_directory AS session_storage_directory,
+    vbec.storage_directory AS container_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN behavior_sessions bs
+    ON bs.foraging_id = os.foraging_id
+
+    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    ON oe.id = oevbec.ophys_experiment_id
+
+    JOIN visual_behavior_experiment_containers vbec
+    ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
+    WHERE
+    {} = {}
+    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
+    storage_directories_df = mixin.select(query)
+    return storage_directories_df
+
+
 ### ID TYPES ###      # noqa: E266
 
-def get_donor_id_for_specimen_id(specimen_id: int):
+def get_donor_id_for_specimen_id(specimen_id: int) -> int:
     conditions.validate_id_type(specimen_id, "specimen_id")
     specimen_id = int(specimen_id)
     query = '''
@@ -506,7 +561,7 @@ def get_donor_id_for_specimen_id(specimen_id: int):
     return donor_ids
 
 
-def get_specimen_id_for_donor_id(donor_id):
+def get_specimen_id_for_donor_id(donor_id: int) -> int: 
     """_summary_
 
     Parameters
@@ -536,7 +591,7 @@ def get_specimen_id_for_donor_id(donor_id):
 
 
 # Cell / ROI related IDS
-def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int):
+def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int) -> int:
     '''
     returns the ophys experiment ID from which a given cell_roi_id
     was recorded
