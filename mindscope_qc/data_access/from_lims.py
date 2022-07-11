@@ -85,7 +85,7 @@ OPHYS_ID_TYPES_DICT = {
     "behavior_session_id":     {"lims_table": "behavior_sessions",                     "id_column": "id"},           # noqa: E241, E501
     "ophys_container_id":      {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},           # noqa: E241, E501
     "supercontainer_id":       {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},           # noqa: E241, E501
-    }
+}
 
 
 MOUSE_IDS_DICT = {
@@ -94,7 +94,7 @@ MOUSE_IDS_DICT = {
     "labtracks_id":           {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
     "external_specimen_name": {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
     "external_donor_name":    {"lims_table": "donors",    "id_column": "external_donor_name"}       # noqa: E241, E501
-    }
+}
 
 
 MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
@@ -102,38 +102,28 @@ MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
     "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"],     # noqa: E241, E501
     "Mesoscope":   ["MESO.1", "MESO.2"],                       # noqa: E241, E501
     "Deepscope":   ["DS.1"]                                    # noqa: E241, E501
-    }
+}
 
 GEN_INFO_QUERY_DICT = {
-    "ophys_experiment_id": {"table_column": "oe.id"},
-    "ophys_session_id":    {"table_column": "os.id"},
-    "behavior_session_id": {"table_column": "bs.id"},
-    "ophys_container_id":  {"table_column": "vbec.id"},
-    "supercontainer_id":   {"table_column": "os.visual_behavior_supercontainer_id"}
-    }
-def generic_lims_query(query):
-    """_summary_
+    "ophys_experiment_id": {"table_column": "oe.id"},          # noqa: E241
+    "ophys_session_id":    {"table_column": "os.id"},          # noqa: E241
+    "behavior_session_id": {"table_column": "bs.id"},   
+    "ophys_container_id":  {"table_column": "vbec.id"},        # noqa: E241
+    "supercontainer_id":   {"table_column": "os.visual_behavior_supercontainer_id"} # noqa: E241
+}
 
-def get_all_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
-    """[summary]
 
-    Parameters
-    ----------
-    id_type : string
-        the type of ID to search on
-    id_number : [type]
-        [description]
-    """
+def get_mouse_ids_from_id(id_type: str, id_number: int):
     conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
-    donors.id donor_id,
-    donors.external_donor_name as labtracks_id,
-    specimens.id as specimen_id
+    donors.id  AS donor_id,
+    donors.external_donor_name AS labtracks_id,
+    specimens.id AS specimen_id
 
     FROM
     donors
-    JOIN specimens on donors.external_donor_name = specimens.external_specimen_name
+    JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
 
     WHERE {}.{} = {}
     '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
@@ -141,7 +131,7 @@ def get_all_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     return mouse_ids
 
 
-def get_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
+def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
     """
     returns a dataframe of all variations (donor_id, labtracks_id,
     specimen_id) of mouse ID for a given input ID.
@@ -204,7 +194,7 @@ def get_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     return lims_utils.lims_query(query)
 
 
-def general_id_type_query(id_type:str, id_number:int):
+def general_id_type_query(id_type: str, id_number: int):
     """_summary_
 
     Parameters
@@ -232,7 +222,7 @@ def general_id_type_query(id_type:str, id_number:int):
     return table_row
 
 
-def get_id_type(id_number:int) -> str:
+def get_id_type(id_number: int) -> str:
     """_summary_
 
     Parameters
@@ -263,7 +253,7 @@ def get_id_type(id_number:int) -> str:
     return id_type
 
 
-def get_microscope_type(ophys_session_id:int) -> str:
+def get_microscope_type(ophys_session_id: int) -> str:
     """_summary_
 
     Parameters
@@ -309,13 +299,11 @@ def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFram
 
     return general_info_df
 
-def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
+
+def get_general_info_for_id(id_type: str, id_number: int)-> pd.DataFrame:
     """
     combines columns from several different lims tables to provide
     some basic overview information.
-
-    validates the id_number and id_type are compatible,
-    that the 
 
     Parameters
     ----------
@@ -411,19 +399,19 @@ def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
     JOIN structures ON structures.id = oe.targeted_structure_id
     JOIN imaging_depths ON imaging_depths.id = oe.imaging_depth_id
     JOIN equipment ON equipment.id = os.equipment_id
-    
+
     WHERE
     {} = {}
     '''.format(GEN_INFO_QUERY_DICT[id_type]["table_column"],
                id_number)
-    
+
     general_info = mixin.select(query)
-    
+
     # ensure operating system compatible filepaths
     general_info = correct_general_info_filepaths(general_info)
 
     return general_info
-    
+
 
 def all_ids_for_id_query():
     """the base query used for all the 'get_all_ids_for...
@@ -471,7 +459,7 @@ def all_ids_for_id_query():
 
 ### ID TYPES ###      # noqa: E266
 
-def get_donor_id_for_specimen_id(specimen_id:int):
+def get_donor_id_for_specimen_id(specimen_id: int):
     conditions.validate_id_type(specimen_id, "specimen_id")
     specimen_id = int(specimen_id)
     query = '''
@@ -518,7 +506,7 @@ def get_specimen_id_for_donor_id(donor_id):
 
 
 # Cell / ROI related IDS
-def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id:int):
+def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int):
     '''
     returns the ophys experiment ID from which a given cell_roi_id
     was recorded
@@ -544,7 +532,7 @@ def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id:int):
 
 
 # for ophys_experiment_id
-def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id:int) -> int:
+def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id: int) -> int:
     """gets the id for the current cell segmentation run for a given experiment.
         Queries LIMS via AllenSDK PostgresQuery function.
 
@@ -1398,9 +1386,37 @@ def get_general_info_for_supercontainer_id(supercontainer_id: int) -> pd.DataFra
 
 
 ### TABLES ###    # noqa: E266
-
 def get_value_from_table(search_key, search_value, target_table, target_key):
-    """_summary_
+    """a general function for getting a value from a LIMS table
+
+    Parameters
+    ----------
+    search_key : _type_
+        _description_
+    search_value : _type_
+        _description_
+    target_table : _type_
+        _description_
+    target_key : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    query = '''
+        select {}
+        from {}
+        where {} = '{}'
+    '''
+    result = pd.read_sql(query.format(target_key, target_table, search_key, search_value))
+    if len(result) == 1:
+        return result[target_key].iloc[0]
+    else:
+        return None
+
 
 def get_cell_segmentation_runs_table(ophys_experiment_id: int) -> pd.DataFrame:
     """Queries LIMS via AllenSDK PostgresQuery function to retrieve
@@ -1802,7 +1818,7 @@ def get_ophys_NWB_filepath(ophys_experiment_id: int) -> str:
     return filepath
 
 
-def get_ophys_extracted_traces_filepath(ophys_experiment_id: int) ->str:
+def get_ophys_extracted_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id)
     filepath = get_well_known_file_path("'NWBOphys'", ophys_experiment_id)
     return filepath
