@@ -75,7 +75,7 @@ ALL_ID_TYPES_DICT = {
     "ophys_container_id":  {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},                       # noqa: E241, E501
     "isi_experiment_id":   {"lims_table": "isi_experiments",                       "id_column": "id"},                       # noqa: E241, E501
     "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},                       # noqa: E241, E501
-    }
+}
 
 
 OPHYS_ID_TYPES_DICT = {
@@ -429,7 +429,7 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
 def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     """ Will get all other ophys related id types when given one
-    of the the ids. 
+    of the the ids.
 
     Parameters
     ----------
@@ -454,7 +454,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
     conditions.validate_id_type(id_number, id_type)
-    
+
     query = '''
     SELECT
     oe.id AS ophys_experiment_id,
@@ -561,7 +561,7 @@ def get_donor_id_for_specimen_id(specimen_id: int) -> int:
     return donor_ids
 
 
-def get_specimen_id_for_donor_id(donor_id: int) -> int: 
+def get_specimen_id_for_donor_id(donor_id: int) -> int:
     """_summary_
 
     Parameters
@@ -1845,7 +1845,7 @@ def get_filepath_from_realdict_object(realdict_object):
     return filepath
 
 
-def get_well_known_file_path(wellKnownFileName, attachable_id):
+def get_well_known_file_path(wellKnownFileName: str, attachable_id: int) -> str:
     RealDict_object = get_well_known_file_realdict(wellKnownFileName, attachable_id)
     # filepath works for all operating systems
     filepath = get_filepath_from_realdict_object(RealDict_object)
@@ -1853,19 +1853,19 @@ def get_well_known_file_path(wellKnownFileName, attachable_id):
 
 
 # FOR ISI EXPERIMENT ID
-def get_isi_experiment_filepath(isi_experiment_id):
+def get_isi_experiment_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'IsiExperiment'", isi_experiment_id)
     return filepath
 
 
-def get_processed_isi_experiment_filepath(isi_experiment_id):
+def get_processed_isi_experiment_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'IsiProcessed'", isi_experiment_id)
     return filepath
 
 
-def get_isi_NWB_filepath(isi_experiment_id):
+def get_isi_NWB_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'NWBISI'", isi_experiment_id)
     return filepath
@@ -1892,67 +1892,67 @@ def get_BehaviorOphys_NWB_filepath(ophys_experiment_id: int) -> str:
     return filepath
 
 
-def get_demixed_traces_filepath(ophys_experiment_id):
+def get_demixed_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'DemixedTracesFile'", ophys_experiment_id)
     return filepath
 
 
-def get_motion_corrected_movie_filepath(ophys_experiment_id):
+def get_motion_corrected_movie_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'MotionCorrectedImageStack'", ophys_experiment_id)
     return filepath
 
 
-def get_neuropil_correction_filepath(ophys_experiment_id):
+def get_neuropil_correction_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'NeuropilCorrection'", ophys_experiment_id)
     return filepath
 
 
-def get_average_intensity_projection_filepath(ophys_experiment_id):
+def get_average_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysAverageIntensityProjectionImage'", ophys_experiment_id)
     return filepath
 
 
-def get_dff_traces_filepath(ophys_experiment_id):
+def get_dff_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysDffTraceFile'", ophys_experiment_id)
     return filepath
 
 
-def get_event_trace_filepath(ophys_experiment_id):
+def get_event_trace_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysEventTraceFile'", ophys_experiment_id)
     return filepath
 
 
-def get_extracted_traces_input_filepath(ophys_experiment_id):
+def get_extracted_traces_input_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExtractedTracesInputJson'", ophys_experiment_id)
     return filepath
 
 
-def get_extracted_traces_filepath(ophys_experiment_id):
+def get_extracted_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExtractedTraces'", ophys_experiment_id)
     return filepath
 
 
-def get_motion_preview_filepath(ophys_experiment_id):
+def get_motion_preview_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysMotionPreview'", ophys_experiment_id)
     return filepath
 
 
-def get_motion_xy_offset_filepath(ophys_experiment_id):
+def get_motion_xy_offset_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysMotionXyOffsetData'", ophys_experiment_id)
     return filepath
 
 
-def get_neuropil_traces_filepath(ophys_experiment_id):
+def get_neuropil_traces_filepath(ophys_experiment_id: int) -> str:
     """uses well known file system to query lims and get the directory
     and filename for the neuropil_traces.h5 for a given ophys experiment
 
@@ -1972,13 +1972,13 @@ def get_neuropil_traces_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_ophys_registration_summary_image_filepath(ophys_experiment_id):
+def get_ophys_registration_summary_image_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysRegistrationSummaryImage'", ophys_experiment_id)
     return filepath
 
 
-def get_roi_traces_filepath(ophys_experiment_id):
+def get_roi_traces_filepath(ophys_experiment_id: int) -> str:
     """uses well known file system to query lims and get the directory
     and filename for the roi_traces.h5 for a given ophys experiment
 
@@ -1997,13 +1997,13 @@ def get_roi_traces_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_cell_roi_metrics_file_filepath(ophys_experiment_id):
+def get_cell_roi_metrics_file_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExperimentCellRoiMetricsFile'", ophys_experiment_id)
     return filepath
 
 
-def get_time_syncronization_filepath(ophys_experiment_id):
+def get_time_syncronization_filepath(ophys_experiment_id: int) -> str:
     """for scientifica experiments only (CAM2P.3, CAM2P.4, CAM2P.5)
 
     Parameters
@@ -2023,7 +2023,7 @@ def get_time_syncronization_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_observatory_events_filepath(ophys_experiment_id):
+def get_observatory_events_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'ObservatoryEventsFile'", ophys_experiment_id)
     return filepath
@@ -2032,14 +2032,14 @@ def get_observatory_events_filepath(ophys_experiment_id):
 ## FOR ophys_cell_segmentation_run_id via ophys_experiment_id             # noqa: E266
 
 
-def get_ophys_suite2p_rois_filepath(ophys_experiment_id):
+def get_ophys_suite2p_rois_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSuite2pRois'", current_seg_id)
     return filepath
 
 
-def get_segmentation_objects_filepath(ophys_experiment_id):
+def get_segmentation_objects_filepath(ophys_experiment_id: int) -> str:
     """use SQL and the LIMS well known file system to get the
        location information for the objectlist.txt file for a
        given cell segmentation run
@@ -2167,7 +2167,7 @@ def get_eye_tracking_avi_filepath(ophys_session_id: int) -> str:
     return filepath
 
 
-def get_eye_tracking_h5_filepath(ophys_session_id: int)-> str:
+def get_eye_tracking_h5_filepath(ophys_session_id: int) -> str:
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     RealDict_object = get_well_known_file_realdict("'RawEyeTrackingVideo'", ophys_session_id)
     filepath = RealDict_object['filepath'][0]
@@ -2266,7 +2266,7 @@ def get_platform_json_filepath(ophys_session_id: int) -> str:
     return filepath
 
 
-def get_screen_mapping_h5_filepath(ophys_session_id: int)-> str:
+def get_screen_mapping_h5_filepath(ophys_session_id: int) -> str:
     """_summary_
 
     Parameters
@@ -2544,6 +2544,7 @@ def update_objectlist_column_labels(objectlist_df: pd.DataFrame) -> pd.DataFrame
                                                   ' corcoef0': 'soma_obj0_overlap_trace_corr',
                                                   ' corcoef1': 'soma_obj1_overlap_trace_corr'})
     return objectlist_df
+
 
 def get_dff_traces_for_roi(cell_roi_id):
     '''
