@@ -3,6 +3,7 @@ import json
 import warnings
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from datetime import datetime
 
 
@@ -121,7 +122,7 @@ def dateformat(exp_date):
     """
     reformat date of acquisition for accurate sorting by date
     """
-    
+
     date = int(datetime.strptime(exp_date, '%Y-%m-%d  %H:%M:%S.%f').strftime('%Y%m%d'))
     return date
 
