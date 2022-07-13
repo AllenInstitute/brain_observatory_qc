@@ -1849,6 +1849,25 @@ def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str
     return cell_segmentation_run_directory
 
 
+def get_maxInt_boundary_filepath(ophys_experiment_id: int) -> str:
+    """filepath to png of image of boundary of all detected objects
+    to see if and how objects overlap.
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
+    cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
+    image_filepath = os.path.join(cell_seg_directory, "maxInt_boundary.png")
+    return image_filepath
+
+
 
 ### FILEPATHS FOR WELL KNOWN FILES###      # noqa: E266
 
