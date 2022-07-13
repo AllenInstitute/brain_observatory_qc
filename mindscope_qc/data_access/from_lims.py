@@ -291,7 +291,7 @@ def get_microscope_type(ophys_session_id: int) -> str:
 
 ### QUERIES USED FOR MULTIPLE FUNCTIONS ###      # noqa: E266
 
-def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFrame:
+def correct_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame:
     """_summary_
 
     Parameters
@@ -308,10 +308,9 @@ def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFram
                                       'session_storage_directory',
                                       'container_storage_directory']
 
-    for directory in storage_directory_columns_list:
-        general_info_df = utils.correct_dataframe_filepath(general_info_df, directory)
-
-    return general_info_df
+    for column in storage_directory_columns_list:
+        dataframe = utils.correct_dataframe_filepath(dataframe, column)
+    return dataframe
 
 
 def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
@@ -422,7 +421,7 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     general_info = mixin.select(query)
 
     # ensure operating system compatible filepaths
-    general_info = correct_general_info_filepaths(general_info)
+    general_info = correct_storage_directory_filepaths(general_info)
 
     return general_info
 
@@ -485,61 +484,6 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     all_ids = mixin.select(query)
 
     return all_ids
-
-
-def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
-    """_summary_
-
-    Parameters
-    ----------
-    id_type : str
-        options are the keys in the OPHYS_ID_TYPES_DICT
-        "ophys_experiment_id"
-        "ophys_session_id"
-        "foraging_id"
-        "behavior_session_id"
-        "ophys_container_id"
-        "supercontainer_id"
-    id_number : int
-        usually 9 digits, foraging IDs are the exception
-
-    Returns
-    -------
-    pd.DataFrame
-        dataframe with the following columns:
-        "experiment_storage_directory"
-        "session_storage_directory"
-        "container_storage_directory"
-    """
-
-    query = '''
-    oe.storage_directory AS experiment_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory
-
-    FROM
-    ophys_experiments oe
-
-    JOIN ophys_sessions os
-    ON os.id = oe.ophys_session_id
-
-    JOIN behavior_sessions bs
-    ON bs.foraging_id = os.foraging_id
-
-    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
-    ON oe.id = oevbec.ophys_experiment_id
-
-    JOIN visual_behavior_experiment_containers vbec
-    ON vbec.id = oevbec.visual_behavior_experiment_container_id
-
-    JOIN visual_behavior_supercontainers vbs
-    ON os.visual_behavior_supercontainer_id = vbs.id
-
-    WHERE
-    {} = {}
-    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
-    storage_directories_df = mixin.select(query)
-    return storage_directories_df
 
 
 ### ID TYPES ###      # noqa: E266
@@ -617,7 +561,7 @@ def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int) -> int:
 
 
 # for ophys_experiment_id
-def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id: int) -> int:
+def get_current_segmentation_run_id(ophys_experiment_id: int) -> int:
     """gets the id for the current cell segmentation run for a given experiment.
         Queries LIMS via AllenSDK PostgresQuery function.
 
@@ -1527,7 +1471,7 @@ def get_cell_rois_table(ophys_experiment_id: int) -> pd.DataFrame:
         _description_
     """
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_segmentation_run_id = get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id)
+    current_segmentation_run_id = get_current_segmentation_run_id(ophys_experiment_id)
 
     query = '''
     SELECT *
@@ -1726,7 +1670,188 @@ def get_cell_exclusion_labels(ophys_experiment_id: int) -> pd.DataFrame:
     return mixin.select(query)
 
 
+### ________________LIMS__STORAGE__DIRECTORIES_____________________ # noqa: E266
+
+def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_type : str
+        options are the keys in the OPHYS_ID_TYPES_DICT
+        "ophys_experiment_id"
+        "ophys_session_id"
+        "foraging_id"
+        "behavior_session_id"
+        "ophys_container_id"
+        "supercontainer_id"
+    id_number : int
+        usually 9 digits, foraging IDs are the exception
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with the following columns:
+        "experiment_storage_directory"
+        "session_storage_directory"
+        "container_storage_directory"
+    """
+
+    query = '''
+    oe.storage_directory AS experiment_storage_directory,
+    os.storage_directory AS session_storage_directory,
+    vbec.storage_directory AS container_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN behavior_sessions bs
+    ON bs.foraging_id = os.foraging_id
+
+    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    ON oe.id = oevbec.ophys_experiment_id
+
+    JOIN visual_behavior_experiment_containers vbec
+    ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
+    WHERE
+    {} = {}
+    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
+    storage_directories_df = mixin.select(query)
+    storage_directories_df = correct_storage_directory_filepaths(storage_directories_df)
+    return storage_directories_df
+
+
+def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
+    directories_df = get_storage_directories_for_id("ophys_experiment_id", ophys_experiment_id)
+    experiment_path = directories_df["experiment_storage_directory"][0]
+    return experiment_path
+
+
+def get_session_storage_directory(ophys_session_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
+    directories_df = get_storage_directories_for_id("ophys_session_id", ophys_session_id)
+    session_path = directories_df["session_storage_directory"][0]
+    return session_path
+
+
+def get_container_storage_directory(ophys_container_id: int) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_container_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
+    directories_df = get_storage_directories_for_id("ophys_container_id", ophys_container_id)
+    container_path = directories_df["container_storage_directory"][0]
+    return container_path
+
+
+def get_crosstalk_storage_directory(ophys_session_id: int) -> str:
+    """
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    str
+        filepath string to the "crosstalk" folder in the 
+    """
+    session_directory = get_session_storage_directory(ophys_session_id)
+    crosstalk_directory = os.path.join(session_directory, "crosstalk")
+    return crosstalk_directory
+
+
+def get_eye_tracking_storage_directory(ophys_session_id: int) -> str:
+    session_directory = get_session_storage_directory(ophys_session_id)
+    eye_tracking_directory = os.path.join(session_directory, "eye_tracking")
+    return eye_tracking_directory
+
+
+def get_face_tracking_storage_directory(ophys_session_id: int) -> str:
+    session_directory = get_session_storage_directory(ophys_session_id)
+    face_tracking_directory = os.path.join(session_directory, "face_tracking")
+    return face_tracking_directory
+
+
+def get_side_tracking_storage_directory(ophys_session_id: int) -> str:
+    session_directory = get_session_storage_directory(ophys_session_id)
+    side_tracking_directory = os.path.join(session_directory, "side_tracking")
+    return side_tracking_directory
+
+
+def get_demix_storage_directory(ophys_experiment_id: int) -> str:
+    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    demix_directory = os.path.join(experiment_directory, "demix")
+    return demix_directory
+
+
+def get_demix_plots_storage_directory(ophys_experiment_id: int) -> str:
+    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    demix_plots_directory = os.path.join(experiment_directory, "demix", "demix_plots")
+    return demix_plots_directory
+
+
+def get_neuropil_subtraction_plots_directory(ophys_experiment_id: int) -> str:
+    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    np_subtraction_directory = os.path.join(experiment_directory, "demix", "demix_plots")
+    return np_subtraction_directory
+
+
+def get_experiment_processed_directory(ophys_experiment_id: int) -> str:
+    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    processed_directory = os.path.join(experiment_directory, "processed")
+    return processed_directory
+
+
+def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str:
+    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    segmentation_run_id = get_current_segmentation_run_id(ophys_experiment_id)
+    cell_segmentation_run_directory = os.path.join(experiment_directory, "processed", "ophys_cell_segmentation_run_{}".format(segmentation_run_id))
+    return cell_segmentation_run_directory
+
+
+
 ### FILEPATHS FOR WELL KNOWN FILES###      # noqa: E266
+
 
 VISUAL_BEHAVIOR_WELL_KNOWN_FILE_ATTACHABLE_ID_TYPES = ["'IsiExperiment'",
                                                        "'OphysExperiment'",
@@ -2034,7 +2159,7 @@ def get_observatory_events_filepath(ophys_experiment_id: int) -> str:
 
 def get_ophys_suite2p_rois_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSuite2pRois'", current_seg_id)
     return filepath
 
@@ -2051,42 +2176,42 @@ def get_segmentation_objects_filepath(ophys_experiment_id: int) -> str:
         list -- list with storage directory and filename
     """
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationObjects'", current_seg_id)
     return filepath
 
 
 def get_lo_segmentation_mask_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysLoSegmentationMaskData'", current_seg_id)
     return filepath
 
 
 def get_segmentation_mask_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationMaskData'", current_seg_id)
     return filepath
 
 
 def get_segmentation_mask_image_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationMaskImage'", current_seg_id)
     return filepath
 
 
 def get_ave_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysAverageIntensityProjectionImage'", current_seg_id)
     return filepath
 
 
 def get_max_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysMaxIntImage'", current_seg_id)
     return filepath
 
