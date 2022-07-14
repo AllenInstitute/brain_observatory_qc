@@ -1868,6 +1868,9 @@ def get_maxInt_boundary_filepath(ophys_experiment_id: int) -> str:
     return image_filepath
 
 
+def get_maxInt_masks_filepath(ophys_experiment_id: int) -> str:
+
+
 
 ### FILEPATHS FOR WELL KNOWN FILES###      # noqa: E266
 
