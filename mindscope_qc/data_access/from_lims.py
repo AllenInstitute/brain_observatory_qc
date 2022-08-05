@@ -162,8 +162,9 @@ def generic_lims_query(query: str) -> pd.DataFrame:
     dataframe
         * the result if the result is a single element
         * results in a pandas dataframe otherwise
+    
     Examples
-    ------
+    --------
     >> generic_lims_query('select ophys_session_id from
                    ophys_experiments where id = 878358326')
         returns 877907546
@@ -220,7 +221,8 @@ def get_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     Returns
     -------
     dataframe
-        a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
+        a dataframe with columns for `donor_id`, `labtracks_id`,
+        `specimen_id`
 
     Raises
     ------
