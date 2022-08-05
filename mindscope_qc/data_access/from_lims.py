@@ -164,22 +164,22 @@ def generic_lims_query(query: str) -> pd.DataFrame:
         * results in a pandas dataframe otherwise
     Examples
     ------
-    >> lims_query('select ophys_session_id from
+    >> generic_lims_query('select ophys_session_id from
                    ophys_experiments where id = 878358326')
         returns 877907546
 
-    >> lims_query('select * from ophys_experiments where id = 878358326')
+    >> generic_lims_query('select * from ophys_experiments where id = 878358326')
         returns a single line dataframe with all columns from the
         ophys_experiments table for ophys_experiment_id =  878358326
 
-    >> lims_query('select * from ophys_sessions where id in (877907546,
+    >> generic_lims_query('select * from ophys_sessions where id in (877907546,
                                                              876522267,
                                                              869118259)')
         returns a three line dataframe with all columns from the
             ophys_sessions table for ophys_session_id in the
             list [877907546, 876522267, 869118259]
 
-    >> lims_query('select * from ophys_sessions where specimen_id = 830901424')
+    >> generic_lims_query('select * from ophys_sessions where specimen_id = 830901424')
         returns all rows and columns in the ophys_sessions table
             for specimen_id = 830901424
     """
