@@ -243,7 +243,7 @@ def add_all_snr_metrics(expt_table: pd.DataFrame,
 
     return expt_table
 
-def add_snr_col_parallel(expt_table: pd.dataframe, 
+def add_snr_col_parallel(expt_table: pd.DataFrame, 
                         input_source: str = "16frame", 
                         snr_metric: str = "basic") -> pd.DataFrame:
     """Adds a SNR column to the ophys experiment table with multiprocessing
