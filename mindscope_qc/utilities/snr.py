@@ -67,38 +67,39 @@ def compute_image_contrast(image: np.ndarray, percentile_max: int =95,
     contrast = (Imax-Imin)/(Imax+Imin)\
 
     return contrast 
-#
-def compute_acutance(image: np.ndarray,
-                     cut_y: int = 0,
-                     cut_x: int = 0) -> float:
-    """Compute the acutance (sharpness) of an image.
 
-    Note: function from ophys_etl_pipeline
+#NOTE: from ophsy_etl_pipline, didn't want to import it.
+def compute_acutance(image: np.ndarray,
+                     min_cut_y: int = 0,
+                     max_cut_y: int = 0,
+                     min_cut_x: int = 0,
+                     max_cut_x: int = 0) -> float:
+    """Compute the acutance (sharpness) of an image.
 
     Parameters
     ----------
     image : numpy.ndarray, (N, M)
         Image to compute acutance of.
-    cut_y : int
-        Number of pixels to cut from the begining and end of the y axis.
-    cut_x : int
-        Number of pixels to cut from the begining and end of the x axis.
+    min_cut_y : int
+        Number of pixels to cut from the beginning of the y axis.
+    max_cut_y : int
+        Number of pixels to cut from the end of the y axis.
+    min_cut_x : int
+        Number of pixels to cut from the beginning of the x axis.
+    max_cut_x : int
+        Number of pixels to cut from the end of the x axis.
+
     Returns
     -------
     acutance : float
         Acutance of the image.
     """
-    if cut_y <= 0 and cut_x <= 0:
-        cut_image = image
-    elif cut_y > 0 and cut_x <= 0:
-        cut_image = image[cut_y:-cut_y, :]
-    elif cut_y <= 0 and cut_x > 0:
-        cut_image = image[:, cut_x:-cut_x]
-    else:
-        cut_image = image[cut_y:-cut_y, cut_x:-cut_x]
-    grady, gradx = np.gradient(cut_image)
+    im_max_y, im_max_x = image.shape
 
-    return (grady ** 2 + grady ** 2).mean()
+    cut_image = image[min_cut_y:im_max_y - max_cut_y,
+                      min_cut_x:im_max_x - max_cut_x]
+    grady, gradx = np.gradient(cut_image)
+    return (grady ** 2 + gradx ** 2).mean()
 
 def compute_block_snr(img: np.ndarray, block_shape: tuple = (128,128),
                       snr_metric: str = "basic", 
@@ -211,9 +212,14 @@ def get_natalia_projection_path_df():
 ###############################################################################
 
 def add_all_snr_metrics(expt_table: pd.DataFrame,
-                        image_sources: list = ["limsAvg","limsMax","16FrameAvg"],
-                        metrics: list = ["basic","acutance","medianBlocks",
-                                         "photonFlux","contrast"]) -> pd.DataFrame:
+                        image_sources: list = ["limsAvg", 
+                                               "limsMax", 
+                                               "16FrameAvg"],
+                        metrics: list = ["basic",
+                                         "acutance",
+                                         "medianBlocks",
+                                         "photonFlux",
+                                         "contrast"]) -> pd.DataFrame:
     """Adds all the SNR metrics to an  experiment table
 
     Top level function:  add_all_snr_metrics() -> add_snr_col_parallel() 
