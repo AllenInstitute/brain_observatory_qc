@@ -79,13 +79,13 @@ ALL_ID_TYPES_DICT = {
 
 
 OPHYS_ID_TYPES_DICT = {
-    "ophys_experiment_id":     {"lims_table": "ophys_experiments",                     "id_column": "id"},           # noqa: E241, E501
-    "ophys_session_id":        {"lims_table": "ophys_sessions",                        "id_column": "id"},           # noqa: E241, E501
-    "foraging_id":             {"lims_table": "ophys_sessions",                        "id_column": "foraging_id"},  # noqa: E241, E501
-    "behavior_session_id":     {"lims_table": "behavior_sessions",                     "id_column": "id"},           # noqa: E241, E501
-    "ophys_container_id":      {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},           # noqa: E241, E501
-    "supercontainer_id":       {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},           # noqa: E241, E501
-    }
+    "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id",          "query_abbrev": "oe.id"},            # noqa: E241, E501
+    "ophys_session_id":    {"lims_table": "ophys_sessions",    "id_column": "id",          "query_abbrev": "os.id"},           # noqa: E241, E501
+    "foraging_id":         {"lims_table": "ophys_sessions",    "id_column": "foraging_id", "query_abbrev": "os.foraging_id"},   # noqa: E241, E501
+    "behavior_session_id": {"lims_table": "behavior_sessions", "id_column": "id",          "query_abbrev": "bs.id"},           # noqa: E241, E501
+    "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers", "id_column": "id", "query_abbrev": "vbs.id"},        # noqa: E241, E501
+    "ophys_container_id":  {"lims_table": "ophys_experiments_visual_behavior_experiment_containers",  "id_column": "visual_behavior_experiment_container_id", "query_abbrev": "oevbec.visual_behavior_experiment_container_id"},   # noqa: E241, E501
+}
 
 
 MOUSE_IDS_DICT = {
@@ -94,7 +94,7 @@ MOUSE_IDS_DICT = {
     "labtracks_id":           {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
     "external_specimen_name": {"lims_table": "specimens", "id_column": "external_specimen_name"},   # noqa: E241, E501
     "external_donor_name":    {"lims_table": "donors",    "id_column": "external_donor_name"}       # noqa: E241, E501
-    }
+}
 
 
 MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
@@ -102,36 +102,42 @@ MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT = {
     "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"],     # noqa: E241, E501
     "Mesoscope":   ["MESO.1", "MESO.2"],                       # noqa: E241, E501
     "Deepscope":   ["DS.1"]                                    # noqa: E241, E501
-    }
+}
 
 GEN_INFO_QUERY_DICT = {
-    "ophys_experiment_id": {"table_column": "oe.id"},
-    "ophys_session_id":    {"table_column": "os.id"},
-    "behavior_session_id": {"table_column": "bs.id"},
-    "ophys_container_id":  {"table_column": "vbec.id"},
-    "supercontainer_id":   {"table_column": "os.visual_behavior_supercontainer_id"}
-    }
+    "ophys_experiment_id": {"query_abbrev": "oe.id"},          # noqa: E241
+    "ophys_session_id":    {"query_abbrev": "os.id"},          # noqa: E241
+    "behavior_session_id": {"query_abbrev": "bs.id"},
+    "ophys_container_id":  {"query_abbrev": "vbec.id"},        # noqa: E241
+    "supercontainer_id":   {"query_abbrev": "os.visual_behavior_supercontainer_id"}  # noqa: E241
+}
 
-def get_all_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
-    """[summary]
+
+def get_mouse_ids_from_id(id_type: str, id_number: int):
+    """_summary_
 
     Parameters
     ----------
-    id_type : string
-        the type of ID to search on
-    id_number : [type]
-        [description]
+    id_type : str
+        _description_
+    id_number : int
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
     """
     conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
-    donors.id donor_id,
-    donors.external_donor_name as labtracks_id,
-    specimens.id as specimen_id
+    donors.id  AS donor_id,
+    donors.external_donor_name AS labtracks_id,
+    specimens.id AS specimen_id
 
     FROM
     donors
-    JOIN specimens on donors.external_donor_name = specimens.external_specimen_name
+    JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
 
     WHERE {}.{} = {}
     '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
@@ -193,8 +199,8 @@ def generic_lims_query(query: str) -> pd.DataFrame:
         # otherwise return in dataframe format
         return df
 
+def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
 
-def get_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     """
     returns a dataframe of all variations (donor_id, labtracks_id,
     specimen_id) of mouse ID for a given input ID.
@@ -258,7 +264,7 @@ def get_mouse_ids(id_type:str, id_number:int) -> pd.DataFrame:
     return generic_lims_query(query)
 
 
-def general_id_type_query(id_type:str, id_number:int):
+def general_id_type_query(id_type: str, id_number: int):
     """_summary_
 
     Parameters
@@ -288,7 +294,7 @@ def general_id_type_query(id_type:str, id_number:int):
     return table_row
 
 
-def get_id_type(id_number:int) -> str:
+def get_id_type(id_number: int) -> str:
     """_summary_
 
     Parameters
@@ -319,7 +325,7 @@ def get_id_type(id_number:int) -> str:
     return id_type
 
 
-def get_microscope_type(ophys_session_id:int) -> str:
+def get_microscope_type(ophys_session_id: int) -> str:
     """_summary_
 
     Parameters
@@ -365,13 +371,11 @@ def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFram
 
     return general_info_df
 
-def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
+
+def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     """
     combines columns from several different lims tables to provide
     some basic overview information.
-
-    validates the id_number and id_type are compatible,
-    that the 
 
     Parameters
     ----------
@@ -385,7 +389,7 @@ def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
             "ophys_container_id"
             "ophys_supercontainer_id"
     id_number : int
-        the id number for the unique experiment, ophys_session, 
+        the id number for the unique experiment, ophys_session,
         behavior_session etc. Usually a 9 digit number.
 
 
@@ -415,7 +419,7 @@ def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
             session_storage_directory
     """
 
-    conditions.validate_value_in_dict_keys(id_type, 
+    conditions.validate_value_in_dict_keys(id_type,
                                            GEN_INFO_QUERY_DICT,
                                            "GEN_INFO_QUERY_DICT")
     conditions.validate_id_type(id_number, id_type)
@@ -467,48 +471,56 @@ def get_general_info_for_id(id_type:str, id_number:int)-> pd.DataFrame:
     JOIN structures ON structures.id = oe.targeted_structure_id
     JOIN imaging_depths ON imaging_depths.id = oe.imaging_depth_id
     JOIN equipment ON equipment.id = os.equipment_id
-    
+
     WHERE
     {} = {}
-    '''.format(GEN_INFO_QUERY_DICT[id_type]["table_column"],
+    '''.format(GEN_INFO_QUERY_DICT[id_type]["query_abbrev"],
                id_number)
-    
+
     general_info = mixin.select(query)
-    
+
     # ensure operating system compatible filepaths
     general_info = correct_general_info_filepaths(general_info)
 
     return general_info
-    
 
-def all_ids_for_id_query():
-    """the base query used for all the 'get_all_ids_for...
-    id type' functions. can be used with the following ID types:
-    ophys_experiment_id
-    ophys_session_id
-    behavior_session_id
-    ophys_container_id
-    supercontainer_id
 
-    AND to be used in combination with a query
-    selection statment, that specifies the ID type. Example:
-    query_selection = '''
-    WHERE
-    oe.id ={}
-    '''.format(ophys_experiment_id)
+def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """ Will get all other ophys related id types when given one
+    of the the ids. 
+
+    Parameters
+    ----------
+    id_type : str
+        options are the keys in the OPHYS_ID_TYPES_DICT
+        "ophys_experiment_id"
+        "ophys_session_id"
+        "foraging_id"
+        "behavior_session_id"
+        "ophys_container_id"
+        "supercontainer_id"
+
+    id_number : int
+        _description_
 
     Returns
     -------
-    string
-        string that can be used for lims queries
+    pd.DataFrame
+        _description_
     """
-    all_ids_query_string = '''
+    conditions.validate_value_in_dict_keys(id_type,
+                                           OPHYS_ID_TYPES_DICT,
+                                           "OPHYS_ID_TYPES_DICT")
+    conditions.validate_id_type(id_number, id_type)
+    
+    query = '''
     SELECT
     oe.id AS ophys_experiment_id,
-    oe.ophys_session_id,
+    os.id AS ophys_session_id,
     bs.id AS behavior_session_id,
+    os.foraging_id AS foraging_id,
     oevbec.visual_behavior_experiment_container_id AS ophys_container_id,
-    os.visual_behavior_supercontainer_id AS supercontainer_id
+    vbs.id AS supercontainer_id
 
     FROM
     ophys_experiments oe
@@ -521,13 +533,76 @@ def all_ids_for_id_query():
 
     JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
-    '''
-    return all_ids_query_string
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
+    WHERE
+    {} = {}
+    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
+    all_ids = mixin.select(query)
+
+    return all_ids
+
+
+def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_type : str
+        options are the keys in the OPHYS_ID_TYPES_DICT
+        "ophys_experiment_id"
+        "ophys_session_id"
+        "foraging_id"
+        "behavior_session_id"
+        "ophys_container_id"
+        "supercontainer_id"
+    id_number : int
+        usually 9 digits, foraging IDs are the exception
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with the following columns:
+        "experiment_storage_directory"
+        "session_storage_directory"
+        "container_storage_directory"
+    """
+
+    query = '''
+    oe.storage_directory AS experiment_storage_directory,
+    os.storage_directory AS session_storage_directory,
+    vbec.storage_directory AS container_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN behavior_sessions bs
+    ON bs.foraging_id = os.foraging_id
+
+    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    ON oe.id = oevbec.ophys_experiment_id
+
+    JOIN visual_behavior_experiment_containers vbec
+    ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
+    WHERE
+    {} = {}
+    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
+    storage_directories_df = mixin.select(query)
+    return storage_directories_df
 
 
 ### ID TYPES ###      # noqa: E266
 
-def get_donor_id_for_specimen_id(specimen_id:int):
+def get_donor_id_for_specimen_id(specimen_id: int) -> int:
     conditions.validate_id_type(specimen_id, "specimen_id")
     specimen_id = int(specimen_id)
     query = '''
@@ -544,7 +619,19 @@ def get_donor_id_for_specimen_id(specimen_id:int):
     return donor_ids
 
 
-def get_specimen_id_for_donor_id(donor_id):
+def get_specimen_id_for_donor_id(donor_id: int) -> int: 
+    """_summary_
+
+    Parameters
+    ----------
+    donor_id : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     conditions.validate_id_type(donor_id, "donor_id")
     donor_id = int(donor_id)
     query = '''
@@ -562,7 +649,7 @@ def get_specimen_id_for_donor_id(donor_id):
 
 
 # Cell / ROI related IDS
-def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id:int):
+def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int) -> int:
     '''
     returns the ophys experiment ID from which a given cell_roi_id
     was recorded
@@ -588,7 +675,7 @@ def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id:int):
 
 
 # for ophys_experiment_id
-def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id:int) -> int:
+def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id: int) -> int:
     """gets the id for the current cell segmentation run for a given experiment.
         Queries LIMS via AllenSDK PostgresQuery function.
 
@@ -660,7 +747,7 @@ def get_behavior_session_id_for_ophys_experiment_id(ophys_experiment_id: int) ->
     return behavior_session_id
 
 
-def get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id:int) -> int:
+def get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id: int) -> int:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     query = '''
     SELECT
@@ -699,7 +786,7 @@ def get_supercontainer_id_for_ophys_experiment_id(ophys_experiment_id: int) -> i
     return supercontainer_id
 
 
-def get_all_ids_for_ophys_experiment_id(ophys_experiment_id: int)-> pd.DataFrame:
+def get_all_ids_for_ophys_experiment_id(ophys_experiment_id: int) -> pd.DataFrame:
     """queries LIMS and gets all of the ids for a given ophys
     experiment id
 
@@ -716,20 +803,16 @@ def get_all_ids_for_ophys_experiment_id(ophys_experiment_id: int)-> pd.DataFrame
             ophys_experiment_id,
             ophys_session_id,
             behavior_session_id,
+            foraging_id
             ophys_container_id,
             supercontainer_id
 
     """
-    conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    all_ids_query = all_ids_for_id_query()
-    query_selection = '''
-    WHERE oe.id = {} '''.format(ophys_experiment_id)
-    query = all_ids_query + query_selection
-    all_ids = mixin.select(query)
+    all_ids = get_all_ophys_ids_for_id("ophys_experiment_id", ophys_experiment_id)
     return all_ids
 
 
-def get_general_info_for_ophys_experiment_id(ophys_experiment_id:int) -> pd.DataFrame:
+def get_general_info_for_ophys_experiment_id(ophys_experiment_id: int) -> pd.DataFrame:
     """
     combines columns from several different lims tables to provide
     some basic overview information.
@@ -807,7 +890,19 @@ def get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id):
     return ophys_experiment_ids
 
 
-def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int)-> int:
+def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int) -> int:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        _description_
+
+    Returns
+    -------
+    int
+        _description_
+    """
     conditions.validate_id_type(ophys_session_id, 'ophys_session_id')
     query = '''
     SELECT
@@ -873,20 +968,15 @@ def get_all_ids_for_ophys_session_id(ophys_session_id: int) -> pd.DataFrame:
             ophys_experiment_id,
             ophys_session_id,
             behavior_session_id,
+            foraging_id
             ophys_container_id,
             supercontainer_id
     """
-    conditions.validate_id_type(ophys_session_id, 'ophys_session_id')
-    all_ids_query = all_ids_for_id_query()
-    query_selection = '''
-    WHERE oe.ophys_session_id ={} '''.format(ophys_session_id)
-    query = all_ids_query + query_selection
-
-    all_ids = mixin.select(query)
+    all_ids = get_all_ophys_ids_for_id("ophys_session_id", ophys_session_id)
     return all_ids
 
 
-def get_general_info_for_ophys_session_id(ophys_session_id:int) -> pd.DataFrame:
+def get_general_info_for_ophys_session_id(ophys_session_id: int) -> pd.DataFrame:
     """combines columns from several different lims tables to provide
     basic overview information
 
@@ -924,11 +1014,10 @@ def get_general_info_for_ophys_session_id(ophys_session_id:int) -> pd.DataFrame:
     return general_info
 
 
-
 # for behavior_session_id
 def get_ophys_experiment_ids_for_behavior_session_id(behavior_session_id: int):
     conditions.validate_id_type(behavior_session_id, "behavior_session_id")
-    
+
     query = '''
     SELECT
     oe.id
@@ -942,7 +1031,7 @@ def get_ophys_experiment_ids_for_behavior_session_id(behavior_session_id: int):
     WHERE
     behavior.id = {}
     '''.format(behavior_session_id)
-    
+
     ophys_experiment_ids = mixin.select(query)
     return ophys_experiment_ids
 
@@ -1046,14 +1135,7 @@ def get_all_ids_for_behavior_session_id(behavior_session_id):
             ophys_container_id,
             supercontainer_id
     """
-    conditions.validate_id_type(behavior_session_id, "behavior_session_id")
-
-    all_ids_query = all_ids_for_id_query()
-    query_selection = '''
-    WHERE bs.id ={} '''.format(behavior_session_id)
-    query = all_ids_query + query_selection
-
-    all_ids = mixin.select(query)
+    all_ids = get_all_ophys_ids_for_id("behavior_session_id", behavior_session_id)
     return all_ids
 
 
@@ -1092,7 +1174,7 @@ def get_general_info_for_behavior_session_id(behavior_session_id: int) -> pd.Dat
             experiment_storage_directory
             session_storage_directory
     """
-    general_info = get_general_info_for_id("behavior_session_id", behavior_session_id)   
+    general_info = get_general_info_for_id("behavior_session_id", behavior_session_id)
     return general_info
 
 
@@ -1210,16 +1292,7 @@ def get_supercontainer_id_for_ophys_container_id(ophys_container_id):
 
 
 def get_all_ids_for_ophys_container_id(ophys_container_id):
-    conditions.validate_id_type(ophys_container_id, "ophys_container_id")
-
-    all_ids_query = all_ids_for_id_query()
-    query_selection = '''
-    WHERE
-    oevbec.visual_behavior_experiment_container_id = {}
-    '''.format(ophys_container_id)
-    query = all_ids_query + query_selection
-
-    all_ids = mixin.select(query)
+    all_ids = get_all_ophys_ids_for_id("ophys_container_id", ophys_container_id)
     return all_ids
 
 
@@ -1257,7 +1330,7 @@ def get_general_info_for_ophys_container_id(ophys_container_id: int) -> pd.DataF
             experiment_storage_directory
             session_storage_directory
     """
-    general_info = get_general_info_for_id("ophys_container_id", ophys_container_id)   
+    general_info = get_general_info_for_id("ophys_container_id", ophys_container_id)
     return general_info
 
 
@@ -1390,16 +1463,7 @@ def get_all_ids_for_supercontainer_id(supercontainer_id: int):
             ophys_container_id,
             supercontainer_id
     """
-    conditions.validate_id_type(supercontainer_id, "supercontainer_id")
-
-    all_ids_query = all_ids_for_id_query()
-    query_selection = '''
-    WHERE
-    os.visual_behavior_supercontainer_id = {}
-    '''.format(supercontainer_id)
-    query = all_ids_query + query_selection
-
-    all_ids = mixin.select(query)
+    all_ids = get_all_ophys_ids_for_id("supercontainer_id", supercontainer_id)
     return all_ids
 
 
@@ -1437,11 +1501,41 @@ def get_general_info_for_supercontainer_id(supercontainer_id: int) -> pd.DataFra
             experiment_storage_directory
             session_storage_directory
     """
-    general_info = get_general_info_for_id("supercontainer_id", supercontainer_id)   
+    general_info = get_general_info_for_id("supercontainer_id", supercontainer_id)
     return general_info
 
 
 ### TABLES ###    # noqa: E266
+def get_value_from_table(search_key, search_value, target_table, target_key):
+    """a general function for getting a value from a LIMS table
+
+    Parameters
+    ----------
+    search_key : _type_
+        _description_
+    search_value : _type_
+        _description_
+    target_table : _type_
+        _description_
+    target_key : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    query = '''
+        select {}
+        from {}
+        where {} = '{}'
+    '''
+    result = pd.read_sql(query.format(target_key, target_table, search_key, search_value))
+    if len(result) == 1:
+        return result[target_key].iloc[0]
+    else:
+        return None
 
 
 def get_cell_segmentation_runs_table(ophys_experiment_id: int) -> pd.DataFrame:
@@ -1844,7 +1938,7 @@ def get_ophys_NWB_filepath(ophys_experiment_id: int) -> str:
     return filepath
 
 
-def get_ophys_extracted_traces_filepath(ophys_experiment_id: int) ->str:
+def get_ophys_extracted_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id)
     filepath = get_well_known_file_path("'NWBOphys'", ophys_experiment_id)
     return filepath
@@ -2345,7 +2439,7 @@ def load_neuropil_traces_array(ophys_experiment_id: int) -> array:
     return neuropil_traces_array
 
 
-def load_motion_corrected_movie(ophys_experiment_id: int):
+def load_motion_corrected_movie(ophys_experiment_id, frame_limit=None):
     """uses well known file system to get motion_corrected_movie.h5
         filepath and then loads the h5 file with h5py function.
         Gets the motion corrected movie array in the h5 from the only
@@ -2366,7 +2460,11 @@ def load_motion_corrected_movie(ophys_experiment_id: int):
     """
     filepath = get_motion_corrected_movie_filepath(ophys_experiment_id)
     motion_corrected_movie_file = h5py.File(filepath, 'r')
-    motion_corrected_movie = motion_corrected_movie_file['data']
+    if not frame_limit:
+        motion_corrected_movie = motion_corrected_movie_file['data']
+    else:
+        motion_corrected_movie = motion_corrected_movie_file['data'][0:frame_limit]
+
     return motion_corrected_movie
 
 
