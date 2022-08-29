@@ -145,7 +145,62 @@ def get_mouse_ids_from_id(id_type: str, id_number: int):
     return mouse_ids
 
 
+def generic_lims_query(query: str) -> pd.DataFrame:
+    """
+    execute a SQL query in LIMS
+     
+    Parameters
+    ----------
+    query : string
+        the type of ID to search on. allowable id_types:
+            donor_id
+            specimen_id
+            labtracks_id: Labtracks ID (6 digit ID on mouse cage)
+            external_specimen_name: alternate name for labtracks_id
+                (used in specimens table)
+            external_donor_name: alternate name for labtracks_id
+                (used in donors table)
+    id_number : int,string, list of ints or list of strings
+        the associated ID number(s)
+
+    Returns
+    -------
+    dataframe
+        * the result if the result is a single element
+        * results in a pandas dataframe otherwise
+    
+    Examples
+    --------
+    >> generic_lims_query('select ophys_session_id from
+                   ophys_experiments where id = 878358326')
+        returns 877907546
+
+    >> generic_lims_query('select * from ophys_experiments where id = 878358326')
+        returns a single line dataframe with all columns from the
+        ophys_experiments table for ophys_experiment_id =  878358326
+
+    >> generic_lims_query('select * from ophys_sessions where id in (877907546,
+                                                             876522267,
+                                                             869118259)')
+        returns a three line dataframe with all columns from the
+            ophys_sessions table for ophys_session_id in the
+            list [877907546, 876522267, 869118259]
+
+    >> generic_lims_query('select * from ophys_sessions where specimen_id = 830901424')
+        returns all rows and columns in the ophys_sessions table
+            for specimen_id = 830901424
+    """
+
+    df = pd.read_sql(query)
+    if df.shape == (1, 1):
+        # if the result is a single element, return only that element
+        return df.iloc[0][0]
+    else:
+        # otherwise return in dataframe format
+        return df
+
 def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
+
     """
     returns a dataframe of all variations (donor_id, labtracks_id,
     specimen_id) of mouse ID for a given input ID.
@@ -172,7 +227,8 @@ def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
     Returns
     -------
     dataframe
-        a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
+        a dataframe with columns for `donor_id`, `labtracks_id`,
+        `specimen_id`
 
     Raises
     ------
@@ -205,7 +261,7 @@ def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
     JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
     where {} in {}'''.format(id_type_string, tuple(id_number)).replace(',)', ')')
 
-    return lims_utils.lims_query(query)
+    return generic_lims_query(query)
 
 
 def general_id_type_query(id_type: str, id_number: int):
@@ -223,7 +279,9 @@ def general_id_type_query(id_type: str, id_number: int):
     _type_
         _description_
     """
-    conditions.validate_value_in_dict_keys(id_type, ALL_ID_TYPES_DICT, "ALL_ID_TYPES_DICT")
+    conditions.validate_value_in_dict_keys(id_type,
+                                           ALL_ID_TYPES_DICT,
+                                           "ALL_ID_TYPES_DICT")
     query = '''
     SELECT *
     FROM {}
