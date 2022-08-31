@@ -13,7 +13,7 @@ from mindscope_qc.data_access import from_lims, from_lims_utilities
 
 
 def validate_value_in_dict_keys(input_value, dictionary, dict_name):
-    assert input_value in dictionary, "Error: input value is not in {} keys.".format(dict_name)
+    assert input_value in dictionary, "Error: input value {} is not in {} keys.".format(input_value, dict_name)
 
 
 def validate_not_none(input, input_name):

@@ -113,7 +113,7 @@ GEN_INFO_QUERY_DICT = {
 }
 
 
-def get_mouse_ids_from_id(id_type: str, id_number: int):
+def _get_mouse_ids_from_id(id_type: str, id_number: int):
     """_summary_
 
     Parameters
@@ -139,7 +139,7 @@ def get_mouse_ids_from_id(id_type: str, id_number: int):
     donors
     JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
 
-    WHERE {}.{} = {}
+    WHERE {}.{} = '{}'
     '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
     mouse_ids = mixin.select(query)
     return mouse_ids
