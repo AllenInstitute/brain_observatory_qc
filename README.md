@@ -43,7 +43,7 @@ Tests are run on CircleCI on every github commit.
 
 Tests can be run locally by running the following at the command line:
 ```
-flake8 mindscope_utilities
+flake8 mindscope_qc
 pytest
 ```
 
