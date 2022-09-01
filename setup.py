@@ -13,7 +13,6 @@ setup(name='mindscope_qc',
         'flake8',
         'pytest',
         'allensdk',
-        'visual_behavior @ git+https://github.com/AllenInstitute/visual_behavior_analysis.git'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
