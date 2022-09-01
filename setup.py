@@ -10,8 +10,8 @@ setup(name='mindscope_qc',
     author_email='kater@alleninstitute.org, sean.mcculloch@alleninstitute.org,',
     license='Allen Institute',
     install_requires=[
-        'flake8',
-        'pytest',
+        'flake8>=5',
+        'pytest>=7',
         'allensdk',
         'visual_behavior @ git+ssh://git@github.com/AllenInstitute/visual_behavior_analysis.git'
     ],
