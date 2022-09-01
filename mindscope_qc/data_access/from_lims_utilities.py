@@ -1,30 +1,30 @@
-from visual_behavior.data_access import utilities as utils
+# from visual_behavior.data_access import utilities as utils
 
 
-def correct_general_info_filepaths(general_info_df):
-    storage_directory_columns_list = ['experiment_storage_directory',
-                                      'session_storage_directory',
-                                      'container_storage_directory']
+# def correct_general_info_filepaths(general_info_df):
+#     storage_directory_columns_list = ['experiment_storage_directory',
+#                                       'session_storage_directory',
+#                                       'container_storage_directory']
 
-    for directory in storage_directory_columns_list:
-        general_info_df = utils.correct_dataframe_filepath(general_info_df, directory)
+#     for directory in storage_directory_columns_list:
+#         general_info_df = utils.correct_dataframe_filepath(general_info_df, directory)
 
-    return general_info_df
+#     return general_info_df
 
 
-def get_filepath_from_realdict_object(realdict_object):
-    """takes a RealDictRow object returned when loading well known files
-       from lims and parses it to return the filepath to the well known file.
+# def get_filepath_from_realdict_object(realdict_object):
+#     """takes a RealDictRow object returned when loading well known files
+#        from lims and parses it to return the filepath to the well known file.
 
-    Args:
-        wkf_realdict_object ([type]): [description]
+#     Args:
+#         wkf_realdict_object ([type]): [description]
 
-    Returns:
-        filepath: [description]
-    """
-    filepath = realdict_object['filepath'][0]
-    filepath = utils.correct_filepath(filepath)
-    return filepath
+#     Returns:
+#         filepath: [description]
+#     """
+#     filepath = realdict_object['filepath'][0]
+#     filepath = utils.correct_filepath(filepath)
+#     return filepath
 
 
 def update_objectlist_column_labels(objectlist_df):
