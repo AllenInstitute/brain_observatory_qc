@@ -1,6 +1,9 @@
 import os
 import sys
+from tkinter import Image
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 
 import mindscope_qc.data_access.utilities as utils
 import mindscope_qc.data_access.from_lims as lims
@@ -24,17 +27,18 @@ def get_sync_path(lims_data):
 
 
 def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
-    """_summary_
+    """gets the experiment level storage directory filepath for a 
+    specific ophys experiment
 
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
     str
-        _description_
+        filepath string to the experiment storage directory folder
     """
     directories_df = lims.get_storage_directories_for_id("ophys_experiment_id", ophys_experiment_id)
     experiment_path = directories_df["experiment_storage_directory"][0]
@@ -42,17 +46,18 @@ def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
 
 
 def get_session_storage_directory(ophys_session_id: int) -> str:
-    """_summary_
+    """gets the session level storage directory filepath for a 
+    specific ophys session
 
     Parameters
     ----------
     ophys_session_id : int
-        _description_
+        unique identifier for an ophys session
 
     Returns
     -------
     str
-        _description_
+        filepath string to the session storage directory folder
     """
     directories_df = lims.get_storage_directories_for_id("ophys_session_id", ophys_session_id)
     session_path = directories_df["session_storage_directory"][0]
@@ -60,17 +65,17 @@ def get_session_storage_directory(ophys_session_id: int) -> str:
 
 
 def get_container_storage_directory(ophys_container_id: int) -> str:
-    """_summary_
-
+    """gets the container level storage directory filepath for a 
+    specific ophys container
     Parameters
     ----------
     ophys_container_id : int
-        _description_
+        unique identifier for an ophys container
 
     Returns
     -------
     str
-        _description_
+        filepath string to the container storage directory folder
     """
     directories_df = lims.get_storage_directories_for_id("ophys_container_id", ophys_container_id)
     container_path = directories_df["container_storage_directory"][0]
@@ -79,16 +84,18 @@ def get_container_storage_directory(ophys_container_id: int) -> str:
 
 def get_crosstalk_storage_directory(ophys_session_id: int) -> str:
     """
+    gets the network storage directory for the crosstalk folder
+    Usually the crosstalk folder is within the session folder. 
 
     Parameters
     ----------
     ophys_session_id : int
-        _description_
+       unique id for an ophys session
 
     Returns
     -------
     str
-        filepath string to the "crosstalk" folder in the 
+        filepath string to the "crosstalk" folder
     """
     session_directory = get_session_storage_directory(ophys_session_id)
     crosstalk_directory = os.path.join(session_directory, "crosstalk")
@@ -151,7 +158,7 @@ def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> s
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -164,6 +171,12 @@ def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> s
     return image_filepath
 
 
+def load_suite2p_registration_summary_image(ophys_experiment_id: int) -> str:
+    image_filepath = get_suite2p_registration_summary_png_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image
+
+
 def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
     """filepath to png of image of boundary of all detected objects
     to see if and how objects overlap.
@@ -171,7 +184,7 @@ def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -183,6 +196,12 @@ def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
     return image_filepath
 
 
+def load_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
+    image_filepath = get_maxInt_boundary_PNG_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image
+
+
 def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
     """gets the filepath for the maxInt_masks.TIF file:
     Segmented ROI file
@@ -191,7 +210,7 @@ def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -212,7 +231,7 @@ def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -231,7 +250,7 @@ def get_maxInt_a13a_PNG_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -250,7 +269,7 @@ def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -263,7 +282,7 @@ def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
 
 
 def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
-    """gets the filepath for the avgInt_a1X.png file
+    """gets the filepath for the enhimgseq.TIF file
     produced enhanced image sequence where all segmented objects
     can be found and can be used for validation and visualization of
     detected active cell objects
@@ -271,7 +290,7 @@ def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
     Parameters
     ----------
     ophys_experiment_id : int
-        _description_
+        unique identifier for an ophys experiment
 
     Returns
     -------
@@ -279,7 +298,7 @@ def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
         filepath
     """
     cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
-    image_filepath = os.path.join(cell_seg_directory, "avgInt_a1X.png")
+    image_filepath = os.path.join(cell_seg_directory, "enhimgseq.TIF")
     return image_filepath
 
 
