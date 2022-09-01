@@ -13,7 +13,6 @@ setup(name='mindscope_qc',
         'flake8',
         'pytest',
         'allensdk',
-        'visual_behavior'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
