@@ -1,6 +1,9 @@
 import mindscope_qc.data_access.from_lims as from_lims
 import pandas as pd
 
+def get_lims_psql_dict_cursor():
+    return from_lims._get_psql_dict_cursor()
+
 def generic_lims_query(query: str) -> pd.DataFrame:
     result = from_lims._generic_lims_query(query=query)
     return result

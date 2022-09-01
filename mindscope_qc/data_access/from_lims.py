@@ -42,7 +42,7 @@ except Exception as e:
     warnings.warn(warn_string)
 
 
-def get_psql_dict_cursor():
+def _get_psql_dict_cursor():
     """Set up a connection to a psql db server with a dict cursor
 
     Returns
