@@ -112,40 +112,7 @@ GEN_INFO_QUERY_DICT = {
     "supercontainer_id":   {"query_abbrev": "os.visual_behavior_supercontainer_id"}  # noqa: E241
 }
 
-
-def _get_mouse_ids_from_id(id_type: str, id_number: int):
-    """_summary_
-
-    Parameters
-    ----------
-    id_type : str
-        _description_
-    id_number : int
-        _description_
-
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
-    query = '''
-    SELECT
-    donors.id  AS donor_id,
-    donors.external_donor_name AS labtracks_id,
-    specimens.id AS specimen_id
-
-    FROM
-    donors
-    JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
-
-    WHERE {}.{} = '{}'
-    '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
-    mouse_ids = mixin.select(query)
-    return mouse_ids
-
-
-def generic_lims_query(query: str) -> pd.DataFrame:
+def _generic_lims_query(query: str) -> pd.DataFrame:
     """
     execute a SQL query in LIMS
      
@@ -199,8 +166,8 @@ def generic_lims_query(query: str) -> pd.DataFrame:
         # otherwise return in dataframe format
         return df
 
-def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
 
+def _get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     """
     returns a dataframe of all variations (donor_id, labtracks_id,
     specimen_id) of mouse ID for a given input ID.
@@ -226,58 +193,42 @@ def get_mouse_ids(id_type: str, id_number: int) -> pd.DataFrame:
 
     Returns
     -------
-    dataframe
-        a dataframe with columns for `donor_id`, `labtracks_id`,
-        `specimen_id`
-
-    Raises
-    ------
-    TypeError
-        [description]
+    pd.DataFrame
+        a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
     """
-    conditions.validate_value_in_dict_keys(id_type,
-                                           MOUSE_IDS_DICT,
-                                           "MOUSE_IDS_DICT")
-    if id_type.lower() == 'donor_id':
-        id_type_string = 'donors.id'
-    elif id_type.lower() == 'specimen_id':
-        id_type_string = 'specimens.id'
-    elif id_type.lower() in ['labtracks_id', 'external_specimen_name', 'external_donor_name']:
-        id_type_string = 'donors.external_donor_name'
-    else:
-        raise TypeError('invalid `id_type` {}'.format(id_type))
-
-    if isinstance(id_number, (str, int, np.int64)):
-        id_number = [id_number]
-    id_number = [str(i) for i in id_number]
-
+    conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
-    donors.id donor_id,
+    donors.id  AS donor_id,
     donors.external_donor_name AS labtracks_id,
     specimens.id AS specimen_id
 
-    FROM donors
+    FROM
+    donors
     JOIN specimens ON donors.external_donor_name = specimens.external_specimen_name
-    where {} in {}'''.format(id_type_string, tuple(id_number)).replace(',)', ')')
 
-    return generic_lims_query(query)
+    WHERE {}.{} = '{}'
+    '''.format(MOUSE_IDS_DICT[id_type]["lims_table"], MOUSE_IDS_DICT[id_type]["id_column"], id_number)
+    mouse_ids = mixin.select(query)
+    return mouse_ids
 
 
-def general_id_type_query(id_type: str, id_number: int):
-    """_summary_
+def _general_id_type_query(id_type: str, id_number: int):
+    """ A pre-built dynamic query to get all columns from the table related to the id_type.
+
+
 
     Parameters
     ----------
     id_type : str
-        _description_
-    id_number : int
-        _description_
+        Type of ID. Used with ALL_ID_TYPES_DICT to determine appropriate lims2 table to query.
+    id_number : int, str
+       Generic lims ID.
 
     Returns
     -------
-    _type_
-        _description_
+    pd.DataFrame
+        Returns a 1xN dataframe that contains all columns from the appropriate lims table.
     """
     conditions.validate_value_in_dict_keys(id_type,
                                            ALL_ID_TYPES_DICT,
@@ -285,7 +236,7 @@ def general_id_type_query(id_type: str, id_number: int):
     query = '''
     SELECT *
     FROM {}
-    WHERE {} = {} limit 1
+    WHERE {} = '{}' limit 1
     '''.format(ALL_ID_TYPES_DICT[id_type]["lims_table"],
                ALL_ID_TYPES_DICT[id_type]["id_column"],
                id_number)
@@ -294,22 +245,36 @@ def general_id_type_query(id_type: str, id_number: int):
     return table_row
 
 
-def get_id_type(id_number: int) -> str:
-    """_summary_
+def _get_id_type(id_number: int) -> str:
+    """ A function to find the id type of the input id.
+
+    This function can detect the following id types included in ALL_ID_TYPES_DICT
+    "donor_id"
+    "cell_roi_id"
+    "specimen_id"
+    "labtracks_id"
+    "cell_specimen_id"
+    "ophys_experiment_id"
+    "ophys_session_id"
+    "foraging_id"
+    "behavior_session_id"
+    "ophys_container_id"
+    "isi_experiment_id"
+    "supercontainer_id"
 
     Parameters
     ----------
     id_number : int
-        _description_
+        A lims id 
 
     Returns
     -------
     str
-        _description_
+        The ID type of the input ID
     """
     found_id_types = []
     for id_type_key in ALL_ID_TYPES_DICT:
-        if len(general_id_type_query(id_number, id_type_key)) > 0:
+        if len(general_id_type_query(id_type_key, id_number)) > 0:
             found_id_types.append(id_type_key)
 
     # assert that no more than one ID type was found (they should be unique)
@@ -319,7 +284,7 @@ def get_id_type(id_number: int) -> str:
         # if only one id type was found, return it
         id_type = found_id_types[0]
     else:
-        # return 'unknown_id' if id was not found
+        # return 'unknown_id' if id was not found or more than one ID type was found
         id_type = "unknown_id"
 
     return id_type
