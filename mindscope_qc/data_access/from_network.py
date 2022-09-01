@@ -1,5 +1,6 @@
 import os
 import sys
+import numpy as np
 from tkinter import Image
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +10,10 @@ import mindscope_qc.data_access.utilities as utils
 import mindscope_qc.data_access.from_lims as lims
 
 
-### ________________LIMS__STORAGE__DIRECTORIES_____________________ # noqa: E266
+
+######################################################
+#             STORAGE DIRECTORIES
+######################################################
 
 def get_sync_path(lims_data):
     ophys_session_dir = get_ophys_session_dir(lims_data)
@@ -151,6 +155,10 @@ def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str
     return cell_segmentation_run_directory
 
 
+######################################################
+#             IMAGE FILES
+######################################################
+
 def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> str:
     """filepath to png of image of boundary of all detected objects
     to see if and how objects overlap.
@@ -171,7 +179,7 @@ def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> s
     return image_filepath
 
 
-def load_suite2p_registration_summary_image(ophys_experiment_id: int) -> str:
+def load_suite2p_registration_summary_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_suite2p_registration_summary_png_filepath(ophys_experiment_id)
     image = mpimg.imread(image_filepath)
     return image
@@ -196,10 +204,10 @@ def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
     return image_filepath
 
 
-def load_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
+def load_maxInt_boundary_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_maxInt_boundary_PNG_filepath(ophys_experiment_id)
     image = mpimg.imread(image_filepath)
-    return image
+    return image 
 
 
 def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -220,6 +228,12 @@ def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
     cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
     image_filepath = os.path.join(cell_seg_directory, "maxInt_masks.TIF")
     return image_filepath
+
+
+def load_maxInt_masks_image(ophys_experiment_id: int) -> np.ndarray:
+    image_filepath = get_maxInt_masks_TIF_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image 
 
 
 def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -262,6 +276,12 @@ def get_maxInt_a13a_PNG_filepath(ophys_experiment_id: int) -> str:
     return image_filepath
 
 
+def load_maxInt_a13a_image(ophys_experiment_id: int) -> np.ndarray:
+    image_filepath = get_maxInt_a13a_PNG_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image 
+
+
 def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
     """gets the filepath for the avgInt_a1X.png file
     FOV background
@@ -279,6 +299,12 @@ def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
     cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
     image_filepath = os.path.join(cell_seg_directory, "avgInt_a1X.png")
     return image_filepath
+
+
+def load_avgInt_a1X_image(ophys_experiment_id: int) -> np.ndarray:
+    image_filepath = get_avgInt_a1X_PNG_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image 
 
 
 def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -301,4 +327,8 @@ def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
     image_filepath = os.path.join(cell_seg_directory, "enhimgseq.TIF")
     return image_filepath
 
+def load_enhimgseq_image(ophys_experiment_id: int) -> np.ndarray:
+    image_filepath = get_avgInt_a1X_PNG_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image
 
