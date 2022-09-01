@@ -9,7 +9,7 @@
 
 import numpy as np
 import unittest as test
-from mindscope_qc.data_access import from_lims, from_lims_utilities
+from mindscope_qc.data_access import data_loader, from_lims, from_lims_utilities
 
 
 def validate_value_in_dict_keys(input_value, dictionary, dict_name):
@@ -131,7 +131,7 @@ def validate_id_type(input_id, correct_id_type):
         [description]
     """
     validate_value_in_dict_keys(correct_id_type, from_lims.ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
-    input_id_type = from_lims.get_id_type(input_id)
+    input_id_type = data_loader.get_id_type(input_id)
     assert input_id_type == correct_id_type, "Incorrect id type. Entered Id type is {},\
         correct id type is {}".format(input_id_type, correct_id_type)
 

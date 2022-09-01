@@ -19,3 +19,10 @@ def get_id_type(id_number: int) -> str:
 def general_id_type_query(id_type: str, id_number: int):
     result = from_lims._general_id_type_query(id_type=id_type, id_number=id_number)
     return result
+
+
+# #################################Get Filepaths
+
+def get_motion_preview_filepath(ophys_experiment_id):
+    filepath = from_lims._get_motion_preview_filepath(ophys_experiment_id=ophys_experiment_id)
+    return filepath

@@ -5,8 +5,8 @@ import numpy as np
 # allen 
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
 
-#vba (hopefully removed one day)
-import visual_behavior.data_access.from_lims as from_lims
+
+import mindscope_qc.data_access.data_loader as data_loader
 
 def roi_count_from_cell_table(expt_list: list) -> pd.DataFrame:
     """Return count of ROIs for each experiment from cell table, merges
@@ -56,7 +56,7 @@ def load_legacy_rois(expt_id: int, excluded_rois: bool = True) -> np.ndarray:
         array of roi coordinates
     """
 
-    pf = from_lims.get_motion_preview_filepath(expt_id).parent
+    pf = data_loader.get_motion_preview_filepath(expt_id).parent
 
     # find folder with segmention in pf
     seg_folders = [f for f in pf.iterdir() if 'segmentation' in f.name]
@@ -65,6 +65,7 @@ def load_legacy_rois(expt_id: int, excluded_rois: bool = True) -> np.ndarray:
     # get most recent folder in segmentation_folder
     seg_folder = max(seg_folders, key=lambda x: x.stat().st_mtime)
     roi_file = seg_folder / 'objectlist.txt'
+    print(roi_file)
     legacy_rois = pd.read_csv(roi_file, sep=',',header=0)
 
     if excluded_rois:
