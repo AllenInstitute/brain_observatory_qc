@@ -274,7 +274,7 @@ def _get_id_type(id_number: int) -> str:
     """
     found_id_types = []
     for id_type_key in ALL_ID_TYPES_DICT:
-        if len(general_id_type_query(id_type_key, id_number)) > 0:
+        if len(_general_id_type_query(id_type_key, id_number)) > 0:
             found_id_types.append(id_type_key)
 
     # assert that no more than one ID type was found (they should be unique)
@@ -1963,7 +1963,7 @@ def get_extracted_traces_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_motion_preview_filepath(ophys_experiment_id):
+def _get_motion_preview_filepath(ophys_experiment_id):
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysMotionPreview'", ophys_experiment_id)
     return filepath
