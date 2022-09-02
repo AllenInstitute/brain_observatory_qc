@@ -37,7 +37,7 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate test-environment
-            python -m pytest
+            python -m pytest -m "not onprem"
           name: run tests
 
 orbs:
