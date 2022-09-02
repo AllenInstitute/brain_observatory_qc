@@ -15,3 +15,8 @@ def test_load_legacy_rois__exclude_rois_false():
     expected_result = pd.read_csv(expected_data_filepath, sep=',',header=0)
     result = roi.load_legacy_rois(1198067556, False)
     pd.testing.assert_frame_equal(result,expected_result)
+
+@pytest.mark.onprem
+def test_load_legacy_rois__raises_error_with_incorrect_input():
+    with pytest.raises(AssertionError, match=r".*Incorrect id type. Entered Id type is.*correct id type is ophys_experiment_id.*"):
+        result = roi.load_legacy_rois(000000000)
