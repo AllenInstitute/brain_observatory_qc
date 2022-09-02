@@ -131,7 +131,7 @@ def validate_id_type(input_id, correct_id_type):
         [description]
     """
     validate_value_in_dict_keys(correct_id_type, from_lims.ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
-    input_id_type = from_lims.get_id_type(input_id)
+    input_id_type = from_lims._get_id_type(input_id)
     assert input_id_type == correct_id_type, "Incorrect id type. Entered Id type is {},\
         correct id type is {}".format(input_id_type, correct_id_type)
 
