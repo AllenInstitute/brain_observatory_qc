@@ -169,49 +169,57 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
 ######################################################
 #             SESSION LEVEL FILES
 ######################################################
-def get_session_reticle_TIF_filepath(ophys_session_id: int) -> str:
+def get_stimulus_PKL_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}.pkl'.format(ophys_session_id)
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
+
+def get_platform_JSON_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}_platform.json'.format(ophys_session_id)
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
+
+def get_reticle_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
     filename = '{}_reticle.tif'.format(ophys_session_id)
-    image_filepath = get_filepath(storage_directory, filename)
-    return image_filepath
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
 
-def load_session_reticle_image(ophys_session_id: int) -> np.ndarray:
-    image_filepath = get_session_reticle_TIF_filepath(ophys_session_id)
+def load_reticle_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_reticle_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
 
-def get_session_vasculature_TIF_filepath(ophys_session_id: int) -> str:
+def get_vasculature_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
     filename = '{}_vasculature.tif'.format(ophys_session_id)
-    image_filepath = get_filepath(storage_directory, filename)
-    return image_filepath
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
 
-def load_session_vasculature_image(ophys_session_id: int) -> np.ndarray:
-    image_filepath = get_session_vasculature_TIF_filepath(ophys_session_id)
+def load_vasculature_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_vasculature_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
 
-def get_session_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
+def get_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
     filename = '{}_vasculature_downsampled.tif'.format(ophys_session_id)
-    image_filepath = get_filepath(storage_directory, filename)
-    return image_filepath
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
 
-def load_session_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
-    image_filepath = get_session_vasculature_downsampled_TIF_filepath(ophys_session_id)
+def load_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_vasculature_downsampled_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
 
-def get_session_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
+def get_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
-    filename = '{}_vasculature_downsampled.tif'.format(ophys_session_id)
-    image_filepath = get_filepath(storage_directory, filename)
-    return image_filepath
+    filename = '{}_cortical_z_stack.tiff'.format(ophys_session_id)
+    filepath = get_filepath(storage_directory, filename)
+    return filepath
 
-def load_session_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
-    image_filepath = get_session_vasculature_downsampled_TIF_filepath(ophys_session_id)
-    image = load_image(image_filepath)
-    return image
 
 
 ######################################################
