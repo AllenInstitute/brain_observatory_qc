@@ -9,6 +9,16 @@ import matplotlib.image as mpimg
 import mindscope_qc.data_access.utilities as utils
 import mindscope_qc.data_access.from_lims as lims
 
+######################################################
+#             UTILITIY FUNCTIONS
+######################################################
+def get_filepath(storage_directory: str, filename: str) -> str:
+    filepath = os.path.join(storage_directory, filename)
+    return filepath
+
+def load_image(image_filepath: str) -> np.ndarray:
+    image = mpimg.imread(image_filepath)
+    return image
 
 
 ######################################################
@@ -149,17 +159,82 @@ def get_experiment_processed_directory(ophys_experiment_id: int) -> str:
 
 
 def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str:
-    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    processed_directory = get_experiment_processed_directory(ophys_experiment_id)
     segmentation_run_id = lims.get_current_segmentation_run_id(ophys_experiment_id)
-    cell_segmentation_run_directory = os.path.join(experiment_directory, "processed", "ophys_cell_segmentation_run_{}".format(segmentation_run_id))
+    cell_segmentation_run_directory = os.path.join(processed_directory, "ophys_cell_segmentation_run_{}".format(segmentation_run_id))
     return cell_segmentation_run_directory
 
+######################################################
+#             SPECIMEN LEVEL FILES
+######################################################
+
+
+def get_post_surgical_photodoc_PNG_filepath(specimen_id: int) -> str:
+    storage_directory = get_specimen_storage_directory(specimen_id)
+    filename = '1_{}-0000.png'.format(specimen_id)
+    image_filepath = get_filepath(storage_directory, filename)
+    return image_filepath
+
+def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
+    image_filepath = get_post_surgical_photodoc_PNG_filepath(specimen_id)
+    image = load_image(image_filepath)
+    return image
+
 
 ######################################################
-#             IMAGE FILES
+#             SESSION LEVEL FILES
+######################################################
+def get_session_reticle_TIF_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}_reticle.tif'.format(ophys_session_id)
+    image_filepath = get_filepath(storage_directory, filename)
+    return image_filepath
+
+def load_session_reticle_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_session_reticle_TIF_filepath(ophys_session_id)
+    image = load_image(image_filepath)
+    return image
+
+def get_session_vasculature_TIF_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}_vasculature.tif'.format(ophys_session_id)
+    image_filepath = get_filepath(storage_directory, filename)
+    return image_filepath
+
+def load_session_vasculature_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_session_vasculature_TIF_filepath(ophys_session_id)
+    image = load_image(image_filepath)
+    return image
+
+def get_session_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}_vasculature_downsampled.tif'.format(ophys_session_id)
+    image_filepath = get_filepath(storage_directory, filename)
+    return image_filepath
+
+def load_session_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_session_vasculature_downsampled_TIF_filepath(ophys_session_id)
+    image = load_image(image_filepath)
+    return image
+
+def get_session_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
+    storage_directory = get_session_storage_directory(ophys_session_id)
+    filename = '{}_vasculature_downsampled.tif'.format(ophys_session_id)
+    image_filepath = get_filepath(storage_directory, filename)
+    return image_filepath
+
+def load_session_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
+    image_filepath = get_session_vasculature_downsampled_TIF_filepath(ophys_session_id)
+    image = load_image(image_filepath)
+    return image
+
+
+######################################################
+#             EXPERIMENT LEVEL FILES
 ######################################################
 
-def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> str:
+
+def get_suite2p_registration_summary_PNG_filepath(ophys_experiment_id: int) -> str:
     """filepath to png of image of boundary of all detected objects
     to see if and how objects overlap.
 
@@ -180,7 +255,7 @@ def get_suite2p_registration_summary_png_filepath(ophys_experiment_id: int) -> s
 
 
 def load_suite2p_registration_summary_image(ophys_experiment_id: int) -> np.ndarray:
-    image_filepath = get_suite2p_registration_summary_png_filepath(ophys_experiment_id)
+    image_filepath = get_suite2p_registration_summary_PNG_filepath(ophys_experiment_id)
     image = mpimg.imread(image_filepath)
     return image
 
@@ -327,8 +402,31 @@ def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
     image_filepath = os.path.join(cell_seg_directory, "enhimgseq.TIF")
     return image_filepath
 
+
 def load_enhimgseq_image(ophys_experiment_id: int) -> np.ndarray:
-    image_filepath = get_avgInt_a1X_PNG_filepath(ophys_experiment_id)
+    image_filepath = get_enhimgseq_TIF_filepath(ophys_experiment_id)
     image = mpimg.imread(image_filepath)
     return image
 
+
+def get_maxInt_masks2_TIF_filepath(ophys_experiment_id: int) -> str:
+    """
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        unique identifier for an ophys experiment
+
+    Returns
+    -------
+    str
+        filepath
+    """
+    cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
+    image_filepath = os.path.join(cell_seg_directory, "maxInt_masks2.TIF")
+    return image_filepath
+
+def load_maxInt_masks2_image(ophys_experiment_id: int) -> np.ndarray:
+    image_filepath = get_maxInt_masks2_TIF_filepath(ophys_experiment_id)
+    image = mpimg.imread(image_filepath)
+    return image
