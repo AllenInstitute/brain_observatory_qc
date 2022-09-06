@@ -164,6 +164,7 @@ def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str
 #             SPECIMEN LEVEL FILES
 ######################################################
 
+
 def get_post_surgical_photodoc_PNG_filepath(specimen_id: int) -> str:
     storage_directory = get_specimen_storage_directory(specimen_id)
     filename = '1_{}-0000.png'.format(specimen_id)
@@ -296,6 +297,7 @@ def get_dff_H5_filepath(ophys_experiment_id: int) -> str:
     filename = '{}_dff.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_event_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
@@ -437,7 +439,7 @@ def get_avgInt_TIF_filepath(ophys_experiment_id: int) -> str:
 def load_avgInt_image_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_avgInt_TIF_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
-    return image 
+    return image
 
 
 def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
@@ -463,7 +465,7 @@ def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
 def load_maxInt_boundary_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_maxInt_boundary_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
-    return image 
+    return image
 
 
 def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -511,7 +513,7 @@ def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
     """
     storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "maxInt_masks.TIF"
-    filepath =get_filepath(storage_directory, filename)
+    filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
@@ -530,7 +532,7 @@ def get_maxInt_a13a_PNG_filepath(ophys_experiment_id: int) -> str:
         filepath
     """
     storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
-    filename =  "maxInt_a13a.png"
+    filename = "maxInt_a13a.png"
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
@@ -564,7 +566,7 @@ def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
 def load_avgInt_a1X_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_avgInt_a1X_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
-    return image 
+    return image
 
 
 def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -583,7 +585,7 @@ def get_enhimgseq_TIF_filepath(ophys_experiment_id: int) -> str:
     str
         filepath
     """
-    storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
+    storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "enhimgseq.TIF"
     filepath = get_filepath(storage_directory, filename)
     return filepath
