@@ -247,6 +247,7 @@ def get_ellipse_H5_filepath(ophys_session_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 ######################################################
 #             EXPERIMENT LEVEL FILES
 ######################################################
