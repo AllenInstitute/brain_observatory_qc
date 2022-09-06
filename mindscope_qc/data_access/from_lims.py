@@ -79,6 +79,7 @@ ALL_ID_TYPES_DICT = {
 
 
 OPHYS_ID_TYPES_DICT = {
+    "specimen_id":         {"lims_table": "specimens",         "id_column": "id",          "query_abbrev": "specimens.id"},
     "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id",          "query_abbrev": "oe.id"},            # noqa: E241, E501
     "ophys_session_id":    {"lims_table": "ophys_sessions",    "id_column": "id",          "query_abbrev": "os.id"},           # noqa: E241, E501
     "foraging_id":         {"lims_table": "ophys_sessions",    "id_column": "foraging_id", "query_abbrev": "os.foraging_id"},   # noqa: E241, E501
@@ -506,6 +507,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     ----------
     id_type : str
         options are the keys in the OPHYS_ID_TYPES_DICT
+        "specimen_id"
         "ophys_experiment_id"
         "ophys_session_id"
         "foraging_id"
@@ -528,6 +530,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
     query = '''
     SELECT
+    specimens.id as specimen_id,
     oe.id AS ophys_experiment_id,
     os.id AS ophys_session_id,
     bs.id AS behavior_session_id,
@@ -540,6 +543,9 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
+
+    JOIN specimens
+    ON os.specimen_id = specimens.id
 
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
@@ -1773,7 +1779,7 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     """
 
     query = '''
-    spec.storage_directory AS specimen_storage_directory,
+    specimens.storage_directory AS specimen_storage_directory,
     oe.storage_directory AS experiment_storage_directory,
     bs.storage_directory AS behavior_storage_directory,
     os.storage_directory AS session_storage_directory,
@@ -1786,8 +1792,8 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
 
-    JOIN specimens spec
-    ON os.specimen_id = spec.id
+    JOIN specimens
+    ON os.specimen_id = specimens.id
 
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
