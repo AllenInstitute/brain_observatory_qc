@@ -354,7 +354,7 @@ def correct_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame
 
     Parameters
     ----------
-    general_info_df : pd.DataFrame
+    dataframe : pd.DataFrame
         _description_
 
     Returns
@@ -362,9 +362,12 @@ def correct_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame
     pd.DataFrame
         _description_
     """
-    storage_directory_columns_list = ['experiment_storage_directory',
+    storage_directory_columns_list = ['specimen_storage_directory',
+                                      'experiment_storage_directory',
+                                      'behavior_storage_directory',
                                       'session_storage_directory',
-                                      'container_storage_directory']
+                                      'container_storage_directory'
+                                      'supercontainer_storage_directory']
 
     for column in storage_directory_columns_list:
         dataframe = utils.correct_dataframe_filepath(dataframe, column)
@@ -415,7 +418,11 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
             equipment_name
             project
             experiment_storage_directory
+            behavior_storage_directory
             session_storage_directory
+            container_storage_directory
+            supercontainer_storage_directory
+            specimen_storage_directory
     """
 
     conditions.validate_value_in_dict_keys(id_type,
@@ -447,8 +454,12 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     projects.code AS project,
 
     oe.storage_directory AS experiment_storage_directory,
+    bs.storage_directory AS behavior_storage_directory,
     os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory
+    vbec.storage_directory AS container_storage_directory,
+    vbs.storage_directory AS supercontainer_storage_directory,
+    specimens.storage_directory AS specimen_storage_directory
+
 
     FROM
     ophys_experiments oe
@@ -464,6 +475,9 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
     JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
 
     JOIN projects ON projects.id = os.project_id
     JOIN specimens ON specimens.id = os.specimen_id
@@ -1750,21 +1764,30 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     -------
     pd.DataFrame
         dataframe with the following columns:
+        "specimen_storage_directory"
         "experiment_storage_directory"
+        "behavior_storage_directory"
         "session_storage_directory"
         "container_storage_directory"
+        "supercontainer_storage_directory"
     """
 
     query = '''
+    spec.storage_directory AS specimen_storage_directory,
     oe.storage_directory AS experiment_storage_directory,
+    bs.storage_directory AS behavior_storage_directory,
     os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory
+    vbec.storage_directory AS container_storage_directory,
+    vbs.storage_directory as supercontainer_storage_directory
 
     FROM
     ophys_experiments oe
 
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
+
+    JOIN specimens spec
+    ON os.specimen_id = spec.id
 
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
