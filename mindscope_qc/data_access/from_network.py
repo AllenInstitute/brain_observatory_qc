@@ -1,16 +1,15 @@
 import os
-from os.path import exists as file_exists
-import sys
 import numpy as np
-
-import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-
+from os.path import exists as file_exists
 import mindscope_qc.data_access.from_lims as lims
+
 
 ######################################################
 #             UTILITIY FUNCTIONS
 ######################################################
+
+
 def get_filepath(storage_directory: str, filename: str) -> str:
     filepath = os.path.join(storage_directory, filename)
     if file_exists(filepath) is False:
@@ -27,6 +26,8 @@ def load_image(image_filepath: str) -> np.ndarray:
 ######################################################
 #             STORAGE DIRECTORIES
 ######################################################
+
+
 def get_specimen_storage_directory(specimen_id: int) -> str:
     pass
 
