@@ -115,7 +115,7 @@ GEN_INFO_QUERY_DICT = {
 def _generic_lims_query(query: str) -> pd.DataFrame:
     """
     execute a SQL query in LIMS
-     
+
     Parameters
     ----------
     query : string
@@ -135,7 +135,7 @@ def _generic_lims_query(query: str) -> pd.DataFrame:
     dataframe
         * the result if the result is a single element
         * results in a pandas dataframe otherwise
-    
+
     Examples
     --------
     >> generic_lims_query('select ophys_session_id from
@@ -165,7 +165,6 @@ def _generic_lims_query(query: str) -> pd.DataFrame:
     else:
         # otherwise return in dataframe format
         return df
-
 
 def _get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     """
@@ -452,7 +451,7 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
 def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     """ Will get all other ophys related id types when given one
-    of the the ids. 
+    of the the ids.
 
     Parameters
     ----------
@@ -477,7 +476,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
     conditions.validate_id_type(id_number, id_type)
-    
+
     query = '''
     SELECT
     oe.id AS ophys_experiment_id,
@@ -584,7 +583,7 @@ def get_donor_id_for_specimen_id(specimen_id: int) -> int:
     return donor_ids
 
 
-def get_specimen_id_for_donor_id(donor_id: int) -> int: 
+def get_specimen_id_for_donor_id(donor_id: int) -> int:
     """_summary_
 
     Parameters
@@ -2190,7 +2189,7 @@ def get_eye_tracking_avi_filepath(ophys_session_id: int) -> str:
     return filepath
 
 
-def get_eye_tracking_h5_filepath(ophys_session_id: int)-> str:
+def get_eye_tracking_h5_filepath(ophys_session_id: int) -> str:
     conditions.validate_id_type(ophys_session_id, "ophys_session_id")
     RealDict_object = get_well_known_file_realdict("'RawEyeTrackingVideo'", ophys_session_id)
     filepath = RealDict_object['filepath'][0]
@@ -2289,7 +2288,7 @@ def get_platform_json_filepath(ophys_session_id: int) -> str:
     return filepath
 
 
-def get_screen_mapping_h5_filepath(ophys_session_id: int)-> str:
+def get_screen_mapping_h5_filepath(ophys_session_id: int) -> str:
     """_summary_
 
     Parameters
@@ -2567,6 +2566,7 @@ def update_objectlist_column_labels(objectlist_df: pd.DataFrame) -> pd.DataFrame
                                                   ' corcoef0': 'soma_obj0_overlap_trace_corr',
                                                   ' corcoef1': 'soma_obj1_overlap_trace_corr'})
     return objectlist_df
+
 
 def get_dff_traces_for_roi(cell_roi_id):
     '''

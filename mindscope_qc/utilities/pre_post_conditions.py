@@ -9,6 +9,7 @@
 
 import numpy as np
 import unittest as test
+import uuid
 from mindscope_qc.data_access import from_lims, from_lims_utilities
 
 
@@ -32,7 +33,7 @@ def is_int(n):
 
 
 def validate_int(n):
-    test.assertTrue(is_int(n),  "Error: incorrect data type.\
+    test.assertTrue(is_int(n), "Error: incorrect data type.\
         Integer is required.")
 
 
@@ -70,7 +71,6 @@ def is_array(n):
 def validate_array(n):
     test.assertTrue(is_array(n), "Error, incorrect data type.\
         Array is required.")
-
 
 
 ### NUMERIC THRESHOLDS ###                                                # noqa: E266

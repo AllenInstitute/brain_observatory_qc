@@ -1,6 +1,6 @@
 import os
 import json
-import warnings
+# import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -9,11 +9,12 @@ from pathlib import Path
 # from visual_behavior.ophys.io.lims_database import LimsDatabase
 # from visual_behavior.ophys.sync.sync_dataset import Dataset as SyncDataset
 # from visual_behavior.ophys.sync.process_sync import filter_digital, calculate_delay
+
 # from visual_behavior import database as db
 
-from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
-from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
+# from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+# from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
+# from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
 
 import logging
 logger = logging.getLogger(__name__)
@@ -218,8 +219,6 @@ def get_lims_id(lims_data):
     return lims_id
 
 
-
-
 def get_cell_timeseries_dict(session, cell_specimen_id):
     '''
     for a given cell_specimen ID, this function creates a dictionary with the following keys
@@ -334,9 +333,6 @@ def add_date_string(df):
     return df
 
 
-
-
-
 def get_n_relative_to_first_novel(group):
     """
     Function to apply to experiments_table data grouped on 'ophys_container_id'
@@ -394,7 +390,7 @@ def get_last_familiar_active(group):
     group = group.sort_values(by='date')
     last_familiar_active = np.empty(len(group))
     last_familiar_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]  # noqa: E712
     if len(indices) > 0:
         index = indices[-1]  # use last (most recent) index
         last_familiar_active[index] = True
@@ -443,7 +439,7 @@ def get_second_novel_active(group):
     group = group.sort_values(by='date')
     second_novel_active = np.empty(len(group))
     second_novel_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]  # noqa: E712
     if len(indices) > 0:
         index = indices[0]  # use first (most recent) index
         second_novel_active[index] = True
@@ -474,11 +470,11 @@ def limit_to_last_familiar_second_novel_active(df):
     Drops rows that are not the last familiar active session or the second novel active session
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -489,11 +485,11 @@ def limit_to_last_familiar_second_novel(df):
     Drops rows that are not the last familiar session or the second novel session, regardless of active or passive
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -557,5 +553,3 @@ def value_counts(df, conditions=['cell_type', 'experience_level', 'mouse_id']):
     counts = df.groupby(conditions).count().reset_index().groupby(conditions[:-1]).count()
     counts = counts[[conditions[-1]]].rename(columns={conditions[-1]: 'n_' + conditions[-1]})
     return counts
-
-
