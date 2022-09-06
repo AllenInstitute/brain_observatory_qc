@@ -18,6 +18,7 @@ def get_filepath(storage_directory: str, filename: str) -> str:
     else:
         return filepath
 
+
 def load_image(image_filepath: str) -> np.ndarray:
     image = mpimg.imread(image_filepath)
     return image
@@ -35,7 +36,7 @@ def get_specimen_storage_directory(specimen_id: int) -> str:
 
 
 def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
-    """gets the experiment level storage directory filepath for a 
+    """gets the experiment level storage directory filepath for a
     specific ophys experiment
 
     Parameters
@@ -54,7 +55,7 @@ def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
 
 
 def get_session_storage_directory(ophys_session_id: int) -> str:
-    """gets the session level storage directory filepath for a 
+    """gets the session level storage directory filepath for a
     specific ophys session
 
     Parameters
@@ -73,7 +74,7 @@ def get_session_storage_directory(ophys_session_id: int) -> str:
 
 
 def get_container_storage_directory(ophys_container_id: int) -> str:
-    """gets the container level storage directory filepath for a 
+    """gets the container level storage directory filepath for a
     specific ophys container
     Parameters
     ----------
@@ -93,7 +94,7 @@ def get_container_storage_directory(ophys_container_id: int) -> str:
 def get_crosstalk_storage_directory(ophys_session_id: int) -> str:
     """
     gets the network storage directory for the crosstalk folder
-    Usually the crosstalk folder is within the session folder. 
+    Usually the crosstalk folder is within the session folder.
 
     Parameters
     ----------
@@ -240,9 +241,11 @@ def get_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 ######################################################
 #             EYE TRACKING FILES
 ######################################################
+
 
 def get_ellipse_H5_filepath(ophys_session_id: int) -> str:
     storage_directory = get_eye_tracking_storage_directory(ophys_session_id)
@@ -425,7 +428,7 @@ def get_output_roi_demixing_JSON_filepath(ophys_experiment_id: int) -> str:
 
 
 def get_avgInt_TIF_filepath(ophys_experiment_id: int) -> str:
-    storage_directory  = get_current_cell_segmentation_run_directory(ophys_experiment_id)
+    storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "avgInt.tif"
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -451,7 +454,7 @@ def get_maxInt_boundary_PNG_filepath(ophys_experiment_id: int) -> str:
     str
         filepath
     """
-    storage_directory  = get_current_cell_segmentation_run_directory(ophys_experiment_id)
+    storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "maxInt_boundary.png"
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -506,9 +509,10 @@ def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
     str
         filepath
     """
-    cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
-    image_filepath = os.path.join(cell_seg_directory, "maxInt_masks.TIF")
-    return image_filepath
+    storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
+    filename = "maxInt_masks.TIF"
+    filepath =get_filepath(storage_directory, filename)
+    return filepath
 
 
 def get_maxInt_a13a_PNG_filepath(ophys_experiment_id: int) -> str:
@@ -608,6 +612,7 @@ def get_maxInt_masks2_TIF_filepath(ophys_experiment_id: int) -> str:
     filename = "maxInt_masks2.TIF"
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def load_maxInt_masks2_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_maxInt_masks2_TIF_filepath(ophys_experiment_id)
