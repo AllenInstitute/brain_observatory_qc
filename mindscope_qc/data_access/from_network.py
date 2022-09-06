@@ -29,7 +29,9 @@ def load_image(image_filepath: str) -> np.ndarray:
 
 
 def get_specimen_storage_directory(specimen_id: int) -> str:
-    pass
+    directories_df = lims.get_storage_directories_for_id("specimen_id", specimen_id)
+    specimen_path = directories_df["specimen_storage_directory"][0]
+    return specimen_path
 
 
 def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
