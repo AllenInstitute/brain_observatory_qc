@@ -14,8 +14,8 @@ import mindscope_qc.data_access.from_lims as lims
 def get_filepath(storage_directory: str, filename: str) -> str:
     filepath = os.path.join(storage_directory, filename)
     if file_exists(filepath) is False:
-        no_file_warning = "Warning: {} does not exist".format(filepath)
-        print(no_file_warning)
+        no_file_error = "Error: {} does not exist".format(filepath)
+        print(no_file_error)
     else:
         return filepath
 
