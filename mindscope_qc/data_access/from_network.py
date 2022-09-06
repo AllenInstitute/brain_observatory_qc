@@ -151,9 +151,10 @@ def get_experiment_processed_directory(ophys_experiment_id: int) -> str:
 
 def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str:
     processed_directory = get_experiment_processed_directory(ophys_experiment_id)
-    segmentation_run_id = lims.get_current_segmentation_run_id(ophys_experiment_id)
-    cell_segmentation_run_directory = os.path.join(processed_directory, "ophys_cell_segmentation_run_{}".format(segmentation_run_id))
-    return cell_segmentation_run_directory
+    current_segmentation_run_id = lims.get_current_segmentation_run_id(ophys_experiment_id)
+    current_cell_segmentation_run_directory = os.path.join(processed_directory, "ophys_cell_segmentation_run_{}".format(current_segmentation_run_id))
+    return current_cell_segmentation_run_directory
+
 
 ######################################################
 #             SPECIMEN LEVEL FILES
@@ -165,6 +166,7 @@ def get_post_surgical_photodoc_PNG_filepath(specimen_id: int) -> str:
     image_filepath = get_filepath(storage_directory, filename)
     return image_filepath
 
+
 def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
     image_filepath = get_post_surgical_photodoc_PNG_filepath(specimen_id)
     image = load_image(image_filepath)
@@ -174,11 +176,14 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
 ######################################################
 #             SESSION LEVEL FILES
 ######################################################
+
+
 def get_stimulus_PKL_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
     filename = '{}.pkl'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_platform_JSON_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
@@ -186,16 +191,19 @@ def get_platform_JSON_filepath(ophys_session_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def get_reticle_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
     filename = '{}_reticle.tif'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_reticle_image(ophys_session_id: int) -> np.ndarray:
     image_filepath = get_reticle_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_vasculature_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
@@ -203,10 +211,12 @@ def get_vasculature_TIF_filepath(ophys_session_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_vasculature_image(ophys_session_id: int) -> np.ndarray:
     image_filepath = get_vasculature_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
@@ -214,10 +224,12 @@ def get_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
     image_filepath = get_vasculature_downsampled_TIF_filepath(ophys_session_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
     storage_directory = get_session_storage_directory(ophys_session_id)
@@ -228,21 +240,23 @@ def get_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
 ######################################################
 #             EYE TRACKING FILES
 ######################################################
+
 def get_ellipse_H5_filepath(ophys_session_id: int) -> str:
     storage_directory = get_eye_tracking_storage_directory(ophys_session_id)
     filename = '{}_ellipse.h5'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
-
 ######################################################
 #             EXPERIMENT LEVEL FILES
 ######################################################
+
 def get_experiment_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_surface_TIF_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
@@ -250,10 +264,12 @@ def get_surface_TIF_filepath(ophys_experiment_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_surface_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_surface_TIF_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_depth_TIF_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
@@ -261,10 +277,12 @@ def get_depth_TIF_filepath(ophys_experiment_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_depth_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_depth_TIF_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_dff_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
@@ -278,17 +296,20 @@ def get_event_H5_filepath(ophys_experiment_id: int) -> str:
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def get_local_zstack_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_z_stack_local.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def get_neuropil_traces_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
     filename = 'neuropil_traces.h5'
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_roi_traces_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
@@ -301,11 +322,13 @@ def get_roi_traces_H5_filepath(ophys_experiment_id: int) -> str:
 #             MOTION CORRECTION FILES
 ######################################################
 
+
 def get_suite2p_rigid_motion_transform_CSV_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
     filename = '{}_suite2p_rigid_motion_transform.csv'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_suite2p_maximum_projection_PNG_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
@@ -313,10 +336,12 @@ def get_suite2p_maximum_projection_PNG_filepath(ophys_experiment_id: int) -> str
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_suite2p_maximum_projection_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_suite2p_maximum_projection_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_suite2p_average_projection_PNG_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
@@ -324,16 +349,19 @@ def get_suite2p_average_projection_PNG_filepath(ophys_experiment_id: int) -> str
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_suite2p_average_projection_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_suite2p_average_projection_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
     return image
+
 
 def get_suite2p_motion_output_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_experiment_processed_directory(ophys_experiment_id)
     filename = '{}_suite2p_motion_output.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_suite2p_registration_summary_PNG_filepath(ophys_experiment_id: int) -> str:
     """filepath to png of image of boundary of all detected objects
@@ -354,27 +382,31 @@ def get_suite2p_registration_summary_PNG_filepath(ophys_experiment_id: int) -> s
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def load_suite2p_registration_summary_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_suite2p_registration_summary_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
     return image
 
 
-
 ######################################################
 #             DEMIX FILES
 ######################################################
+
+
 def get_demix_traces_H5_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_demix_storage_directory(ophys_experiment_id)
     filename = '{}_demixed_traces.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
+
 def get_input_roi_demixing_JSON_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_demix_storage_directory(ophys_experiment_id)
     filename = '{}_input_roi_demixing.json'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def get_output_roi_demixing_JSON_filepath(ophys_experiment_id: int) -> str:
     storage_directory = get_demix_storage_directory(ophys_experiment_id)
@@ -383,15 +415,17 @@ def get_output_roi_demixing_JSON_filepath(ophys_experiment_id: int) -> str:
     return filepath
 
 
-
 ######################################################
 #             CELL SEGMENTATION FILES
 ######################################################
+
+
 def get_avgInt_TIF_filepath(ophys_experiment_id: int) -> str:
     storage_directory  = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "avgInt.tif"
     filepath = get_filepath(storage_directory, filename)
     return filepath
+
 
 def load_avgInt_image_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_avgInt_TIF_filepath(ophys_experiment_id)
