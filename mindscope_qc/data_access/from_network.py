@@ -480,14 +480,14 @@ def get_maxInt_masks_TIF_filepath(ophys_experiment_id: int) -> str:
     """
     storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "maxInt_masks.TIF"
-    filepath = get_filepath(storage_directory, filename )
+    filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def load_maxInt_masks_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_maxInt_masks_TIF_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
-    return image 
+    return image
 
 
 def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
@@ -506,7 +506,7 @@ def get_maxInt_LOmasks_TIF_filepath(ophys_experiment_id: int) -> str:
     str
         filepath
     """
-    cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id) 
+    cell_seg_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     image_filepath = os.path.join(cell_seg_directory, "maxInt_masks.TIF")
     return image_filepath
 
@@ -534,7 +534,7 @@ def get_maxInt_a13a_PNG_filepath(ophys_experiment_id: int) -> str:
 def load_maxInt_a13a_image(ophys_experiment_id: int) -> np.ndarray:
     image_filepath = get_maxInt_a13a_PNG_filepath(ophys_experiment_id)
     image = load_image(image_filepath)
-    return image 
+    return image
 
 
 def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
@@ -553,7 +553,7 @@ def get_avgInt_a1X_PNG_filepath(ophys_experiment_id: int) -> str:
     """
     storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "avgInt_a1X.png"
-    filepath = get_filepath(storage_directory, filename )
+    filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
@@ -606,7 +606,7 @@ def get_maxInt_masks2_TIF_filepath(ophys_experiment_id: int) -> str:
     """
     storage_directory = get_current_cell_segmentation_run_directory(ophys_experiment_id)
     filename = "maxInt_masks2.TIF"
-    filepath = get_filepath(storage_directory, filename )
+    filepath = get_filepath(storage_directory, filename)
     return filepath
 
 def load_maxInt_masks2_image(ophys_experiment_id: int) -> np.ndarray:
