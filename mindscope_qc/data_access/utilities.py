@@ -6,9 +6,10 @@ import pandas as pd
 from pathlib import Path
 
 # from visual_behavior.data_access import loading
-from visual_behavior.ophys.io.lims_database import LimsDatabase
-from visual_behavior.ophys.sync.sync_dataset import Dataset as SyncDataset
-from visual_behavior.ophys.sync.process_sync import filter_digital, calculate_delay
+# from visual_behavior.ophys.io.lims_database import LimsDatabase
+# from visual_behavior.ophys.sync.sync_dataset import Dataset as SyncDataset
+# from visual_behavior.ophys.sync.process_sync import filter_digital, calculate_delay
+
 # from visual_behavior import database as db
 
 # from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
@@ -51,14 +52,14 @@ def get_ssim(img0, img1):
     return ssim_pair
 
 
-def get_lims_data(lims_id):
-    ld = LimsDatabase(int(lims_id))
-    lims_data = ld.get_qc_param()
-    lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
-    lims_data.insert(loc=2, column='session_type',
-                     value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
-    lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
-    return lims_data
+# def get_lims_data(lims_id):
+#     ld = LimsDatabase(int(lims_id))
+#     lims_data = ld.get_qc_param()
+#     lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
+#     lims_data.insert(loc=2, column='session_type',
+#                      value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
+#     lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
+#     return lims_data
 
 
 def get_timestamps(lims_data):
@@ -85,7 +86,7 @@ def get_sync_path(lims_data):
     sync_path = os.path.join(ophys_session_dir, sync_file)
     return sync_path
 
-
+"""
 def get_sync_data(lims_data, use_acq_trigger):
     logger.info('getting sync data')
     sync_path = get_sync_path(lims_data)
@@ -180,7 +181,7 @@ def get_sync_data(lims_data, use_acq_trigger):
                  'ophys_trigger': times_trigger,
                  }
     return sync_data
-
+"""
 
 def get_ophys_session_dir(lims_data):
     ophys_session_dir = lims_data.ophys_session_dir.values[0]
