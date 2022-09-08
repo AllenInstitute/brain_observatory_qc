@@ -112,6 +112,7 @@ GEN_INFO_QUERY_DICT = {
     "supercontainer_id":   {"query_abbrev": "os.visual_behavior_supercontainer_id"}  # noqa: E241
 }
 
+
 def _generic_lims_query(query: str) -> pd.DataFrame:
     """
     execute a SQL query in LIMS
@@ -165,6 +166,7 @@ def _generic_lims_query(query: str) -> pd.DataFrame:
     else:
         # otherwise return in dataframe format
         return df
+
 
 def _get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     """
@@ -264,7 +266,7 @@ def _get_id_type(id_number: int) -> str:
     Parameters
     ----------
     id_number : int
-        A lims id 
+        A lims id
 
     Returns
     -------
