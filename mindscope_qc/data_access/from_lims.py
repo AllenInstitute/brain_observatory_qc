@@ -79,7 +79,7 @@ ALL_ID_TYPES_DICT = {
 
 
 OPHYS_ID_TYPES_DICT = {
-    "specimen_id":         {"lims_table": "specimens",         "id_column": "id",          "query_abbrev": "specimens.id"},
+    "specimen_id":         {"lims_table": "specimens",         "id_column": "id",          "query_abbrev": "specimens.id"},  # noqa: E241
     "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id",          "query_abbrev": "oe.id"},            # noqa: E241, E501
     "ophys_session_id":    {"lims_table": "ophys_sessions",    "id_column": "id",          "query_abbrev": "os.id"},           # noqa: E241, E501
     "foraging_id":         {"lims_table": "ophys_sessions",    "id_column": "foraging_id", "query_abbrev": "os.foraging_id"},   # noqa: E241, E501
@@ -1779,12 +1779,6 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     storage_directories_df = mixin.select(query)
     storage_directories_df = correct_storage_directory_filepaths(storage_directories_df)
     return storage_directories_df
-
-
-
-
-
-
 
 
 ### FILEPATHS FOR WELL KNOWN FILES###      # noqa: E266

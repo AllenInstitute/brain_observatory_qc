@@ -14,8 +14,6 @@ gen_depr_str = 'this function is deprecated and will be removed in a future vers
 # CONVENIENCE FUNCTIONS TO GET VARIOUS INFORMATION #
 
 
-
-
 class LazyLoadable(object):
     def __init__(self, name, calculate):
         ''' Wrapper for attributes intended to be computed or loaded once, then held in memory by a containing object.
