@@ -1,10 +1,20 @@
-import os
+# import os
 import pandas as pd
+import numpy as np
+
+# from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
+# from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
+# from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 
 
-from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
-from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
-from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+def dateformat(exp_date):
+    """
+    reformat date of acquisition for accurate sorting by date
+    """
+    from datetime import datetime
+    date = int(datetime.strptime(exp_date, '%Y-%m-%d  %H:%M:%S.%f').strftime('%Y%m%d'))
+    return date
+
 
 def add_date_string(df):
     """
@@ -45,6 +55,7 @@ def get_cell_timeseries_dict(session, cell_specimen_id):
     }
 
     return cell_dict
+
 
 def get_n_relative_to_first_novel(group):
     """
@@ -103,7 +114,7 @@ def get_last_familiar_active(group):
     group = group.sort_values(by='date')
     last_familiar_active = np.empty(len(group))
     last_familiar_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0] # noqa : E712
     if len(indices) > 0:
         index = indices[-1]  # use last (most recent) index
         last_familiar_active[index] = True
@@ -152,7 +163,7 @@ def get_second_novel_active(group):
     group = group.sort_values(by='date')
     second_novel_active = np.empty(len(group))
     second_novel_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0] # noqa : E712
     if len(indices) > 0:
         index = indices[0]  # use first (most recent) index
         second_novel_active[index] = True
@@ -204,11 +215,11 @@ def limit_to_last_familiar_second_novel_active(df):
     Drops rows that are not the last familiar active session or the second novel active session
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -219,11 +230,11 @@ def limit_to_last_familiar_second_novel(df):
     Drops rows that are not the last familiar session or the second novel session, regardless of active or passive
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     return df
