@@ -75,10 +75,11 @@ ALL_ID_TYPES_DICT = {
     "ophys_container_id":  {"lims_table": "visual_behavior_experiment_containers", "id_column": "id"},                       # noqa: E241, E501
     "isi_experiment_id":   {"lims_table": "isi_experiments",                       "id_column": "id"},                       # noqa: E241, E501
     "supercontainer_id":   {"lims_table": "visual_behavior_supercontainers",       "id_column": "id"},                       # noqa: E241, E501
-    }
+}
 
 
 OPHYS_ID_TYPES_DICT = {
+    "specimen_id":         {"lims_table": "specimens",         "id_column": "id",          "query_abbrev": "specimens.id"},  # noqa: E241
     "ophys_experiment_id": {"lims_table": "ophys_experiments", "id_column": "id",          "query_abbrev": "oe.id"},            # noqa: E241, E501
     "ophys_session_id":    {"lims_table": "ophys_sessions",    "id_column": "id",          "query_abbrev": "os.id"},           # noqa: E241, E501
     "foraging_id":         {"lims_table": "ophys_sessions",    "id_column": "foraging_id", "query_abbrev": "os.foraging_id"},   # noqa: E241, E501
@@ -315,12 +316,12 @@ def get_microscope_type(ophys_session_id: int) -> str:
 
 ### QUERIES USED FOR MULTIPLE FUNCTIONS ###      # noqa: E266
 
-def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFrame:
+def correct_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame:
     """_summary_
 
     Parameters
     ----------
-    general_info_df : pd.DataFrame
+    dataframe : pd.DataFrame
         _description_
 
     Returns
@@ -328,14 +329,16 @@ def correct_general_info_filepaths(general_info_df: pd.DataFrame) -> pd.DataFram
     pd.DataFrame
         _description_
     """
-    storage_directory_columns_list = ['experiment_storage_directory',
+    storage_directory_columns_list = ['specimen_storage_directory',
+                                      'experiment_storage_directory',
+                                      'behavior_storage_directory',
                                       'session_storage_directory',
-                                      'container_storage_directory']
+                                      'container_storage_directory'
+                                      'supercontainer_storage_directory']
 
-    for directory in storage_directory_columns_list:
-        general_info_df = utils.correct_dataframe_filepath(general_info_df, directory)
-
-    return general_info_df
+    for column in storage_directory_columns_list:
+        dataframe = utils.correct_dataframe_filepath(dataframe, column)
+    return dataframe
 
 
 def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
@@ -382,7 +385,11 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
             equipment_name
             project
             experiment_storage_directory
+            behavior_storage_directory
             session_storage_directory
+            container_storage_directory
+            supercontainer_storage_directory
+            specimen_storage_directory
     """
 
     conditions.validate_value_in_dict_keys(id_type,
@@ -414,8 +421,12 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     projects.code AS project,
 
     oe.storage_directory AS experiment_storage_directory,
+    bs.storage_directory AS behavior_storage_directory,
     os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory
+    vbec.storage_directory AS container_storage_directory,
+    vbs.storage_directory AS supercontainer_storage_directory,
+    specimens.storage_directory AS specimen_storage_directory
+
 
     FROM
     ophys_experiments oe
@@ -432,6 +443,9 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
 
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
     JOIN projects ON projects.id = os.project_id
     JOIN specimens ON specimens.id = os.specimen_id
     JOIN structures ON structures.id = oe.targeted_structure_id
@@ -446,7 +460,7 @@ def get_general_info_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     general_info = mixin.select(query)
 
     # ensure operating system compatible filepaths
-    general_info = correct_general_info_filepaths(general_info)
+    general_info = correct_storage_directory_filepaths(general_info)
 
     return general_info
 
@@ -459,6 +473,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     ----------
     id_type : str
         options are the keys in the OPHYS_ID_TYPES_DICT
+        "specimen_id"
         "ophys_experiment_id"
         "ophys_session_id"
         "foraging_id"
@@ -481,6 +496,7 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
     query = '''
     SELECT
+    specimens.id as specimen_id,
     oe.id AS ophys_experiment_id,
     os.id AS ophys_session_id,
     bs.id AS behavior_session_id,
@@ -493,6 +509,9 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
+
+    JOIN specimens
+    ON os.specimen_id = specimens.id
 
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
@@ -509,61 +528,6 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     all_ids = mixin.select(query)
 
     return all_ids
-
-
-def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
-    """_summary_
-
-    Parameters
-    ----------
-    id_type : str
-        options are the keys in the OPHYS_ID_TYPES_DICT
-        "ophys_experiment_id"
-        "ophys_session_id"
-        "foraging_id"
-        "behavior_session_id"
-        "ophys_container_id"
-        "supercontainer_id"
-    id_number : int
-        usually 9 digits, foraging IDs are the exception
-
-    Returns
-    -------
-    pd.DataFrame
-        dataframe with the following columns:
-        "experiment_storage_directory"
-        "session_storage_directory"
-        "container_storage_directory"
-    """
-
-    query = '''
-    oe.storage_directory AS experiment_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory
-
-    FROM
-    ophys_experiments oe
-
-    JOIN ophys_sessions os
-    ON os.id = oe.ophys_session_id
-
-    JOIN behavior_sessions bs
-    ON bs.foraging_id = os.foraging_id
-
-    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
-    ON oe.id = oevbec.ophys_experiment_id
-
-    JOIN visual_behavior_experiment_containers vbec
-    ON vbec.id = oevbec.visual_behavior_experiment_container_id
-
-    JOIN visual_behavior_supercontainers vbs
-    ON os.visual_behavior_supercontainer_id = vbs.id
-
-    WHERE
-    {} = {}
-    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
-    storage_directories_df = mixin.select(query)
-    return storage_directories_df
 
 
 ### ID TYPES ###      # noqa: E266
@@ -641,7 +605,7 @@ def get_ophys_experiment_id_for_cell_roi_id(cell_roi_id: int) -> int:
 
 
 # for ophys_experiment_id
-def get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id: int) -> int:
+def get_current_segmentation_run_id(ophys_experiment_id: int) -> int:
     """gets the id for the current cell segmentation run for a given experiment.
         Queries LIMS via AllenSDK PostgresQuery function.
 
@@ -1551,7 +1515,7 @@ def get_cell_rois_table(ophys_experiment_id: int) -> pd.DataFrame:
         _description_
     """
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_segmentation_run_id = get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id)
+    current_segmentation_run_id = get_current_segmentation_run_id(ophys_experiment_id)
 
     query = '''
     SELECT *
@@ -1750,7 +1714,75 @@ def get_cell_exclusion_labels(ophys_experiment_id: int) -> pd.DataFrame:
     return mixin.select(query)
 
 
+### ________________LIMS__STORAGE__DIRECTORIES_____________________ # noqa: E266
+
+def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_type : str
+        options are the keys in the OPHYS_ID_TYPES_DICT
+        "ophys_experiment_id"
+        "ophys_session_id"
+        "foraging_id"
+        "behavior_session_id"
+        "ophys_container_id"
+        "supercontainer_id"
+    id_number : int
+        usually 9 digits, foraging IDs are the exception
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with the following columns:
+        "specimen_storage_directory"
+        "experiment_storage_directory"
+        "behavior_storage_directory"
+        "session_storage_directory"
+        "container_storage_directory"
+        "supercontainer_storage_directory"
+    """
+
+    query = '''
+    specimens.storage_directory AS specimen_storage_directory,
+    oe.storage_directory AS experiment_storage_directory,
+    bs.storage_directory AS behavior_storage_directory,
+    os.storage_directory AS session_storage_directory,
+    vbec.storage_directory AS container_storage_directory,
+    vbs.storage_directory as supercontainer_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN specimens
+    ON os.specimen_id = specimens.id
+
+    JOIN behavior_sessions bs
+    ON bs.foraging_id = os.foraging_id
+
+    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    ON oe.id = oevbec.ophys_experiment_id
+
+    JOIN visual_behavior_experiment_containers vbec
+    ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
+
+    WHERE
+    {} = {}
+    '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
+    storage_directories_df = mixin.select(query)
+    storage_directories_df = correct_storage_directory_filepaths(storage_directories_df)
+    return storage_directories_df
+
+
 ### FILEPATHS FOR WELL KNOWN FILES###      # noqa: E266
+
 
 VISUAL_BEHAVIOR_WELL_KNOWN_FILE_ATTACHABLE_ID_TYPES = ["'IsiExperiment'",
                                                        "'OphysExperiment'",
@@ -1869,7 +1901,7 @@ def get_filepath_from_realdict_object(realdict_object):
     return filepath
 
 
-def get_well_known_file_path(wellKnownFileName, attachable_id):
+def get_well_known_file_path(wellKnownFileName: str, attachable_id: int) -> str:
     RealDict_object = get_well_known_file_realdict(wellKnownFileName, attachable_id)
     # filepath works for all operating systems
     filepath = get_filepath_from_realdict_object(RealDict_object)
@@ -1877,19 +1909,19 @@ def get_well_known_file_path(wellKnownFileName, attachable_id):
 
 
 # FOR ISI EXPERIMENT ID
-def get_isi_experiment_filepath(isi_experiment_id):
+def get_isi_experiment_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'IsiExperiment'", isi_experiment_id)
     return filepath
 
 
-def get_processed_isi_experiment_filepath(isi_experiment_id):
+def get_processed_isi_experiment_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'IsiProcessed'", isi_experiment_id)
     return filepath
 
 
-def get_isi_NWB_filepath(isi_experiment_id):
+def get_isi_NWB_filepath(isi_experiment_id: int) -> str:
     conditions.validate_id_type(isi_experiment_id, "isi_experiment_id")
     filepath = get_well_known_file_path("'NWBISI'", isi_experiment_id)
     return filepath
@@ -1916,49 +1948,49 @@ def get_BehaviorOphys_NWB_filepath(ophys_experiment_id: int) -> str:
     return filepath
 
 
-def get_demixed_traces_filepath(ophys_experiment_id):
+def get_demixed_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'DemixedTracesFile'", ophys_experiment_id)
     return filepath
 
 
-def get_motion_corrected_movie_filepath(ophys_experiment_id):
+def get_motion_corrected_movie_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'MotionCorrectedImageStack'", ophys_experiment_id)
     return filepath
 
 
-def get_neuropil_correction_filepath(ophys_experiment_id):
+def get_neuropil_correction_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'NeuropilCorrection'", ophys_experiment_id)
     return filepath
 
 
-def get_average_intensity_projection_filepath(ophys_experiment_id):
+def get_average_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysAverageIntensityProjectionImage'", ophys_experiment_id)
     return filepath
 
 
-def get_dff_traces_filepath(ophys_experiment_id):
+def get_dff_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysDffTraceFile'", ophys_experiment_id)
     return filepath
 
 
-def get_event_trace_filepath(ophys_experiment_id):
+def get_event_trace_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysEventTraceFile'", ophys_experiment_id)
     return filepath
 
 
-def get_extracted_traces_input_filepath(ophys_experiment_id):
+def get_extracted_traces_input_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExtractedTracesInputJson'", ophys_experiment_id)
     return filepath
 
 
-def get_extracted_traces_filepath(ophys_experiment_id):
+def get_extracted_traces_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExtractedTraces'", ophys_experiment_id)
     return filepath
@@ -1970,13 +2002,13 @@ def _get_motion_preview_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_motion_xy_offset_filepath(ophys_experiment_id):
+def get_motion_xy_offset_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysMotionXyOffsetData'", ophys_experiment_id)
     return filepath
 
 
-def get_neuropil_traces_filepath(ophys_experiment_id):
+def get_neuropil_traces_filepath(ophys_experiment_id: int) -> str:
     """uses well known file system to query lims and get the directory
     and filename for the neuropil_traces.h5 for a given ophys experiment
 
@@ -1996,13 +2028,13 @@ def get_neuropil_traces_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_ophys_registration_summary_image_filepath(ophys_experiment_id):
+def get_ophys_registration_summary_image_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysRegistrationSummaryImage'", ophys_experiment_id)
     return filepath
 
 
-def get_roi_traces_filepath(ophys_experiment_id):
+def get_roi_traces_filepath(ophys_experiment_id: int) -> str:
     """uses well known file system to query lims and get the directory
     and filename for the roi_traces.h5 for a given ophys experiment
 
@@ -2021,13 +2053,13 @@ def get_roi_traces_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_cell_roi_metrics_file_filepath(ophys_experiment_id):
+def get_cell_roi_metrics_file_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'OphysExperimentCellRoiMetricsFile'", ophys_experiment_id)
     return filepath
 
 
-def get_time_syncronization_filepath(ophys_experiment_id):
+def get_time_syncronization_filepath(ophys_experiment_id: int) -> str:
     """for scientifica experiments only (CAM2P.3, CAM2P.4, CAM2P.5)
 
     Parameters
@@ -2047,7 +2079,7 @@ def get_time_syncronization_filepath(ophys_experiment_id):
     return filepath
 
 
-def get_observatory_events_filepath(ophys_experiment_id):
+def get_observatory_events_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
     filepath = get_well_known_file_path("'ObservatoryEventsFile'", ophys_experiment_id)
     return filepath
@@ -2056,14 +2088,14 @@ def get_observatory_events_filepath(ophys_experiment_id):
 ## FOR ophys_cell_segmentation_run_id via ophys_experiment_id             # noqa: E266
 
 
-def get_ophys_suite2p_rois_filepath(ophys_experiment_id):
+def get_ophys_suite2p_rois_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSuite2pRois'", current_seg_id)
     return filepath
 
 
-def get_segmentation_objects_filepath(ophys_experiment_id):
+def get_segmentation_objects_filepath(ophys_experiment_id: int) -> str:
     """use SQL and the LIMS well known file system to get the
        location information for the objectlist.txt file for a
        given cell segmentation run
@@ -2075,42 +2107,42 @@ def get_segmentation_objects_filepath(ophys_experiment_id):
         list -- list with storage directory and filename
     """
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationObjects'", current_seg_id)
     return filepath
 
 
 def get_lo_segmentation_mask_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysLoSegmentationMaskData'", current_seg_id)
     return filepath
 
 
 def get_segmentation_mask_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationMaskData'", current_seg_id)
     return filepath
 
 
 def get_segmentation_mask_image_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysSegmentationMaskImage'", current_seg_id)
     return filepath
 
 
 def get_ave_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysAverageIntensityProjectionImage'", current_seg_id)
     return filepath
 
 
 def get_max_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     conditions.validate_id_type(ophys_experiment_id, "ophys_experiment_id")
-    current_seg_id = int(get_current_segmentation_run_id_for_ophys_experiment_id(ophys_experiment_id))
+    current_seg_id = int(get_current_segmentation_run_id(ophys_experiment_id))
     filepath = get_well_known_file_path("'OphysMaxIntImage'", current_seg_id)
     return filepath
 

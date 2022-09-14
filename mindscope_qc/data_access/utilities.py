@@ -4,20 +4,7 @@ import json
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
-# from visual_behavior.data_access import loading
-# from visual_behavior.ophys.io.lims_database import LimsDatabase
-# from visual_behavior.ophys.sync.sync_dataset import Dataset as SyncDataset
-# from visual_behavior.ophys.sync.process_sync import filter_digital, calculate_delay
-
-# from visual_behavior import database as db
-
-# from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-# from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
-# from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
-
-import logging
-logger = logging.getLogger(__name__)
+from datetime import datetime
 
 
 # warning
@@ -25,8 +12,6 @@ gen_depr_str = 'this function is deprecated and will be removed in a future vers
                + 'please use {}.{} instead'
 
 # CONVENIENCE FUNCTIONS TO GET VARIOUS INFORMATION #
-
-# put functions here such as get_ophys_experiment_id_for_ophys_session_id()
 
 
 class LazyLoadable(object):
@@ -319,7 +304,7 @@ def dateformat(exp_date):
     """
     reformat date of acquisition for accurate sorting by date
     """
-    from datetime import datetime
+
     date = int(datetime.strptime(exp_date, '%Y-%m-%d  %H:%M:%S.%f').strftime('%Y%m%d'))
     return date
 
