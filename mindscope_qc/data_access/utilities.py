@@ -1,22 +1,10 @@
 import os
 import json
-import warnings
+# import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
-
-from visual_behavior.data_access import loading
-from visual_behavior.ophys.io.lims_database import LimsDatabase
-from visual_behavior.ophys.sync.sync_dataset import Dataset as SyncDataset
-from visual_behavior.ophys.sync.process_sync import filter_digital, calculate_delay
-from visual_behavior import database as db
-
-from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
-from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
-
-import logging
-logger = logging.getLogger(__name__)
+from datetime import datetime
 
 
 # warning
@@ -24,8 +12,6 @@ gen_depr_str = 'this function is deprecated and will be removed in a future vers
                + 'please use {}.{} instead'
 
 # CONVENIENCE FUNCTIONS TO GET VARIOUS INFORMATION #
-
-# put functions here such as get_ophys_experiment_id_for_ophys_session_id()
 
 
 class LazyLoadable(object):
@@ -51,24 +37,24 @@ def get_ssim(img0, img1):
     return ssim_pair
 
 
-def get_lims_data(lims_id):
-    ld = LimsDatabase(int(lims_id))
-    lims_data = ld.get_qc_param()
-    lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
-    lims_data.insert(loc=2, column='session_type',
-                     value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
-    lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
-    return lims_data
+# def get_lims_data(lims_id):
+#     ld = LimsDatabase(int(lims_id))
+#     lims_data = ld.get_qc_param()
+#     lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
+#     lims_data.insert(loc=2, column='session_type',
+#                      value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
+#     lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
+#     return lims_data
 
 
-def get_timestamps(lims_data):
-    if '2P6' in lims_data.rig.values[0]:
-        use_acq_trigger = True
-    else:
-        use_acq_trigger = False
-    sync_data = get_sync_data(lims_data, use_acq_trigger)
-    timestamps = pd.DataFrame(sync_data)
-    return timestamps
+# def get_timestamps(lims_data):
+#     if '2P6' in lims_data.rig.values[0]:
+#         use_acq_trigger = True
+#     else:
+#         use_acq_trigger = False
+#     sync_data = get_sync_data(lims_data, use_acq_trigger)
+#     timestamps = pd.DataFrame(sync_data)
+#     return timestamps
 
 
 def get_sync_path(lims_data):
@@ -86,100 +72,100 @@ def get_sync_path(lims_data):
     return sync_path
 
 
-def get_sync_data(lims_data, use_acq_trigger):
-    logger.info('getting sync data')
-    sync_path = get_sync_path(lims_data)
-    sync_dataset = SyncDataset(sync_path)
-    # Handle mesoscope missing labels
-    try:
-        sync_dataset.get_rising_edges('2p_vsync')
-    except ValueError:
-        sync_dataset.line_labels = ['2p_vsync', '', 'stim_vsync', '', 'photodiode', 'acq_trigger', '', '',
-                                    'behavior_monitoring', 'eye_tracking', '', '', '', '', '', '', '', '', '', '', '',
-                                    '', '', '', '', '', '', '', '', '', '', 'lick_sensor']
-        sync_dataset.meta_data['line_labels'] = sync_dataset.line_labels
+# def get_sync_data(lims_data, use_acq_trigger):
+#     logger.info('getting sync data')
+#     sync_path = get_sync_path(lims_data)
+#     sync_dataset = SyncDataset(sync_path)
+#     # Handle mesoscope missing labels
+#     try:
+#         sync_dataset.get_rising_edges('2p_vsync')
+#     except ValueError:
+#         sync_dataset.line_labels = ['2p_vsync', '', 'stim_vsync', '', 'photodiode', 'acq_trigger', '', '',
+#                                     'behavior_monitoring', 'eye_tracking', '', '', '', '', '', '', '', '', '', '', '',
+#                                     '', '', '', '', '', '', '', '', '', '', 'lick_sensor']
+#         sync_dataset.meta_data['line_labels'] = sync_dataset.line_labels
 
-    meta_data = sync_dataset.meta_data
-    sample_freq = meta_data['ni_daq']['counter_output_freq']
-    # 2P vsyncs
-    vs2p_r = sync_dataset.get_rising_edges('2p_vsync')
-    vs2p_f = sync_dataset.get_falling_edges(
-        '2p_vsync', )  # new sync may be able to do units = 'sec', so conversion can be skipped
-    vs2p_rsec = vs2p_r / sample_freq
-    vs2p_fsec = vs2p_f / sample_freq
-    if use_acq_trigger:  # if 2P6, filter out solenoid artifacts
-        vs2p_r_filtered, vs2p_f_filtered = filter_digital(vs2p_rsec, vs2p_fsec, threshold=0.01)
-        frames_2p = vs2p_r_filtered
-    else:  # dont need to filter out artifacts in pipeline data
-        frames_2p = vs2p_rsec
-    # use rising edge for Scientifica, falling edge for Nikon http://confluence.corp.alleninstitute.org/display/IT/Ophys+Time+Sync
-    # Convert to seconds - skip if using units in get_falling_edges, otherwise convert before doing filter digital
-    # vs2p_rsec = vs2p_r / sample_freq
-    # frames_2p = vs2p_rsec
-    # stimulus vsyncs
-    # vs_r = d.get_rising_edges('stim_vsync')
-    vs_f = sync_dataset.get_falling_edges('stim_vsync')
-    # convert to seconds
-    # vs_r_sec = vs_r / sample_freq
-    vs_f_sec = vs_f / sample_freq
-    # vsyncs = vs_f_sec
-    # add display lag
-    monitor_delay = calculate_delay(sync_dataset, vs_f_sec, sample_freq)
-    vsyncs = vs_f_sec + monitor_delay  # this should be added, right!?
-    # line labels are different on 2P6 and production rigs - need options for both
-    if 'lick_times' in meta_data['line_labels']:
-        lick_times = sync_dataset.get_rising_edges('lick_1') / sample_freq
-    elif 'lick_sensor' in meta_data['line_labels']:
-        lick_times = sync_dataset.get_rising_edges('lick_sensor') / sample_freq
-    else:
-        lick_times = None
-    if '2p_trigger' in meta_data['line_labels']:
-        trigger = sync_dataset.get_rising_edges('2p_trigger') / sample_freq
-    elif 'acq_trigger' in meta_data['line_labels']:
-        trigger = sync_dataset.get_rising_edges('acq_trigger') / sample_freq
-    if 'stim_photodiode' in meta_data['line_labels']:
-        stim_photodiode = sync_dataset.get_rising_edges('stim_photodiode') / sample_freq
-    elif 'photodiode' in meta_data['line_labels']:
-        stim_photodiode = sync_dataset.get_rising_edges('photodiode') / sample_freq
-    if 'cam2_exposure' in meta_data['line_labels']:
-        eye_tracking = sync_dataset.get_rising_edges('cam2_exposure') / sample_freq
-    elif 'cam2' in meta_data['line_labels']:
-        eye_tracking = sync_dataset.get_rising_edges('cam2') / sample_freq
-    elif 'eye_tracking' in meta_data['line_labels']:
-        eye_tracking = sync_dataset.get_rising_edges('eye_tracking') / sample_freq
-    if 'cam1_exposure' in meta_data['line_labels']:
-        behavior_monitoring = sync_dataset.get_rising_edges('cam1_exposure') / sample_freq
-    elif 'cam1' in meta_data['line_labels']:
-        behavior_monitoring = sync_dataset.get_rising_edges('cam1') / sample_freq
-    elif 'behavior_monitoring' in meta_data['line_labels']:
-        behavior_monitoring = sync_dataset.get_rising_edges('behavior_monitoring') / sample_freq
-    # some experiments have 2P frames prior to stimulus start - restrict to timestamps after trigger for 2P6 only
-    if use_acq_trigger:
-        frames_2p = frames_2p[frames_2p > trigger[0]]
-    # print(len(frames_2p))
-    if lims_data.rig.values[0][0] == 'M':  # if Mesoscope
-        roi_group = get_roi_group(lims_data)  # get roi_group order
-        frames_2p = frames_2p[roi_group::4]  # resample sync times
-    # print(len(frames_2p))
-    logger.info('stimulus frames detected in sync: {}'.format(len(vsyncs)))
-    logger.info('ophys frames detected in sync: {}'.format(len(frames_2p)))
-    # put sync data in format to be compatible with downstream analysis
-    times_2p = {'timestamps': frames_2p}
-    times_vsync = {'timestamps': vsyncs}
-    times_lick = {'timestamps': lick_times}
-    times_trigger = {'timestamps': trigger}
-    times_eye_tracking = {'timestamps': eye_tracking}
-    times_behavior_monitoring = {'timestamps': behavior_monitoring}
-    times_stim_photodiode = {'timestamps': stim_photodiode}
-    sync_data = {'ophys_frames': times_2p,
-                 'stimulus_frames': times_vsync,
-                 'lick_times': times_lick,
-                 'eye_tracking': times_eye_tracking,
-                 'behavior_monitoring': times_behavior_monitoring,
-                 'stim_photodiode': times_stim_photodiode,
-                 'ophys_trigger': times_trigger,
-                 }
-    return sync_data
+#     meta_data = sync_dataset.meta_data
+#     sample_freq = meta_data['ni_daq']['counter_output_freq']
+#     # 2P vsyncs
+#     vs2p_r = sync_dataset.get_rising_edges('2p_vsync')
+#     vs2p_f = sync_dataset.get_falling_edges(
+#         '2p_vsync', )  # new sync may be able to do units = 'sec', so conversion can be skipped
+#     vs2p_rsec = vs2p_r / sample_freq
+#     vs2p_fsec = vs2p_f / sample_freq
+#     if use_acq_trigger:  # if 2P6, filter out solenoid artifacts
+#         vs2p_r_filtered, vs2p_f_filtered = filter_digital(vs2p_rsec, vs2p_fsec, threshold=0.01)
+#         frames_2p = vs2p_r_filtered
+#     else:  # dont need to filter out artifacts in pipeline data
+#         frames_2p = vs2p_rsec
+#     # use rising edge for Scientifica, falling edge for Nikon http://confluence.corp.alleninstitute.org/display/IT/Ophys+Time+Sync
+#     # Convert to seconds - skip if using units in get_falling_edges, otherwise convert before doing filter digital
+#     # vs2p_rsec = vs2p_r / sample_freq
+#     # frames_2p = vs2p_rsec
+#     # stimulus vsyncs
+#     # vs_r = d.get_rising_edges('stim_vsync')
+#     vs_f = sync_dataset.get_falling_edges('stim_vsync')
+#     # convert to seconds
+#     # vs_r_sec = vs_r / sample_freq
+#     vs_f_sec = vs_f / sample_freq
+#     # vsyncs = vs_f_sec
+#     # add display lag
+#     monitor_delay = calculate_delay(sync_dataset, vs_f_sec, sample_freq)
+#     vsyncs = vs_f_sec + monitor_delay  # this should be added, right!?
+#     # line labels are different on 2P6 and production rigs - need options for both
+#     if 'lick_times' in meta_data['line_labels']:
+#         lick_times = sync_dataset.get_rising_edges('lick_1') / sample_freq
+#     elif 'lick_sensor' in meta_data['line_labels']:
+#         lick_times = sync_dataset.get_rising_edges('lick_sensor') / sample_freq
+#     else:
+#         lick_times = None
+#     if '2p_trigger' in meta_data['line_labels']:
+#         trigger = sync_dataset.get_rising_edges('2p_trigger') / sample_freq
+#     elif 'acq_trigger' in meta_data['line_labels']:
+#         trigger = sync_dataset.get_rising_edges('acq_trigger') / sample_freq
+#     if 'stim_photodiode' in meta_data['line_labels']:
+#         stim_photodiode = sync_dataset.get_rising_edges('stim_photodiode') / sample_freq
+#     elif 'photodiode' in meta_data['line_labels']:
+#         stim_photodiode = sync_dataset.get_rising_edges('photodiode') / sample_freq
+#     if 'cam2_exposure' in meta_data['line_labels']:
+#         eye_tracking = sync_dataset.get_rising_edges('cam2_exposure') / sample_freq
+#     elif 'cam2' in meta_data['line_labels']:
+#         eye_tracking = sync_dataset.get_rising_edges('cam2') / sample_freq
+#     elif 'eye_tracking' in meta_data['line_labels']:
+#         eye_tracking = sync_dataset.get_rising_edges('eye_tracking') / sample_freq
+#     if 'cam1_exposure' in meta_data['line_labels']:
+#         behavior_monitoring = sync_dataset.get_rising_edges('cam1_exposure') / sample_freq
+#     elif 'cam1' in meta_data['line_labels']:
+#         behavior_monitoring = sync_dataset.get_rising_edges('cam1') / sample_freq
+#     elif 'behavior_monitoring' in meta_data['line_labels']:
+#         behavior_monitoring = sync_dataset.get_rising_edges('behavior_monitoring') / sample_freq
+#     # some experiments have 2P frames prior to stimulus start - restrict to timestamps after trigger for 2P6 only
+#     if use_acq_trigger:
+#         frames_2p = frames_2p[frames_2p > trigger[0]]
+#     # print(len(frames_2p))
+#     if lims_data.rig.values[0][0] == 'M':  # if Mesoscope
+#         roi_group = get_roi_group(lims_data)  # get roi_group order
+#         frames_2p = frames_2p[roi_group::4]  # resample sync times
+#     # print(len(frames_2p))
+#     logger.info('stimulus frames detected in sync: {}'.format(len(vsyncs)))
+#     logger.info('ophys frames detected in sync: {}'.format(len(frames_2p)))
+#     # put sync data in format to be compatible with downstream analysis
+#     times_2p = {'timestamps': frames_2p}
+#     times_vsync = {'timestamps': vsyncs}
+#     times_lick = {'timestamps': lick_times}
+#     times_trigger = {'timestamps': trigger}
+#     times_eye_tracking = {'timestamps': eye_tracking}
+#     times_behavior_monitoring = {'timestamps': behavior_monitoring}
+#     times_stim_photodiode = {'timestamps': stim_photodiode}
+#     sync_data = {'ophys_frames': times_2p,
+#                  'stimulus_frames': times_vsync,
+#                  'lick_times': times_lick,
+#                  'eye_tracking': times_eye_tracking,
+#                  'behavior_monitoring': times_behavior_monitoring,
+#                  'stim_photodiode': times_stim_photodiode,
+#                  'ophys_trigger': times_trigger,
+#                  }
+#     return sync_data
 
 
 def get_ophys_session_dir(lims_data):
@@ -216,8 +202,6 @@ def get_roi_group(lims_data):
 def get_lims_id(lims_data):
     lims_id = lims_data.lims_id.values[0]
     return lims_id
-
-
 
 
 def get_cell_timeseries_dict(session, cell_specimen_id):
@@ -320,7 +304,7 @@ def dateformat(exp_date):
     """
     reformat date of acquisition for accurate sorting by date
     """
-    from datetime import datetime
+
     date = int(datetime.strptime(exp_date, '%Y-%m-%d  %H:%M:%S.%f').strftime('%Y%m%d'))
     return date
 
@@ -332,9 +316,6 @@ def add_date_string(df):
     """
     df['date'] = df['date_of_acquisition'].apply(dateformat)
     return df
-
-
-
 
 
 def get_n_relative_to_first_novel(group):
@@ -394,7 +375,7 @@ def get_last_familiar_active(group):
     group = group.sort_values(by='date')
     last_familiar_active = np.empty(len(group))
     last_familiar_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]  # noqa: E712
     if len(indices) > 0:
         index = indices[-1]  # use last (most recent) index
         last_familiar_active[index] = True
@@ -443,7 +424,7 @@ def get_second_novel_active(group):
     group = group.sort_values(by='date')
     second_novel_active = np.empty(len(group))
     second_novel_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]  # noqa: E712
     if len(indices) > 0:
         index = indices[0]  # use first (most recent) index
         second_novel_active[index] = True
@@ -474,11 +455,11 @@ def limit_to_last_familiar_second_novel_active(df):
     Drops rows that are not the last familiar active session or the second novel active session
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -489,11 +470,11 @@ def limit_to_last_familiar_second_novel(df):
     Drops rows that are not the last familiar session or the second novel session, regardless of active or passive
     """
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values  # noqa: E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -557,5 +538,3 @@ def value_counts(df, conditions=['cell_type', 'experience_level', 'mouse_id']):
     counts = df.groupby(conditions).count().reset_index().groupby(conditions[:-1]).count()
     counts = counts[[conditions[-1]]].rename(columns={conditions[-1]: 'n_' + conditions[-1]})
     return counts
-
-

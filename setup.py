@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='mindscope_qc',
     version='0.1.0',
-    packages=['mindscope_utilities'],
+    packages=['mindscope_qc'],
     include_package_data = True,
     description='Utilities for loading, and visualizing quality control data and metrics for the Allen Institute Mindscope program',
     url='https://github.com/AllenInstitute/mindscope_qc',
