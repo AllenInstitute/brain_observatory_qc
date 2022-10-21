@@ -11,6 +11,7 @@ import numpy as np
 import unittest as test
 import uuid
 
+
 def validate_value_in_dict_keys(input_value, dictionary, dict_name):
     assert input_value in dictionary, "Error: input value {} is not in {} keys.".format(input_value, dict_name)
 
@@ -104,4 +105,3 @@ def validate_below_or_equal_threshold(input_value, threshold_value, variable_nam
 def validate_equals_threshold(input_value, threshold_value, variable_name):
     assert input_value == threshold_value, "Error: {} must equal {}.".format(variable_name,
                                                                              threshold_value)
-

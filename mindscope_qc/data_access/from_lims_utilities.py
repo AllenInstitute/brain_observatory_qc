@@ -379,7 +379,7 @@ def get_microscope_type(ophys_session_id: int) -> str:
     Returns
     -------
     str
-        type of microscope.Options: 
+        type of microscope.Options:
         "Nikon", "Scientifica", "Mesoscope", "Deepscope"
     """
     validate_LIMS_id_type("ophys_session_id", ophys_session_id)
