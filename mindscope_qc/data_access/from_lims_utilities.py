@@ -16,7 +16,7 @@ import mindscope_qc.utilities.pre_post_conditions as conditions
 #
 #           CONNECT TO LIMS
 #
-##################################################################### 
+#####################################################################
 try:
     lims_dbname = os.environ["LIMS_DBNAME"]
     lims_user = os.environ["LIMS_USER"]
@@ -60,7 +60,7 @@ def get_psql_dict_cursor():
 #
 #           LIMS TABLE LOCATION DICTIONARIES
 #
-##################################################################### 
+#####################################################################
 
 
 ALL_ID_TYPES_DICT = {
@@ -211,9 +211,10 @@ def get_value_from_table(search_key, search_value, target_table, target_key):
 #
 #           GET IDS & ID TYPES
 #
-##################################################################### 
+#####################################################################
 
-def get_id_type(id_number: int) -> str:
+
+def get_LIMS_id_type(id_number: int) -> str:
     """ A function to find the id type of the input id.
 
     This function can detect the following id types included in ALL_ID_TYPES_DICT
@@ -259,19 +260,23 @@ def get_id_type(id_number: int) -> str:
 
 
 def general_id_type_query(id_type: str, id_number: int):
-    """ A pre-built dynamic query to get all columns from the table related to the id_type.
+    """ A pre-built dynamic query that utilizes the ALL_ID_TYPES_DICT
+    to get all columns from the LIMS table related to a specific
+    lims ID type and number.
 
     Parameters
     ----------
     id_type : str
-        Type of ID. Used with ALL_ID_TYPES_DICT to determine appropriate lims2 table to query.
+        Type of ID. Used with ALL_ID_TYPES_DICT to determine
+        appropriate lims2 table to query.
     id_number : int, str
        Generic lims ID.
 
     Returns
     -------
     pd.DataFrame
-        Returns a 1xN dataframe that contains all columns from the appropriate lims table.
+        Returns a 1xN dataframe that contains all columns
+        from the appropriate lims table.
     """
     conditions.validate_value_in_dict_keys(id_type,
                                            ALL_ID_TYPES_DICT,
@@ -288,9 +293,10 @@ def general_id_type_query(id_type: str, id_number: int):
     return table_row
 
 
-def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
-    """ Will get all other ophys related id types when given one
-    of the the ids.
+def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataFrame:
+    """ Will get all other ophys & imaginge related LIMS id types
+    when given a single ophys/imaging related id. See acceptable
+    LIMS ID types in parameters.
 
     Parameters
     ----------
@@ -305,12 +311,12 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
         "supercontainer_id"
 
     id_number : int
-        _description_
+        the actual ID number for LIMS to lookup
 
     Returns
     -------
     pd.DataFrame
-        _description_
+        A table with all of the output IDS listed.
     """
     conditions.validate_value_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
@@ -354,20 +360,30 @@ def get_all_ophys_ids_for_id(id_type: str, id_number: int) -> pd.DataFrame:
 
 
 def get_microscope_type(ophys_session_id: int) -> str:
-    """_summary_
+    """maps a microscope's speciic 'equipment_name'
+    onto a "type" of microscope. Utilizes on the
+    MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT
+
+    Mapping : "microscope_type"   [equipment_names]
+
+    "Nikon":       ["CAM2P.1", "CAM2P.2"]
+    "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"]
+    "Mesoscope":   ["MESO.1", "MESO.2"]
+    "Deepscope":   ["DS.1"]
 
     Parameters
     ----------
     ophys_session_id : int
-        _description_
+        unique identifier for an ophys imaging session
 
     Returns
     -------
     str
-        _description_
+        type of microscope.Options: 
+        "Nikon", "Scientifica", "Mesoscope", "Deepscope"
     """
-    conditions.validate_id_type(ophys_session_id, "ophys_session_id")
-    equipment_name = get_general_info_for_ophys_session_id(ophys_session_id)["equipment_name"][0]
+    validate_LIMS_id_type("ophys_session_id", ophys_session_id)
+    equipment_name = get_general_info_for_LIMS_imaging_id("ophys_session_id", ophys_session_id)["equipment_name"][0]
 
     for key, value in MICROSCOPE_TYPE_EQUIPMENT_NAMES_DICT.items():
         if equipment_name in value:
@@ -475,7 +491,7 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     conditions.validate_value_in_dict_keys(id_type,
                                            GEN_INFO_QUERY_DICT,
                                            "GEN_INFO_QUERY_DICT")
-    conditions.validate_id_type(id_number, id_type)
+    validate_LIMS_id_type(id_number, id_type)
     query = '''
     SELECT
     oe.id AS ophys_experiment_id,
@@ -540,17 +556,19 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     general_info = mixin.select(query)
 
     # ensure operating system compatible filepaths
-    general_info = correct_storage_directory_filepaths(general_info)
+    general_info = correct_LIMS_storage_directory_filepaths(general_info)
 
     return general_info
+
 
 #####################################################################
 #
 #           FILEPATHS & STORAGE DIRECTORIES
 #
-##################################################################### 
+#####################################################################
 
-def correct_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame:
+
+def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame:
     """_summary_
 
     Parameters
@@ -636,8 +654,9 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     {} = {}
     '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
     storage_directories_df = mixin.select(query)
-    storage_directories_df = correct_storage_directory_filepaths(storage_directories_df)
+    storage_directories_df = correct_LIMS_storage_directory_filepaths(storage_directories_df)
     return storage_directories_df
+
 
 #####################################################################
 #
@@ -645,14 +664,34 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
 #
 #####################################################################
 
-    
-def validate_microscope_type(ophys_session_id, correct_microscope_type):
+
+def validate_microscope_type(correct_microscope_type: str, ophys_session_id: int):
+    """gets the microscope id for a given ophys session id and maps
+    it on to a "microscope_type" then compares that microscope type
+    to the "correct" or desidered microscope type
+
+    Mappinng. Microscope type and list of equiment names that match
+    to that type
+    "Nikon":       ["CAM2P.1", "CAM2P.2"],
+    "Scientifica": ["CAM2P.3, CAM2P.4, CAM2P.5, CAM2P.6"],
+    "Mesoscope":   ["MESO.1", "MESO.2"],
+    "Deepscope":   ["DS.1"]
+
+    Parameters
+    ----------
+    correct_microscope_type : str
+        Enumerated string. Options are:
+        "Nikon", "Scientifica", "Mesoscope", "Deepscope"
+    ophys_session_id : int
+        unique identifer for an ophys imaging session
+    """
+
     session_microscope_type = get_microscope_type(ophys_session_id)
     assert session_microscope_type == correct_microscope_type, "Error: incorrect microscope type.\
         {} provided but {} necessary.".format(session_microscope_type, correct_microscope_type)
 
 
-def validate_LIMS_id_type(input_id, correct_id_type):
+def validate_LIMS_id_type(desired_id_type: str, id_number: int):
     """takes an input id, looks up what type of id it is and then validates
        whether it is the same as the desired/correct id type
 
@@ -665,14 +704,21 @@ def validate_LIMS_id_type(input_id, correct_id_type):
     correct_id_type : string
         [description]
     """
-    conditions.validate_value_in_dict_keys(correct_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
-    input_id_type = get_id_type(input_id)
-    assert input_id_type == correct_id_type, "Incorrect id type. Entered Id type is {},\
-        correct id type is {}".format(input_id_type, correct_id_type)
+    conditions.validate_value_in_dict_keys(desired_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
+    id_number_type = get_LIMS_id_type(id_number)
+    assert id_number_type == desired_id_type, "Incorrect id type. Entered Id type is {},\
+        correct id type is {}".format(id_number_type, desired_id_type)
 
 
-def validate_ophys_associated_with_behavior(behavior_session_id):
-    validate_id_type(behavior_session_id, "behavior_session_id")
-    ophys_session_id = from_lims.get_ophys_session_id_for_behavior_session_id(behavior_session_id)
+def validate_ophys_associated_with_behavior(behavior_session_id: int):
+    """_summary_
+
+    Parameters
+    ----------
+    behavior_session_id : _type_
+        _description_
+    """
+    validate_LIMS_id_type(behavior_session_id, "behavior_session_id")
+    ophys_session_id = get_all_imaging_ids_for_imaging_id('behavior_session_id', behavior_session_id)['ophys_session_id'][0]
     assert ophys_session_id is not None, "There is no ophys_session_id \
         associated with this behavior_session_id: {}".format(behavior_session_id)
