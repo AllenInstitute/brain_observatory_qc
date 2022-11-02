@@ -1,10 +1,14 @@
 from pathlib import Path
 import h5py
-from allensdk.brain_observatory.behavior.behavior_ophys_experiment import BehaviorOphysExperiment
+import numpy as np
+import pandas as pd
+from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
+      BehaviorOphysExperiment
+
 
 class BehaviorOphysExperimentDev:
-    """Wrapper class for BehaviorOphysExperiment that adds custom 
-    methods, loads from_lims() only
+    """Wrapper class for BehaviorOphysExperiment that adds custom
+     methods, loads from_lims() only
 
     Parameters
     ----------
@@ -36,7 +40,8 @@ class BehaviorOphysExperimentDev:
 
     """
     def __init__(self, ophys_experiment_id, **kwargs):
-        self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id, **kwargs)
+        self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id, 
+                                                       **kwargs)
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
 
@@ -44,7 +49,7 @@ class BehaviorOphysExperimentDev:
         """Get new dff traces from pipeline_dev folder"""
 
         # TODO: not hardcoded
-        pipeline_dev_path = Path("/allen/programs/mindscope/workgroups
+        pipeline_dev_path = Path("/allen/programs/mindscope/workgroups"
                                  "/learning/pipeline_validation/dff")
 
         # check if file exits, matching pattern "ophys_experiment_id_dff_*.h5"
@@ -72,8 +77,10 @@ class BehaviorOphysExperimentDev:
         old_dff = self.inner.dff_traces.copy().reset_index()
 
         # merge on cell_roi_id
-        updated_dff = pd.merge(new_dff.reset_index(), old_dff.drop(columns=["dff"]), 
-                              on="cell_roi_id", how="inner").set_index("cell_specimen_id")
+        updated_dff = (pd.merge(new_dff.reset_index(),
+                                old_dff.drop(columns=["dff"]),
+                                on="cell_roi_id", how="inner")
+                       .set_index("cell_specimen_id"))
 
         return updated_dff
 
