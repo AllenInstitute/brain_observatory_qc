@@ -44,6 +44,7 @@ class BehaviorOphysExperimentDev:
                                                        **kwargs)
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
+        self.metadata = self._update_metadata()
 
     def _get_new_dff(self):
         """Get new dff traces from pipeline_dev folder"""
@@ -82,6 +83,13 @@ class BehaviorOphysExperimentDev:
                        .set_index("cell_specimen_id"))
 
         return updated_dff
+
+    def _update_metadata(self):
+        """Update metadata, specifically correct ophsy_frame_rate"""
+        metadata = self.inner.metadata.copy()
+        dt = np.median(np.diff(self.ophys_timestamps))
+        metadata["ophys_frame_rate"] = 1 / dt
+        return metadata
 
     # delegate all else to the "inherited" BehaviorOphysExperiment object
     def __getattr__(self, attr):
