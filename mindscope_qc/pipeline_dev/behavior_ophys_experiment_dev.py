@@ -25,22 +25,22 @@ class BehaviorOphysExperimentDev:
     Notes
     -----
 
-    Uses "duck typing" to override the behavior of the 
+    Uses "duck typing" to override the behavior of the
     BehaviorOphysExperiment class. All uknown requests are passed to the
-    BehaviorOphysExperiment class. One issue wit this approach: dode 
+    BehaviorOphysExperiment class. One issue wit this approach:
     that uses isinstance or issubclass will not work as expected.
     see: https://stackoverflow.com/a/60509130
 
     _get_new_dff looks for new_dffs in pipeline_dev folder, will throw
     error if not found.
 
-    Example usage: 
+    Example usage:
     expt_id = 1191477425
     expt = BehaviorOphysExperimentDev(expt_id, skip_eye_tracking=True)
 
     """
     def __init__(self, ophys_experiment_id, **kwargs):
-        self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id, 
+        self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
@@ -67,7 +67,6 @@ class BehaviorOphysExperimentDev:
         # load dff traces, hacky because of dff trace is list in DataFrame
         # TODO: make into function
         with h5py.File(dff_file, "r") as f:
-            
             # bit of code from dff_file.py in SDK
             traces = np.asarray(f['new_dff'], dtype=np.float64)
             roi_names = np.asarray(f['cell_roi_id'])
@@ -87,4 +86,3 @@ class BehaviorOphysExperimentDev:
     # delegate all else to the "inherited" BehaviorOphysExperiment object
     def __getattr__(self, attr):
         return getattr(self.inner, attr)
-
