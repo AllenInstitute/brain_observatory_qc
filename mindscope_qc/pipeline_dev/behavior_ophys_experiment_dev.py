@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 import pandas as pd
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
-      BehaviorOphysExperiment
+    BehaviorOphysExperiment
 
 
 class BehaviorOphysExperimentDev:
