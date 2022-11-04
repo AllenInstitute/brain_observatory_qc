@@ -113,6 +113,52 @@ def get_specimen_id_for_donor_id(donor_id: int) -> int:
     return specimen_ids
 
 
+def get_imaging_ids_for_mouse_id(mouse_id: int) -> pd.DataFrame:
+    """get imaging information for a given mouse
+
+    Parameters
+    ----------
+    mouse_id : int
+        6 digit mouse-id, also know as labtracks id,
+        or the external_specimen_name in the lims
+        specimens table
+
+    Returns
+    -------
+    pd.DataFrame
+        table with experiment and session information. Table columns:
+            "ophys_experiment_id"
+            "experiment_workflow_state"
+            "experiment_storage_directory"
+            "ophys_session_id"
+            "session_workflow_state"
+            "session_storage_directory"
+
+    """
+    query = '''
+    SELECT
+    oe.id AS ophys_experiment_id,
+    oe.workflow_state AS experiment_workflow_state,
+    oe.storage_directory AS experiment_storage_directory,
+    os.id AS ophys_session_id,
+    os.workflow_state AS session_workflow_state,
+    os.storage_directory AS session_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN specimens
+    ON specimens.id = os.specimen_id
+
+    WHERE specimens.external_specimen_name = '{}'
+    '''.format(mouse_id)
+    mouse_imaging_table = mixin.select(query)
+    return mouse_imaging_table
+
+
 ############################
 #     cell/ROI IDS
 ############################
