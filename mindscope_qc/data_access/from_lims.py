@@ -136,7 +136,7 @@ def get_imaging_ids_for_mouse_id(mouse_id: int) -> pd.DataFrame:
 
     """
     query = '''
-    SELECT 
+    SELECT
     oe.id AS ophys_experiment_id,
     oe.workflow_state AS experiment_workflow_state,
     oe.storage_directory AS experiment_storage_directory,
