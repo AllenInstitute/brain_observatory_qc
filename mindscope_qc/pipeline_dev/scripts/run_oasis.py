@@ -16,7 +16,7 @@ from mindscope_qc.pipeline_dev.behavior_ophys_experiment_dev \
 # CHANGE OASIS REPO PATH
 ########################
 # oasis needs to be imported manually (not sure why)
-oasis_repo_path = Path("/home/matt.davids/code/OASIS") 
+oasis_repo_path = Path("/home/matt.davids/code/OASIS")
 if not oasis_repo_path.exists():
     raise UserWarning("OASIS repo not found. Please clone from"
                       "github.com/j-friedrich/OASIS, or change path"
@@ -92,7 +92,7 @@ def oasis_deconvolve(traces, tau=1.0, rate=11.0, s_min=0,
     + See OASIS repo for more parameters
 
     """
-    g = np.exp(-1/(tau*rate))
+    g = np.exp(-1/(tau * rate))
     lam = 0
 
     # run oasis on each trace
@@ -186,12 +186,12 @@ def generate_oasis_events_for_trace_types(tau: float = 1.0,
                 for spike, trace, cell in zip(spikes, traces, roi_ids):
                     fig, ax = plt.subplots(1, 1, figsize=(20, 10))
                     ax.plot(timestamps, trace, color='g', label='new_dff')
-                    ax.plot(timestamps, spike*-1, color='orange',
+                    ax.plot(timestamps, spike * -1, color='orange',
                             label=f"events, tau={tau}")
                     ax.legend()
                     pdf.savefig(fig)
                 pdf.close()
-           
+
         else:
             print(f"{oasis_h5} already exists")
 
@@ -201,12 +201,12 @@ def generate_oasis_events_for_trace_types(tau: float = 1.0,
                 for roi in nan_trace_ids:
                     f.write(f"{roi}")
 
-                    
+
 def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
     """Deconvolve traces for a single cell, with optimize= option
     Note: not documented as it is not used in the pipeline
     """
-    g = np.exp(-1/(tau*rate))
+    g = np.exp(-1/(tau * rate))
 
     if opt_g:
         c, s, b, g, lam = deconvolve(y, optimize_g=5)
@@ -214,7 +214,7 @@ def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
         lam = 0
         y = (y - np.mean(y))
         c, s = oasisAR1(y, g, s_min=s_min, lam=lam)
-    y = np.convolve(y, np.ones(3)/3, mode='same')
+    y = np.convolve(y, np.ones(3) / 3, mode='same')
 
     return y, c, s, g, lam
 
