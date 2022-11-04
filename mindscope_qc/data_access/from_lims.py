@@ -153,7 +153,7 @@ def get_imaging_ids_for_mouse_id(mouse_id: int) -> pd.DataFrame:
     JOIN specimens
     ON specimens.id = os.specimen_id
 
-    WHERE specimens.external_specimen_name ={}
+    WHERE specimens.external_specimen_name = '{}'
     '''.format(mouse_id)
     mouse_imaging_table = mixin.select(query)
     return mouse_imaging_table
