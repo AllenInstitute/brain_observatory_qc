@@ -1376,6 +1376,10 @@ def get_well_known_file_names_for_isi_experiments():
     return get_well_known_file_names_for_attachable_id_type("'IsiExperiment'")
 
 
+def get_well_known_file_names_for_specimen_id():
+    return get_well_known_file_names_for_attachable_id_type("'Specimen")
+
+
 def get_well_known_file_names_for_ophys_experiments():
     return get_well_known_file_names_for_attachable_id_type("'OphysExperiment'")
 
@@ -1488,6 +1492,16 @@ def get_processed_isi_experiment_filepath(isi_experiment_id: int) -> str:
 def get_isi_NWB_filepath(isi_experiment_id: int) -> str:
     lims_utils.validate_LIMS_id_type("isi_experiment_id", isi_experiment_id)
     filepath = get_well_known_file_path("'NWBISI'", isi_experiment_id)
+    return filepath
+
+
+############################
+#     for specimen_id
+############################
+
+def get_zstack_cortical_filepath(specimen_id: int) -> str:
+    lims_utils.validate_LIMS_id_type("specimen_id", specimen_id)
+    filepath = get_well_known_file_path("'cortical_z_stacks'", specimen_id)
     return filepath
 
 
