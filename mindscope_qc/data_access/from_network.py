@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.image as mpimg
 from os.path import exists as file_exists
 import mindscope_qc.data_access.from_lims as lims
+import mindscope_qc.data_access.from_lims_utilities as lims_utils
 
 
 ######################################################
@@ -30,7 +31,7 @@ def load_image(image_filepath: str) -> np.ndarray:
 
 
 def get_specimen_storage_directory(specimen_id: int) -> str:
-    directories_df = lims.get_storage_directories_for_id("specimen_id", specimen_id)
+    directories_df = lims_utils.get_storage_directories_for_id("specimen_id", specimen_id)
     specimen_path = directories_df["specimen_storage_directory"][0]
     return specimen_path
 
@@ -49,7 +50,7 @@ def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
     str
         filepath string to the experiment storage directory folder
     """
-    directories_df = lims.get_storage_directories_for_id("ophys_experiment_id", ophys_experiment_id)
+    directories_df = lims_utils.get_storage_directories_for_id("ophys_experiment_id", ophys_experiment_id)
     experiment_path = directories_df["experiment_storage_directory"][0]
     return experiment_path
 
@@ -68,7 +69,7 @@ def get_session_storage_directory(ophys_session_id: int) -> str:
     str
         filepath string to the session storage directory folder
     """
-    directories_df = lims.get_storage_directories_for_id("ophys_session_id", ophys_session_id)
+    directories_df = lims_utils.get_storage_directories_for_id("ophys_session_id", ophys_session_id)
     session_path = directories_df["session_storage_directory"][0]
     return session_path
 
@@ -86,7 +87,7 @@ def get_container_storage_directory(ophys_container_id: int) -> str:
     str
         filepath string to the container storage directory folder
     """
-    directories_df = lims.get_storage_directories_for_id("ophys_container_id", ophys_container_id)
+    directories_df = lims_utils.get_storage_directories_for_id("ophys_container_id", ophys_container_id)
     container_path = directories_df["container_storage_directory"][0]
     return container_path
 
@@ -177,6 +178,9 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
     image = load_image(image_filepath)
     return image
 
+def get_cortical_zstack_filepath(specimen_id: int) -> pd.DataFrame:
+    storage_directory = get_specimen_storage_directory(specimen_id)
+    for file in os.listdir(storage_directory):
 
 ######################################################
 #             SESSION LEVEL FILES
