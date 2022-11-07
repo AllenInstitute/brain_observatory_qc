@@ -1502,7 +1502,7 @@ def get_isi_NWB_filepath(isi_experiment_id: int) -> str:
 def get_cortical_zstack_filepaths(specimen_id: int) -> pd.DataFrame:
     lims_utils.validate_LIMS_id_type("specimen_id", specimen_id)
     filepaths = get_well_known_file_realdict("'cortical_z_stacks'", specimen_id)
-    utils.correct_dataframe_filepath(filepaths)
+    utils.correct_dataframe_filepath(filepaths, "filepath")
     return filepaths
 
 
