@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import pandas as pd
 import matplotlib.image as mpimg
 from os.path import exists as file_exists
 import mindscope_qc.data_access.from_lims as lims
@@ -178,9 +179,12 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
     image = load_image(image_filepath)
     return image
 
+
 def get_cortical_zstack_filepath(specimen_id: int) -> pd.DataFrame:
     storage_directory = get_specimen_storage_directory(specimen_id)
     for file in os.listdir(storage_directory):
+        pass
+
 
 ######################################################
 #             SESSION LEVEL FILES
