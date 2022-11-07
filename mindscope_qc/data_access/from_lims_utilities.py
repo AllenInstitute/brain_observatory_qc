@@ -600,6 +600,7 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     ----------
     id_type : str
         options are the keys in the OPHYS_ID_TYPES_DICT
+        "specimen_id"
         "ophys_experiment_id"
         "ophys_session_id"
         "foraging_id"
@@ -622,6 +623,7 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     """
 
     query = '''
+    SELECT
     specimens.storage_directory AS specimen_storage_directory,
     oe.storage_directory AS experiment_storage_directory,
     bs.storage_directory AS behavior_storage_directory,
