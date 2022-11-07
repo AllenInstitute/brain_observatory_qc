@@ -92,7 +92,7 @@ def oasis_deconvolve(traces, tau=1.0, rate=11.0, s_min=0,
     + See OASIS repo for more parameters
 
     """
-    g = np.exp(-1/(tau * rate))
+    g = np.exp(-1 / (tau * rate))
     lam = 0
 
     # run oasis on each trace
@@ -206,7 +206,7 @@ def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
     """Deconvolve traces for a single cell, with optimize= option
     Note: not documented as it is not used in the pipeline
     """
-    g = np.exp(-1/(tau * rate))
+    g = np.exp(-1 / (tau * rate))
 
     if opt_g:
         c, s, b, g, lam = deconvolve(y, optimize_g=5)
