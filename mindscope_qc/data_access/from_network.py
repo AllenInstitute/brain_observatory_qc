@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
 import matplotlib.image as mpimg
 from os.path import exists as file_exists
 import mindscope_qc.data_access.from_lims as lims
@@ -127,10 +126,14 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
     return image
 
 
-def get_cortical_zstack_filepath(specimen_id: int) -> pd.DataFrame:
+def get_cortical_zstack_filepath(specimen_id: int) -> list:
     storage_directory = lims_utils.get_specimen_storage_directory(specimen_id)
-    for file in os.listdir(storage_directory):
-        pass
+    zstack_filepaths = []
+    for filename in os.listdir(storage_directory):
+        if 'cortical' in filename:
+            zstack_filepath = get_filepath(storage_directory, filename)
+            zstack_filepaths.append(zstack_filepath)
+    return zstack_filepaths
 
 
 ######################################################
