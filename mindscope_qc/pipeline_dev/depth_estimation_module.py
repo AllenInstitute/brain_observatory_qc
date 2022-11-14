@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from pystackreg import StackReg
 import os, h5py, scipy, skimage, cv2
@@ -252,6 +251,26 @@ def reg_between_planes(stack_imgs):
         reg_stack_imgs[i,:,:] = scipy.ndimage.shift(stack_imgs[i,:,:], shift)
     return reg_stack_imgs
 
+def find_first_experiment_id_from_ophys_container_id(ophys_container_id):
+    """Find the first experiment ID from the ophys container ID.
+    Assume experiment IDs are assigned chronologically.
+
+    Parameters
+    ----------
+    ophys_container_id : int
+        ophys container ID
+
+    Returns
+    -------
+    int
+        the first experiment ID
+    """
+    # Get all ophys_experiment_ids from the ophys container id
+    oeid_df = mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id)
+    # Pick the first one after sorting the ids (assume experiment ids are generated in ascending number)
+    first_oeid = np.sort(oeid_df.ophys_experiment_id.values)[0]
+    return first_oeid
+
 def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id):
     """Find the first experiment ID from the ophys experiment ID.
     Assume experiment IDs are assigned chronologically.
@@ -268,11 +287,27 @@ def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id):
     """
     # Get ophys container id from ophys_experiment id
     ophys_container_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
-    # Get all ophys_experiment_ids from the ophys container id
-    oeid_df = mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id)
-    # Pick the first one after sorting the ids (assume experiment ids are generated in ascending number)
-    first_oeid = np.sort(oeid_df.ophys_experiment_id.values)[0]
+    first_oeid = find_first_experiment_id_from_ophys_container_id(ophys_container_id)
     return first_oeid
+
+def check_if_ophys_experiment_id_in_ophys_container_id(ophys_experiment_id, ophys_container_id):
+    """ Check if ophys experiment ID is in the ophys container ID
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        ophys experiment ID
+    ophys_container_id : int
+        ophys container ID
+
+    Returns
+    -------
+    bool
+        True if ophys experiment ID is in ophys container ID
+    """
+    # Get ophys container id from ophys_experiment id
+    ophys_container_id_from_ophys_experiment_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
+    return ophys_container_id_from_ophys_experiment_id == ophys_container_id
 
 def get_registered_z_stack_step(ophys_experiment_id, number_of_z_planes=81, number_of_repeats=20):
     """Get registered z-stack, both within and between planes
@@ -646,7 +681,6 @@ def estimate_matched_plane_from_ref_exp(oeid_reg, oeid_ref, segment_minute = 10)
     """Estimate the matched plane indices from the reference experiment.
     Use two-step registration (first phase correlation, then refine using StackReg RIBID_BODY registration).
 
-
     Parameters
     ----------
     oeid_reg : int
@@ -674,7 +708,7 @@ def estimate_matched_plane_from_ref_exp(oeid_reg, oeid_ref, segment_minute = 10)
     container_id_reg = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_reg)
     assert container_id_ref == container_id_reg
 
-    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3'.replace('\\','/'))
+    base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
     container_dp = base_dir / f'container_{container_id_ref}'
     exp_ref_dp = container_dp / f'experiment_{oeid_ref}'
     exp_reg_dp = container_dp / f'experiment_{oeid_reg}'
@@ -746,7 +780,7 @@ def estimate_matched_plane_from_same_exp(ophys_experiment_id,  segment_minute = 
     np.ndarray (2D)
         First-pass correlation coefficient swept through reference z-stack planes for each segment
     """
-    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3'.replace('\\','/'))
+    base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
     container_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
 
     container_dp = base_dir / f'container_{container_id}'
@@ -791,3 +825,165 @@ def estimate_matched_plane_from_same_exp(ophys_experiment_id,  segment_minute = 
             h.create_dataset('registered_fov', data=registered_fov)
             h.create_dataset('corrcoef_pre', data=corrcoef_pre)
     return matched_plane_indice, corrcoef, registered_fov, corrcoef_pre
+
+def gather_data_already_processed(ophys_container_id, ref_experiment_id):
+    """Gather estimated plane index data from already processed results.
+
+    Parameters
+    ----------
+    ophys_container_id : int
+        ophys container id
+
+    Returns
+    -------
+    list
+        matched_plane_indice gathered from all the experiments in the container
+    list
+        corresponding correlation coefficients
+    """
+    # First, check if they are in the same container
+    container_id_ref = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ref_experiment_id)
+    assert container_id_ref == ophys_container_id
+    base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
+    container_dir = base_dir / f'container_{ophys_container_id}'
+    # Check if all necessary data are produced
+    all_data_flag = 1
+    ophys_experiment_ids = np.sort(mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)
+    result_fp_list = []
+    for ophys_experiment_id in ophys_experiment_ids:
+        if ophys_experiment_id == ref_experiment_id:
+            result_fp_list.append(container_dir / f'experiment_{ophys_experiment_id}'\
+            / f'{ophys_experiment_id}_plane_estimated_from_session.h5')
+        else:
+            result_fp_list.append(container_dir / f'experiment_{ophys_experiment_id}'\
+            / f'{ophys_experiment_id}_plane_estimated_from_{ref_experiment_id}.h5')
+    for result_fp in result_fp_list:
+        if not os.path.isfile(result_fp):
+            all_data_flag = 0
+    # Initialization
+    matched_plane_indice = []
+    corrcoef = []
+    if all_data_flag:
+        for result_fp in result_fp_list[1:]:
+            with h5py.File(result_fp, 'r') as h:
+                matched_plane_indice.append(h['matched_plane_indice'][:])
+                corrcoef.append(h['corrcoef'][:])
+    return matched_plane_indice, corrcoef
+
+def run_container(ophys_container_id, ref_experiment_id=None):
+    """Run z-drift calculation for the entire container
+    Gather matched plane index and correlation coefficients.
+    If an experiment was run already, get the data from the file.
+    If it was not run, then calculate.
+    CAUTION: it can take long if none was run yet (1-3 hr)
+    In this case, better to use slurm (sbatch)
+    This function can be useful when there are only a few experiments to run.
+
+    Parameters
+    ----------
+    ophys_container_id : int
+        ophys container ID
+    ref_experiment_id : int, optional
+        reference ophys experiment ID, by default None
+        if None, then use the first ophys experiment ID in the container
+
+    Returns
+    -------
+    list
+        matched plane indice for the whole container
+    list
+        corresponding correlation coefficient (through all planes per segment)
+    """
+    if ref_experiment_id is None:
+        ref_experiment_id = find_first_experiment_id_from_ophys_container_id(ophys_container_id)
+    else:
+        if not check_if_ophys_experiment_id_in_ophys_container_id(ref_experiment_id, ophys_container_id):
+            raise('Input ref_experiment_id must be in the input ophys_container_id.')
+    # Initialize
+    matched_plane_indice = []
+    corrcoef = []
+    ophys_experiment_ids = np.sort(mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)    
+    for i in range(len(ophys_experiment_ids)):
+        ophys_experiment_id = ophys_experiment_ids[i]
+        print(f'Processing {ophys_experiment_id} {i}/{len(ophys_experiment_ids)}')
+        if ophys_experiment_id == ref_experiment_id:
+            mpi, cc, *_ = estimate_matched_plane_from_same_exp(ophys_experiment_id)
+        else:
+            mpi, cc, *_ = estimate_matched_plane_from_ref_exp(ophys_experiment_id, ref_experiment_id)
+            _ = estimate_matched_plane_from_same_exp(ophys_experiment_id)
+        matched_plane_indice.append(mpi)
+        corrcoef.append(cc)
+    return matched_plane_indice, corrcoef
+
+def plot_container_drift(ophys_container_id, ref_experiment_id=None, cc_threshold = 0.5, save_dir = None, run=False):
+    """Plot z-drift along with color-coded correlation coefficient
+
+    Parameters
+    ----------
+    ophys_container_id : int
+        ophys container ID
+    ref_experiment_id : int, optional
+        reference ophys experiment ID, by default None
+        if None, then use the first ophys experiment ID in the container
+    cc_threshold : float, optional
+        threshold for correlation coefficient, by default 0.5
+        Any segment with less than this threshold will be shown with red colors
+    save_dir: bool, optional
+        directory to save the plot.
+    run : bool, optional
+        run calculation if possible, by default False
+    """
+    if ref_experiment_id is None:
+        ref_experiment_id = find_first_experiment_id_from_ophys_container_id(ophys_container_id)
+    else:
+        if not check_if_ophys_experiment_id_in_ophys_container_id(ref_experiment_id, ophys_container_id):
+            raise('Input ref_experiment_id must be in the input ophys_container_id.')
+    if run: # Caution: can run quite long (1-3 hrs)
+        # Useful when only a few experiments need to be run
+        matched_plane_indice, corrcoef = run_container(ophys_container_id, ref_experiment_id)
+    else: # Caution: can fail if not run yet (try sbatch to save time)
+        matched_plane_indice, corrcoef = gather_data_already_processed(ophys_container_id, ref_experiment_id)
+    max_num_segments = max([len(mpi) for mpi in matched_plane_indice])
+    num_exp = len(matched_plane_indice)
+    has_low_cc = 0
+    fig, ax = plt.subplots(figsize=(6,5))
+    for i in range(num_exp):
+        depth = (matched_plane_indice[i]-41)*0.75
+        x = np.linspace(i,i+len(depth)/max_num_segments,len(depth))
+        ax.plot(x,depth, 'k-', zorder=-1)
+        colors = np.array([max(c) for c in corrcoef[i]])
+        h1 = ax.scatter(x,depth, s = 20, c=colors, cmap='binary', vmin=cc_threshold, vmax=1)
+        
+        under_threshold_ind = np.where(colors<cc_threshold)[0]
+        if len(under_threshold_ind)>0:
+            has_low_cc = 1
+            h2 = ax.scatter(x[under_threshold_ind],depth[under_threshold_ind], s = 20, c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
+    if has_low_cc==0:
+        ylim = ax.get_ybound()
+        xlim = ax.get_xbound()
+        h2 = ax.scatter(xlim[0]-1, ylim[0]-1, c = 0, cmap='Reds_r', vmin=0, vmax=cc_threshold)
+        ax.set_ylim(ylim)
+        ax.set_xlim(xlim)
+    cax1 = fig.add_axes([ax.get_position().x1+0.01,
+                        ax.get_position().y0+(ax.get_position().height)*cc_threshold,
+                        0.02,
+                        ax.get_position().height*(1-cc_threshold)])
+    bar1 = plt.colorbar(h1, cax=cax1)
+    cax2 = fig.add_axes([ax.get_position().x1+0.01,
+                        ax.get_position().y0,
+                        0.02,
+                        ax.get_position().height*cc_threshold])
+    bar2 = plt.colorbar(h2, cax=cax2)
+    bar1.set_label('Correlation coefficient')
+
+    ax.set_xlabel('Session #')
+    ax.set_ylabel(r'Relative depths ($\mu$m)')
+    ax.set_title(f'Container {ophys_container_id}')
+    
+    if save_dir is not None:
+        save_fn = f'container_{ophys_container_id}_zdrift_plot.png'
+        fig.savefig(save_dir/save_fn, bbox_inches='tight')
+        save_fn = f'container_{ophys_container_id}_zdrift_plot.svg'
+        fig.savefig(save_dir/save_fn, bbox_inches='tight')
+    
+    
