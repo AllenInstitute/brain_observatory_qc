@@ -110,7 +110,7 @@ GEN_INFO_QUERY_DICT = {
     "ophys_experiment_id": {"query_abbrev": "oe.id"},          # noqa: E241
     "ophys_session_id":    {"query_abbrev": "os.id"},          # noqa: E241
     "behavior_session_id": {"query_abbrev": "bs.id"},
-    "ophys_container_id":  {"query_abbrev": "vbec.id"},        # noqa: E241
+    "ophys_container_id":  {"query_abbrev": "oevbec.visual_behavior_experiment_container_id"},        # noqa: E241
     "supercontainer_id":   {"query_abbrev": "os.visual_behavior_supercontainer_id"}  # noqa: E241
 }
 
@@ -318,7 +318,6 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     pd.DataFrame
         A table with all of the output IDS listed.
     """
-    print(id_type)
     conditions.validate_value_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
@@ -349,7 +348,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
 
-    JOIN visual_behavior_supercontainers vbs
+    LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
 
     WHERE
@@ -705,7 +704,6 @@ def validate_LIMS_id_type(id_number: int, desired_id_type: str):
     correct_id_type : string
         [description]
     """
-    print(desired_id_type)
     conditions.validate_value_in_dict_keys(desired_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
     id_number_type = get_LIMS_id_type(id_number)
     assert id_number_type == desired_id_type, "Incorrect id type. Entered Id type is {},\
