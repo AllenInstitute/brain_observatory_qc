@@ -321,7 +321,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     conditions.validate_value_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
-    validate_LIMS_id_type(id_number, id_type)
+    validate_LIMS_id_type(id_type, id_number)
 
     query = '''
     SELECT
@@ -357,6 +357,8 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     all_ids = mixin.select(query)
 
     return all_ids
+
+def get_project_code(id_type: str, id_number: int)-> str:
 
 
 def get_microscope_type(ophys_session_id: int) -> str:
@@ -718,7 +720,7 @@ def validate_ophys_associated_with_behavior(behavior_session_id: int):
     behavior_session_id : _type_
         _description_
     """
-    validate_LIMS_id_type(behavior_session_id, "behavior_session_id")
+    validate_LIMS_id_type("behavior_session_id", behavior_session_id)
     ophys_session_id = get_all_imaging_ids_for_imaging_id('behavior_session_id', behavior_session_id)['ophys_session_id'][0]
     assert ophys_session_id is not None, "There is no ophys_session_id \
         associated with this behavior_session_id: {}".format(behavior_session_id)
