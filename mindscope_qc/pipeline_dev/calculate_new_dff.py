@@ -44,7 +44,8 @@ def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
         1d array of signal (perhaps with noise)
     filter_length: int (default=31)
         Length of the median filter to compute a rolling baseline,
-        which is subtracted from the signal `x`. Must be an odd number.
+        which is subtracted from the signal `x`. 
+        Must be an odd number? TODO: check if this is necessary.
 
     Returns
     -------
@@ -192,6 +193,29 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size = 30, inactive_perc
     return np_corrected_df, ophys_timestamps
 
 def get_fixed_r_values(ophys_experiment_id, crid_values, num_normal_r_thresh, r_replace):
+    """Get fixed r values
+    When r >= 1, replace that r value with the average of other r values < 1 ("normal r values").
+    If the number of ROIs with "normal r values" are less than a threshold ('num_normal_r_thresh'),
+    replace the r values with 'r_replace' (most cases 0.7, a convention in the field).
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        ophys experiment ID
+    crid_values : list
+        of cell ROI IDs
+    num_normal_r_thresh : int
+        a threshold in number of rois with normal r values to average
+    r_replace : float
+        r value to replace, when ROIs with "normal r values" are less than a threshold
+
+    Returns
+    -------
+    list
+        list of r, after fixing the error
+    list
+        list of bool, indicating if the ROI was out of range
+    """
     r_list = []
     r_out_of_range = []
     num_normal_r = 0
