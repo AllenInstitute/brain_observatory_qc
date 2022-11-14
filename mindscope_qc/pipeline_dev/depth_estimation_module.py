@@ -588,9 +588,11 @@ def estimate_plane_from_session_zstack(fov: np.array, session_zstack: np.array):
 
         valid_y, valid_x = np.where(shifted_fov>0)
         corrcoef_pre[pi] = np.corrcoef(session_zstack[pi,valid_y,valid_x].flatten(), shifted_fov[valid_y,valid_x].flatten())[0,1]
-    if np.amax(corrcoef_pre) < 0.5:
-        raise('Phase correlation did not work.')
-    else:
+    # if np.amax(corrcoef_pre) < 0.5:
+    #     raise('Phase correlation did not work.')
+    # else:
+    if True:
+    #TODO: Find a better way to flag if the registration worked.
         # Find the best-matched FOV translation
         corrcoef_pre = moving_average(np.array(corrcoef_pre), 5)
         max_pi = np.argmax(corrcoef_pre)
@@ -672,7 +674,7 @@ def estimate_matched_plane_from_ref_exp(oeid_reg, oeid_ref, segment_minute = 10)
     container_id_reg = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_reg)
     assert container_id_ref == container_id_reg
 
-    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3')
+    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3'.replace('\\','/'))
     container_dp = base_dir / f'container_{container_id_ref}'
     exp_ref_dp = container_dp / f'experiment_{oeid_ref}'
     exp_reg_dp = container_dp / f'experiment_{oeid_reg}'
@@ -744,7 +746,7 @@ def estimate_matched_plane_from_same_exp(ophys_experiment_id,  segment_minute = 
     np.ndarray (2D)
         First-pass correlation coefficient swept through reference z-stack planes for each segment
     """
-    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3')
+    base_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\QC\FOV_matching\LAMF_Ai195_3'.replace('\\','/'))
     container_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
 
     container_dp = base_dir / f'container_{container_id}'
