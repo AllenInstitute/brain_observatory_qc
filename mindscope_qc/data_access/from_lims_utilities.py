@@ -318,6 +318,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     pd.DataFrame
         A table with all of the output IDS listed.
     """
+    print(id_type)
     conditions.validate_value_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
@@ -691,7 +692,7 @@ def validate_microscope_type(correct_microscope_type: str, ophys_session_id: int
         {} provided but {} necessary.".format(session_microscope_type, correct_microscope_type)
 
 
-def validate_LIMS_id_type(desired_id_type: str, id_number: int):
+def validate_LIMS_id_type(id_number: int, desired_id_type: str):
     """takes an input id, looks up what type of id it is and then validates
        whether it is the same as the desired/correct id type
 
@@ -704,6 +705,7 @@ def validate_LIMS_id_type(desired_id_type: str, id_number: int):
     correct_id_type : string
         [description]
     """
+    print(desired_id_type)
     conditions.validate_value_in_dict_keys(desired_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
     id_number_type = get_LIMS_id_type(id_number)
     assert id_number_type == desired_id_type, "Incorrect id type. Entered Id type is {},\
