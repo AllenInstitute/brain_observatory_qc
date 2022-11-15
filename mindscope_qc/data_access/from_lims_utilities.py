@@ -325,7 +325,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
 
     query = '''
     SELECT
-    specimens.id as specimen_id,
+    specimens.id AS specimen_id,
     oe.id AS ophys_experiment_id,
     os.id AS ophys_session_id,
     bs.id AS behavior_session_id,
@@ -358,7 +358,9 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
 
     return all_ids
 
+
 def get_project_code(id_type: str, id_number: int)-> str:
+    pass
 
 
 def get_microscope_type(ophys_session_id: int) -> str:
