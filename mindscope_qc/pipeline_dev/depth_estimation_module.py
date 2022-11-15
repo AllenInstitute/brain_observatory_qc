@@ -3,10 +3,9 @@ import matplotlib.pyplot as plt
 from pystackreg import StackReg
 import os, h5py, scipy, skimage, cv2
 from pathlib import Path
-from visual_behavior.data_access import from_lims as vba_from_lims 
-from visual_behavior.data_access import from_lims_utilities as vba_from_lims_utilities
+from visual_behavior.data_access import from_lims
+from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
-from mindscope_qc.data_access import from_lims as mqc_from_lims
 
 def get_local_zstack_path(ophys_experiment_id):
     """Get local z-stack path
@@ -22,7 +21,7 @@ def get_local_zstack_path(ophys_experiment_id):
     path
         path to the local z-stack
     """
-    zstack_fp = vba_from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
         / f'{ophys_experiment_id}_z_stack_local.h5'
     return zstack_fp
 
@@ -57,10 +56,10 @@ def get_storage_directory_path_for_ophys_experiment_id(ophys_experiment_id):
         path to the storage directory
     """
     try:
-        dir_path = mqc_from_lims.get_dff_traces_filepath(ophys_experiment_id).parent
+        dir_path = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent
     except:
-        osid = mqc_from_lims.get_ophys_session_id_for_ophys_experiment_id(ophys_experiment_id)
-        dir_path = mqc_from_lims.get_session_h5_filepath(osid).parent / f'ophys_experiment_{ophys_experiment_id}'
+        osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(ophys_experiment_id)
+        dir_path = from_lims.get_session_h5_filepath(osid).parent / f'ophys_experiment_{ophys_experiment_id}'
     return dir_path
 
 def get_ophys_session_ids_for_mouse_id(mouse_id):
@@ -117,7 +116,7 @@ def get_oeid_region_depth_for_ophys_session_id(ophys_session_id):
     DataFrame
         containing ophys experiment IDs and their corresponding targeted region and depth
     """
-    oeid_df = vba_from_lims.get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id)
+    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id)
     target_region = []
     depths = []
     for i in range(len(oeid_df)):
@@ -144,7 +143,7 @@ def get_segment_mean_images(ophys_experiment_id, segment_minute = 10):
         mean FOVs from each segment of the video
     """
     frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
-    movie_fp = mqc_from_lims.get_motion_corrected_movie_filepath(ophys_experiment_id)
+    movie_fp = from_lims.get_motion_corrected_movie_filepath(ophys_experiment_id)
     h = h5py.File(movie_fp, 'r')
     movie_len = h['data'].shape[0]
     segment_len = int(np.round(segment_minute * frame_rate * 60))
@@ -168,8 +167,8 @@ def get_correct_frame_rate(ophys_experiment_id):
     """
     # TODO: change from_lims_utilities from vba to that in mindscope_qc.
     # mindscope_qc currently does not seem to have tools for getting timestamps.
-    lims_data = vba_from_lims_utilities.utils.get_lims_data(ophys_experiment_id)
-    timestamps = vba_from_lims_utilities.utils.get_timestamps(lims_data)
+    lims_data = from_lims_utilities.utils.get_lims_data(ophys_experiment_id)
+    timestamps = from_lims_utilities.utils.get_timestamps(lims_data)
     frame_rate = 1/np.mean(np.diff(timestamps.ophys_frames.timestamps))
     return frame_rate, timestamps
 
@@ -266,7 +265,7 @@ def find_first_experiment_id_from_ophys_container_id(ophys_container_id):
         the first experiment ID
     """
     # Get all ophys_experiment_ids from the ophys container id
-    oeid_df = mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id)
+    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id)
     # Pick the first one after sorting the ids (assume experiment ids are generated in ascending number)
     first_oeid = np.sort(oeid_df.ophys_experiment_id.values)[0]
     return first_oeid
@@ -286,7 +285,7 @@ def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id):
         the first experiment ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
+    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
     first_oeid = find_first_experiment_id_from_ophys_container_id(ophys_container_id)
     return first_oeid
 
@@ -306,7 +305,7 @@ def check_if_ophys_experiment_id_in_ophys_container_id(ophys_experiment_id, ophy
         True if ophys experiment ID is in ophys container ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id_from_ophys_experiment_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
+    ophys_container_id_from_ophys_experiment_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
     return ophys_container_id_from_ophys_experiment_id == ophys_container_id
 
 def get_registered_z_stack_step(ophys_experiment_id, number_of_z_planes=81, number_of_repeats=20):
@@ -704,8 +703,8 @@ def estimate_matched_plane_from_ref_exp(oeid_reg, oeid_ref, segment_minute = 10)
         First-pass FOV of each segment matched to the stack
     """
     # First, check if they are in the same container
-    container_id_ref = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_ref)
-    container_id_reg = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_reg)
+    container_id_ref = from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_ref)
+    container_id_reg = from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid_reg)
     assert container_id_ref == container_id_reg
 
     base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
@@ -781,7 +780,7 @@ def estimate_matched_plane_from_same_exp(ophys_experiment_id,  segment_minute = 
         First-pass correlation coefficient swept through reference z-stack planes for each segment
     """
     base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
-    container_id = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
+    container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
 
     container_dp = base_dir / f'container_{container_id}'
     exp_dp = container_dp / f'experiment_{ophys_experiment_id}'
@@ -842,13 +841,13 @@ def gather_data_already_processed(ophys_container_id, ref_experiment_id):
         corresponding correlation coefficients
     """
     # First, check if they are in the same container
-    container_id_ref = mqc_from_lims.get_ophys_container_id_for_ophys_experiment_id(ref_experiment_id)
+    container_id_ref = from_lims.get_ophys_container_id_for_ophys_experiment_id(ref_experiment_id)
     assert container_id_ref == ophys_container_id
     base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
     container_dir = base_dir / f'container_{ophys_container_id}'
     # Check if all necessary data are produced
     all_data_flag = 1
-    ophys_experiment_ids = np.sort(mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)
+    ophys_experiment_ids = np.sort(from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)
     result_fp_list = []
     for ophys_experiment_id in ophys_experiment_ids:
         if ophys_experiment_id == ref_experiment_id:
@@ -902,7 +901,7 @@ def run_container(ophys_container_id, ref_experiment_id=None):
     # Initialize
     matched_plane_indice = []
     corrcoef = []
-    ophys_experiment_ids = np.sort(mqc_from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)    
+    ophys_experiment_ids = np.sort(from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values)    
     for i in range(len(ophys_experiment_ids)):
         ophys_experiment_id = ophys_experiment_ids[i]
         print(f'Processing {ophys_experiment_id} {i}/{len(ophys_experiment_ids)}')
@@ -985,5 +984,4 @@ def plot_container_drift(ophys_container_id, ref_experiment_id=None, cc_threshol
         fig.savefig(save_dir/save_fn, bbox_inches='tight')
         save_fn = f'container_{ophys_container_id}_zdrift_plot.svg'
         fig.savefig(save_dir/save_fn, bbox_inches='tight')
-    
     
