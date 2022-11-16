@@ -110,7 +110,7 @@ GEN_INFO_QUERY_DICT = {
     "ophys_experiment_id": {"query_abbrev": "oe.id"},          # noqa: E241
     "ophys_session_id":    {"query_abbrev": "os.id"},          # noqa: E241
     "behavior_session_id": {"query_abbrev": "bs.id"},
-    "ophys_container_id":  {"query_abbrev": "vbec.id"},        # noqa: E241
+    "ophys_container_id":  {"query_abbrev": "oevbec.visual_behavior_experiment_container_id"},        # noqa: E241
     "supercontainer_id":   {"query_abbrev": "os.visual_behavior_supercontainer_id"}  # noqa: E241
 }
 
@@ -491,37 +491,37 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     conditions.validate_value_in_dict_keys(id_type,
                                            GEN_INFO_QUERY_DICT,
                                            "GEN_INFO_QUERY_DICT")
-    validate_LIMS_id_type(id_number, id_type)
+    validate_LIMS_id_type(id_type, id_number)
     query = '''
     SELECT
-    oe.id                                  AS ophys_experiment_id,
+    oe.id 								 AS ophys_experiment_id,
     oe.ophys_session_id,
-    bs.id                                  AS behavior_session_id,
+    bs.id 								 AS behavior_session_id,
     os.foraging_id,
-    vbec.id                                AS ophys_container_id,
-    os.visual_behavior_supercontainer_id   AS supercontainer_id,
+    vbec.id 							 AS ophys_container_id,
+    os.visual_behavior_supercontainer_id AS supercontainer_id,
 
-    oe.workflow_state   AS experiment_workflow_state,
-    os.workflow_state   AS session_workflow_state,
-    vbec.workflow_state AS container_workflow_state,
+    oe.workflow_state 	 AS experiment_workflow_state,
+    os.workflow_state 	 AS session_workflow_state,
+    vbec.workflow_state  AS container_workflow_state,
 
     os.specimen_id,
     specimens.donor_id,
-    specimens.name      AS specimen_name,
+    specimens.name 		AS specimen_name,
 
     os.date_of_acquisition,
-    os.stimulus_name    AS session_type,
+    os.stimulus_name 	AS session_type,
     structures.acronym  AS targeted_structure,
     imaging_depths.depth,
-    equipment.name      AS equipment_name,
-    projects.code       AS project,
+    equipment.name 		AS equipment_name,
+    projects.code 		AS project,
 
-    oe.storage_directory          AS experiment_storage_directory,
-    bs.storage_directory          AS behavior_storage_directory,
-    os.storage_directory          AS session_storage_directory,
-    vbec.storage_directory        AS container_storage_directory,
-    vbs.storage_directory         AS supercontainer_storage_directory,
-    specimens.storage_directory   AS specimen_storage_directory
+    oe.storage_directory 		AS experiment_storage_directory,
+    bs.storage_directory 		AS behavior_storage_directory,
+    os.storage_directory 		AS session_storage_directory,
+    vbec.storage_directory 		AS container_storage_directory,
+    vbs.storage_directory 		AS supercontainer_storage_directory,
+    specimens.storage_directory AS specimen_storage_directory
 
 
     FROM
@@ -542,11 +542,11 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
 
-    JOIN projects ON projects.id = os.project_id
-    JOIN specimens ON specimens.id = os.specimen_id
-    JOIN structures ON structures.id = oe.targeted_structure_id
+    JOIN projects 		ON projects.id = os.project_id
+    JOIN specimens 		ON specimens.id = os.specimen_id
+    JOIN structures 	ON structures.id = oe.targeted_structure_id
     JOIN imaging_depths ON imaging_depths.id = oe.imaging_depth_id
-    JOIN equipment ON equipment.id = os.equipment_id
+    JOIN equipment 		ON equipment.id = os.equipment_id
 
     WHERE
     {} = {}
