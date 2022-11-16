@@ -586,7 +586,7 @@ def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.Data
                                       'behavior_storage_directory',
                                       'session_storage_directory',
                                       'container_storage_directory'
-                                      'supercontainer_storage_directory']
+                                      ]
 
     for column in storage_directory_columns_list:
         dataframe = utils.correct_dataframe_filepath(dataframe, column)
