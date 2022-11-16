@@ -332,35 +332,31 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     os.foraging_id 								   AS foraging_id,
     oevbec.visual_behavior_experiment_container_id AS ophys_container_id,
     vbs.id 										   AS ophys_supercontainer_id
-    
+
     FROM
     ophys_experiments oe
-    
+
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
-    
+
     JOIN specimens
     ON os.specimen_id = specimens.id
-    
+
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
-    
+
     JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
-    
+
     LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
-    
+
     WHERE
     {} = {}
     '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
     all_ids = mixin.select(query)
 
     return all_ids
-
-
-def get_project_code(id_type: str, id_number: int)-> str:
-    pass
 
 
 def get_microscope_type(ophys_session_id: int) -> str:
@@ -427,9 +423,9 @@ def get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
-    donors.id  AS donor_id,
+    donors.id                  AS donor_id,
     donors.external_donor_name AS labtracks_id,
-    specimens.id AS specimen_id
+    specimens.id               AS specimen_id
 
     FROM
     donors
@@ -498,34 +494,34 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     validate_LIMS_id_type(id_number, id_type)
     query = '''
     SELECT
-    oe.id AS ophys_experiment_id,
+    oe.id                                  AS ophys_experiment_id,
     oe.ophys_session_id,
-    bs.id AS behavior_session_id,
+    bs.id                                  AS behavior_session_id,
     os.foraging_id,
-    vbec.id AS ophys_container_id,
-    os.visual_behavior_supercontainer_id AS supercontainer_id,
+    vbec.id                                AS ophys_container_id,
+    os.visual_behavior_supercontainer_id   AS supercontainer_id,
 
-    oe.workflow_state AS experiment_workflow_state,
-    os.workflow_state AS session_workflow_state,
+    oe.workflow_state   AS experiment_workflow_state,
+    os.workflow_state   AS session_workflow_state,
     vbec.workflow_state AS container_workflow_state,
 
     os.specimen_id,
     specimens.donor_id,
-    specimens.name AS specimen_name,
+    specimens.name      AS specimen_name,
 
     os.date_of_acquisition,
-    os.stimulus_name AS session_type,
-    structures.acronym AS targeted_structure,
+    os.stimulus_name    AS session_type,
+    structures.acronym  AS targeted_structure,
     imaging_depths.depth,
-    equipment.name AS equipment_name,
-    projects.code AS project,
+    equipment.name      AS equipment_name,
+    projects.code       AS project,
 
-    oe.storage_directory AS experiment_storage_directory,
-    bs.storage_directory AS behavior_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory,
-    vbs.storage_directory AS supercontainer_storage_directory,
-    specimens.storage_directory AS specimen_storage_directory
+    oe.storage_directory          AS experiment_storage_directory,
+    bs.storage_directory          AS behavior_storage_directory,
+    os.storage_directory          AS session_storage_directory,
+    vbec.storage_directory        AS container_storage_directory,
+    vbs.storage_directory         AS supercontainer_storage_directory,
+    specimens.storage_directory   AS specimen_storage_directory
 
 
     FROM
@@ -543,7 +539,7 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
 
-    JOIN visual_behavior_supercontainers vbs
+    LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
 
     JOIN projects ON projects.id = os.project_id
@@ -626,12 +622,12 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     """
 
     query = '''
-    specimens.storage_directory AS specimen_storage_directory,
-    oe.storage_directory AS experiment_storage_directory,
-    bs.storage_directory AS behavior_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory,
-    vbs.storage_directory as supercontainer_storage_directory
+    specimens.storage_directory   AS specimen_storage_directory,
+    oe.storage_directory          AS experiment_storage_directory,
+    bs.storage_directory          AS behavior_storage_directory,
+    os.storage_directory          AS session_storage_directory,
+    vbec.storage_directory        AS container_storage_directory,
+    vbs.storage_directory         AS supercontainer_storage_directory
 
     FROM
     ophys_experiments oe
