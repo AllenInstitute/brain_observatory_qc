@@ -325,32 +325,32 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
 
     query = '''
     SELECT
-    specimens.id AS specimen_id,
-    oe.id AS ophys_experiment_id,
-    os.id AS ophys_session_id,
-    bs.id AS behavior_session_id,
-    os.foraging_id AS foraging_id,
+    specimens.id 								   AS specimen_id,
+    oe.id 										   AS ophys_experiment_id,
+    os.id 										   AS ophys_session_id,
+    bs.id 										   AS behavior_session_id,
+    os.foraging_id 								   AS foraging_id,
     oevbec.visual_behavior_experiment_container_id AS ophys_container_id,
-    vbs.id AS supercontainer_id
-
+    vbs.id 										   AS ophys_supercontainer_id
+    
     FROM
     ophys_experiments oe
-
+    
     JOIN ophys_sessions os
     ON os.id = oe.ophys_session_id
-
+    
     JOIN specimens
     ON os.specimen_id = specimens.id
-
+    
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
-
+    
     JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
-
-    JOIN visual_behavior_supercontainers vbs
+    
+    LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
-
+    
     WHERE
     {} = {}
     '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
