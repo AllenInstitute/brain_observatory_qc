@@ -357,7 +357,7 @@ def get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id: int) -> pd.D
        note: number of experiments per session will vary depending on the
        rig it was collected on and the project it was collected for.
     """
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     id
@@ -385,7 +385,7 @@ def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int) -> int:
     int
         _description_
     """
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     id AS behavior_session_id
@@ -401,7 +401,7 @@ def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int) -> int:
 
 
 def get_ophys_container_ids_for_ophys_session_id(ophys_session_id: int):
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     container.visual_behavior_experiment_container_id
@@ -418,7 +418,7 @@ def get_ophys_container_ids_for_ophys_session_id(ophys_session_id: int):
 
 
 def get_supercontainer_id_for_ophys_session_id(ophys_session_id: int) -> int:
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     lims_utils.validate_microscope_type("Mesoscope", ophys_session_id)
     query = '''
     SELECT
@@ -464,7 +464,7 @@ def get_all_ids_for_ophys_session_id(ophys_session_id: int) -> pd.DataFrame:
 
 
 def get_ophys_experiment_ids_for_behavior_session_id(behavior_session_id: int):
-    lims_utils.validate_LIMS_id_type(behavior_session_id, "behavior_session_id")
+    lims_utils.validate_LIMS_id_type("behavior_session_id", behavior_session_id)
 
     query = '''
     SELECT
