@@ -593,13 +593,179 @@ def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.Data
     return dataframe
 
 
-def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+def get_specimen_storage_directory(specimen_id: int) -> str:
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    specimens
+
+    WHERE
+    id = {}
+    '''.format(specimen_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
+    """gets the experiment level storage directory filepath for a
+    specific ophys experiment
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        unique identifier for an ophys experiment
+
+    Returns
+    -------
+    str
+        filepath string to the experiment storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    ophys_experiments
+
+    WHERE
+    id = {}
+    '''.format(ophys_experiment_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_ophys_session_storage_directory(ophys_session_id: int) -> str:
+    """gets the session level storage directory filepath for a
+    specific ophys session
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        unique identifier for an ophys session
+
+    Returns
+    -------
+    str
+        filepath string to the session storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    ophys_sessions
+
+    WHERE
+    id = {}
+    '''.format(ophys_session_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_behavior_session_storage_directory(behavior_session_id: int) -> str:
+    """gets the behavior session level storage directory filepath for a
+    specific behavior session
+
+    Parameters
+    ----------
+    behavior_session_id : int
+        unique identifier for a behavior session
+
+    Returns
+    -------
+    str
+        filepath string to the session storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    behavior_sessions
+
+    WHERE
+    id = {}
+    '''.format(behavior_session_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_container_storage_directory(ophys_container_id: int) -> str:
+    """gets the container level storage directory filepath for a
+    specific ophys container
+    Parameters
+    ----------
+    ophys_container_id : int
+        unique identifier for an ophys container
+
+    Returns
+    -------
+    str
+        filepath string to the container storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    visual_behavior_experiment_containers
+
+    WHERE
+    id = {}
+    '''.format(ophys_container_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_super_container_storage_directory(super_container_id: int) -> str:
+    """gets the container level storage directory filepath for a
+    specific ophys container
+    Parameters
+    ----------
+    ophys_container_id : int
+        unique identifier for an ophys container
+
+    Returns
+    -------
+    str
+        filepath string to the container storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    visual_behavior_supercontainers
+
+    WHERE
+    id = {}
+    '''.format(super_container_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_all_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     """_summary_
 
     Parameters
     ----------
     id_type : str
         options are the keys in the OPHYS_ID_TYPES_DICT
+        "specimen_id"
         "ophys_experiment_id"
         "ophys_session_id"
         "foraging_id"
@@ -654,7 +820,7 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     {} = {}
     '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
     storage_directories_df = mixin.select(query)
-    storage_directories_df = correct_LIMS_storage_directory_filepaths(storage_directories_df)
+    # storage_directories_df = correct_LIMS_storage_directory_filepaths(storage_directories_df)
     return storage_directories_df
 
 

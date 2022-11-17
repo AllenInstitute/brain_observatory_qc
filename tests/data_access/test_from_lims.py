@@ -45,3 +45,28 @@ def test_get_motion_preview_filepath__raises_error_with_incorrect_input():
     with pytest.raises(AssertionError, match=r".*Incorrect id type. Entered Id type is.*correct id type is ophys_experiment_id.*"):
         filepath = from_lims._get_motion_preview_filepath(000000000)
 
+
+@pytest.mark.onprem
+def test_get_cortical_z_stacks_works():
+    cortical_z_stacks_fp = from_lims.get_zstack_cortical_filepath(1197160226) # A working specimen as of 11/04/2022
+    cortical_z_stacks_fp = list([str(cortical_z_stacks_fp)])
+
+    #got this list manually
+    true_z_stack_paths = [
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_AL_cortical_00001.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_AM_cortical_00001.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_LM_cortical_00001.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_V1_cortical_00001.tif', 
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_v1_week2_00001.tif', 
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_al_week2_00001.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_am_week2_00001.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_lm_week2_00002.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_cortical_AL_week3_00001.tif', 
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_cortical_AM_week3_00001.tif', 
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_cortical_LM_week3_00002.tif',
+        '//allen/programs/mindscope/production/learning/prod0/specimen_1197160226/637848_cortical_V1_week3_00001.tif'
+        ]
+
+    assert sorted(cortical_z_stacks_fp) == sorted(true_z_stack_paths), "Cortical Z stack path lists are not equal"
+
+    
