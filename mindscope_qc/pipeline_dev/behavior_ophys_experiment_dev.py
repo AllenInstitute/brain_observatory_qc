@@ -94,12 +94,11 @@ class BehaviorOphysExperimentDev:
     # delegate all else to the "inherited" BehaviorOphysExperiment object
     # need attribute error to pickle/multiprocessing
     # see: https://stackoverflow.com/a/49380669
-    # see: 
     def __getattr__(self, attr):
         if 'inner' not in vars(self):
             raise AttributeError
         return getattr(self.inner, attr)
-    
+
     # # getstate/setstate for multiprocessing
     # # see: https://stackoverflow.com/a/50158865
     # def __getstate__(self):
