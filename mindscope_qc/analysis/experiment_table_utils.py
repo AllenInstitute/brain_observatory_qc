@@ -41,17 +41,18 @@ def experiment_table_extended(df: pd.DataFrame):
         - 'reporter'
 
     """
-
+    df = add_n_exposure_session_type_column(df)
     df = add_session_type_num_column(df)
     df = add_bisect_layer_column(df)
     df = add_depth_order_column(df)
-    df = add_n_exposure_session_type_column(df)
     df = add_fixed_reporter_line_column(df)
     df = add_fixed_reporter_line_column(df)
     df = add_mouse_names_columns(df)
 
-    # TODO: project df
-    df = add_n_exposure_stimulus_column(df) #(epe)
+    # TODO: PROJECT SPECIFIC (order matters)
+    #df = add_short_session_name_column(df)
+    #df = add_n_exposure_stimulus_column(df) #(epe)
+    #df = add_short_session_name_num_column(df)
 
     return df
 
