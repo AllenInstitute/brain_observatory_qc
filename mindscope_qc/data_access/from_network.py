@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.image as mpimg
 from os.path import exists as file_exists
 import mindscope_qc.data_access.from_lims as lims
+import mindscope_qc.data_access.from_lims_utilities as lims_utils
 
 
 ######################################################
@@ -28,67 +29,14 @@ def load_image(image_filepath: str) -> np.ndarray:
 #             STORAGE DIRECTORIES
 ######################################################
 
-
-def get_specimen_storage_directory(specimen_id: int) -> str:
-    directories_df = lims.get_storage_directories_for_id("specimen_id", specimen_id)
-    specimen_path = directories_df["specimen_storage_directory"][0]
-    return specimen_path
-
-
-def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
-    """gets the experiment level storage directory filepath for a
-    specific ophys experiment
-
-    Parameters
-    ----------
-    ophys_experiment_id : int
-        unique identifier for an ophys experiment
-
-    Returns
-    -------
-    str
-        filepath string to the experiment storage directory folder
-    """
-    directories_df = lims.get_storage_directories_for_id("ophys_experiment_id", ophys_experiment_id)
-    experiment_path = directories_df["experiment_storage_directory"][0]
-    return experiment_path
-
-
-def get_session_storage_directory(ophys_session_id: int) -> str:
-    """gets the session level storage directory filepath for a
-    specific ophys session
-
-    Parameters
-    ----------
-    ophys_session_id : int
-        unique identifier for an ophys session
-
-    Returns
-    -------
-    str
-        filepath string to the session storage directory folder
-    """
-    directories_df = lims.get_storage_directories_for_id("ophys_session_id", ophys_session_id)
-    session_path = directories_df["session_storage_directory"][0]
-    return session_path
-
-
-def get_container_storage_directory(ophys_container_id: int) -> str:
-    """gets the container level storage directory filepath for a
-    specific ophys container
-    Parameters
-    ----------
-    ophys_container_id : int
-        unique identifier for an ophys container
-
-    Returns
-    -------
-    str
-        filepath string to the container storage directory folder
-    """
-    directories_df = lims.get_storage_directories_for_id("ophys_container_id", ophys_container_id)
-    container_path = directories_df["container_storage_directory"][0]
-    return container_path
+# functions for getting directories for the following
+# id types can be found in from_lims_utilities
+# specimen_id
+# ophys_experiment_id
+# ophys_session_id
+# behavior_session_id
+# container_id
+# supercontainer_id
 
 
 def get_crosstalk_storage_directory(ophys_session_id: int) -> str:
@@ -106,49 +54,49 @@ def get_crosstalk_storage_directory(ophys_session_id: int) -> str:
     str
         filepath string to the "crosstalk" folder
     """
-    session_directory = get_session_storage_directory(ophys_session_id)
+    session_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     crosstalk_directory = os.path.join(session_directory, "crosstalk")
     return crosstalk_directory
 
 
 def get_eye_tracking_storage_directory(ophys_session_id: int) -> str:
-    session_directory = get_session_storage_directory(ophys_session_id)
+    session_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     eye_tracking_directory = os.path.join(session_directory, "eye_tracking")
     return eye_tracking_directory
 
 
 def get_face_tracking_storage_directory(ophys_session_id: int) -> str:
-    session_directory = get_session_storage_directory(ophys_session_id)
+    session_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     face_tracking_directory = os.path.join(session_directory, "face_tracking")
     return face_tracking_directory
 
 
 def get_side_tracking_storage_directory(ophys_session_id: int) -> str:
-    session_directory = get_session_storage_directory(ophys_session_id)
+    session_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     side_tracking_directory = os.path.join(session_directory, "side_tracking")
     return side_tracking_directory
 
 
 def get_demix_storage_directory(ophys_experiment_id: int) -> str:
-    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    experiment_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     demix_directory = os.path.join(experiment_directory, "demix")
     return demix_directory
 
 
 def get_demix_plots_storage_directory(ophys_experiment_id: int) -> str:
-    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    experiment_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     demix_plots_directory = os.path.join(experiment_directory, "demix", "demix_plots")
     return demix_plots_directory
 
 
 def get_neuropil_subtraction_plots_directory(ophys_experiment_id: int) -> str:
-    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    experiment_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     np_subtraction_directory = os.path.join(experiment_directory, "demix", "demix_plots")
     return np_subtraction_directory
 
 
 def get_experiment_processed_directory(ophys_experiment_id: int) -> str:
-    experiment_directory = get_experiment_storage_directory(ophys_experiment_id)
+    experiment_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     processed_directory = os.path.join(experiment_directory, "processed")
     return processed_directory
 
@@ -166,7 +114,7 @@ def get_current_cell_segmentation_run_directory(ophys_experiment_id: int) -> str
 
 
 def get_post_surgical_photodoc_PNG_filepath(specimen_id: int) -> str:
-    storage_directory = get_specimen_storage_directory(specimen_id)
+    storage_directory = lims_utils.get_specimen_storage_directory(specimen_id)
     filename = '1_{}-0000.png'.format(specimen_id)
     image_filepath = get_filepath(storage_directory, filename)
     return image_filepath
@@ -178,27 +126,37 @@ def load_post_surgical_photodoc_image(specimen_id: int) -> np.ndarray:
     return image
 
 
+def get_cortical_zstack_filepath(specimen_id: int) -> list:
+    storage_directory = lims_utils.get_specimen_storage_directory(specimen_id)
+    zstack_filepaths = []
+    for filename in os.listdir(storage_directory):
+        if 'cortical' in filename:
+            zstack_filepath = get_filepath(storage_directory, filename)
+            zstack_filepaths.append(zstack_filepath)
+    return zstack_filepaths
+
+
 ######################################################
 #             SESSION LEVEL FILES
 ######################################################
 
 
 def get_stimulus_PKL_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}.pkl'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def get_platform_JSON_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}_platform.json'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def get_reticle_TIF_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}_reticle.tif'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -211,7 +169,7 @@ def load_reticle_image(ophys_session_id: int) -> np.ndarray:
 
 
 def get_vasculature_TIF_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}_vasculature.tif'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -224,7 +182,7 @@ def load_vasculature_image(ophys_session_id: int) -> np.ndarray:
 
 
 def get_vasculature_downsampled_TIF_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}_vasculature_downsampled.tif'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -237,7 +195,7 @@ def load_vasculature_downsampled_image(ophys_session_id: int) -> np.ndarray:
 
 
 def get_cortical_zstack_TIFF_filepath(ophys_session_id: int) -> str:
-    storage_directory = get_session_storage_directory(ophys_session_id)
+    storage_directory = lims_utils.get_session_storage_directory(ophys_session_id)
     filename = '{}_cortical_z_stack.tiff'.format(ophys_session_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -260,14 +218,14 @@ def get_ellipse_H5_filepath(ophys_session_id: int) -> str:
 ######################################################
 
 def get_experiment_H5_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def get_surface_TIF_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_surface.tif'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -280,7 +238,7 @@ def load_surface_image(ophys_experiment_id: int) -> np.ndarray:
 
 
 def get_depth_TIF_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_depth.tif'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
@@ -293,21 +251,21 @@ def load_depth_image(ophys_experiment_id: int) -> np.ndarray:
 
 
 def get_dff_H5_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_dff.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def get_event_H5_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_event.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath
 
 
 def get_local_zstack_H5_filepath(ophys_experiment_id: int) -> str:
-    storage_directory = get_experiment_storage_directory(ophys_experiment_id)
+    storage_directory = lims_utils.get_experiment_storage_directory(ophys_experiment_id)
     filename = '{}_z_stack_local.h5'.format(ophys_experiment_id)
     filepath = get_filepath(storage_directory, filename)
     return filepath

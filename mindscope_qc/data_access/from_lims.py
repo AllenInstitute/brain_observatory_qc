@@ -357,7 +357,7 @@ def get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id: int) -> pd.D
        note: number of experiments per session will vary depending on the
        rig it was collected on and the project it was collected for.
     """
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     id
@@ -385,7 +385,7 @@ def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int) -> int:
     int
         _description_
     """
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     id AS behavior_session_id
@@ -401,7 +401,7 @@ def get_behavior_session_id_for_ophys_session_id(ophys_session_id: int) -> int:
 
 
 def get_ophys_container_ids_for_ophys_session_id(ophys_session_id: int):
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     query = '''
     SELECT
     container.visual_behavior_experiment_container_id
@@ -418,7 +418,7 @@ def get_ophys_container_ids_for_ophys_session_id(ophys_session_id: int):
 
 
 def get_supercontainer_id_for_ophys_session_id(ophys_session_id: int) -> int:
-    lims_utils.validate_LIMS_id_type(ophys_session_id, 'ophys_session_id')
+    lims_utils.validate_LIMS_id_type('ophys_session_id', ophys_session_id)
     lims_utils.validate_microscope_type("Mesoscope", ophys_session_id)
     query = '''
     SELECT
@@ -464,7 +464,7 @@ def get_all_ids_for_ophys_session_id(ophys_session_id: int) -> pd.DataFrame:
 
 
 def get_ophys_experiment_ids_for_behavior_session_id(behavior_session_id: int):
-    lims_utils.validate_LIMS_id_type(behavior_session_id, "behavior_session_id")
+    lims_utils.validate_LIMS_id_type("behavior_session_id", behavior_session_id)
 
     query = '''
     SELECT
@@ -1376,6 +1376,10 @@ def get_well_known_file_names_for_isi_experiments():
     return get_well_known_file_names_for_attachable_id_type("'IsiExperiment'")
 
 
+def get_well_known_file_names_for_specimen_id():
+    return get_well_known_file_names_for_attachable_id_type("'Specimen")
+
+
 def get_well_known_file_names_for_ophys_experiments():
     return get_well_known_file_names_for_attachable_id_type("'OphysExperiment'")
 
@@ -1489,6 +1493,17 @@ def get_isi_NWB_filepath(isi_experiment_id: int) -> str:
     lims_utils.validate_LIMS_id_type("isi_experiment_id", isi_experiment_id)
     filepath = get_well_known_file_path("'NWBISI'", isi_experiment_id)
     return filepath
+
+
+############################
+#     for specimen_id
+############################
+
+def get_cortical_zstack_filepaths(specimen_id: int) -> pd.DataFrame:
+    lims_utils.validate_LIMS_id_type("specimen_id", specimen_id)
+    filepaths = get_well_known_file_realdict("'cortical_z_stacks'", specimen_id)
+    utils.correct_dataframe_filepath(filepaths, "filepath")
+    return filepaths
 
 
 ############################

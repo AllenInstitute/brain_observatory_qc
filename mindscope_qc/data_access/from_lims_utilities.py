@@ -321,17 +321,17 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     conditions.validate_value_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
-    validate_LIMS_id_type(id_number, id_type)
+    validate_LIMS_id_type(id_type, id_number)
 
     query = '''
     SELECT
-    specimens.id as specimen_id,
-    oe.id AS ophys_experiment_id,
-    os.id AS ophys_session_id,
-    bs.id AS behavior_session_id,
-    os.foraging_id AS foraging_id,
+    specimens.id 								   AS specimen_id,
+    oe.id 										   AS ophys_experiment_id,
+    os.id 										   AS ophys_session_id,
+    bs.id 										   AS behavior_session_id,
+    os.foraging_id 								   AS foraging_id,
     oevbec.visual_behavior_experiment_container_id AS ophys_container_id,
-    vbs.id AS supercontainer_id
+    vbs.id 										   AS ophys_supercontainer_id
 
     FROM
     ophys_experiments oe
@@ -423,9 +423,9 @@ def get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
-    donors.id  AS donor_id,
+    donors.id                  AS donor_id,
     donors.external_donor_name AS labtracks_id,
-    specimens.id AS specimen_id
+    specimens.id               AS specimen_id
 
     FROM
     donors
@@ -491,36 +491,36 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     conditions.validate_value_in_dict_keys(id_type,
                                            GEN_INFO_QUERY_DICT,
                                            "GEN_INFO_QUERY_DICT")
-    validate_LIMS_id_type(id_number, id_type)
+    validate_LIMS_id_type(id_type, id_number)
     query = '''
     SELECT
-    oe.id AS ophys_experiment_id,
+    oe.id 								 AS ophys_experiment_id,
     oe.ophys_session_id,
-    bs.id AS behavior_session_id,
+    bs.id 								 AS behavior_session_id,
     os.foraging_id,
-    vbec.id AS ophys_container_id,
+    vbec.id 							 AS ophys_container_id,
     os.visual_behavior_supercontainer_id AS supercontainer_id,
 
-    oe.workflow_state AS experiment_workflow_state,
-    os.workflow_state AS session_workflow_state,
-    vbec.workflow_state AS container_workflow_state,
+    oe.workflow_state 	 AS experiment_workflow_state,
+    os.workflow_state 	 AS session_workflow_state,
+    vbec.workflow_state  AS container_workflow_state,
 
     os.specimen_id,
     specimens.donor_id,
-    specimens.name AS specimen_name,
+    specimens.name 		AS specimen_name,
 
     os.date_of_acquisition,
-    os.stimulus_name AS session_type,
-    structures.acronym AS targeted_structure,
+    os.stimulus_name 	AS session_type,
+    structures.acronym  AS targeted_structure,
     imaging_depths.depth,
-    equipment.name AS equipment_name,
-    projects.code AS project,
+    equipment.name 		AS equipment_name,
+    projects.code 		AS project,
 
-    oe.storage_directory AS experiment_storage_directory,
-    bs.storage_directory AS behavior_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory,
-    vbs.storage_directory AS supercontainer_storage_directory,
+    oe.storage_directory 		AS experiment_storage_directory,
+    bs.storage_directory 		AS behavior_storage_directory,
+    os.storage_directory 		AS session_storage_directory,
+    vbec.storage_directory 		AS container_storage_directory,
+    vbs.storage_directory 		AS supercontainer_storage_directory,
     specimens.storage_directory AS specimen_storage_directory
 
 
@@ -539,14 +539,14 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
 
-    JOIN visual_behavior_supercontainers vbs
+    LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
 
-    JOIN projects ON projects.id = os.project_id
-    JOIN specimens ON specimens.id = os.specimen_id
-    JOIN structures ON structures.id = oe.targeted_structure_id
+    JOIN projects 		ON projects.id = os.project_id
+    JOIN specimens 		ON specimens.id = os.specimen_id
+    JOIN structures 	ON structures.id = oe.targeted_structure_id
     JOIN imaging_depths ON imaging_depths.id = oe.imaging_depth_id
-    JOIN equipment ON equipment.id = os.equipment_id
+    JOIN equipment 		ON equipment.id = os.equipment_id
 
     WHERE
     {} = {}
@@ -586,20 +586,186 @@ def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.Data
                                       'behavior_storage_directory',
                                       'session_storage_directory',
                                       'container_storage_directory'
-                                      'supercontainer_storage_directory']
+                                      ]
 
     for column in storage_directory_columns_list:
         dataframe = utils.correct_dataframe_filepath(dataframe, column)
     return dataframe
 
 
-def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
+def get_specimen_storage_directory(specimen_id: int) -> str:
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    specimens
+
+    WHERE
+    id = {}
+    '''.format(specimen_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_experiment_storage_directory(ophys_experiment_id: int) -> str:
+    """gets the experiment level storage directory filepath for a
+    specific ophys experiment
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        unique identifier for an ophys experiment
+
+    Returns
+    -------
+    str
+        filepath string to the experiment storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    ophys_experiments
+
+    WHERE
+    id = {}
+    '''.format(ophys_experiment_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_ophys_session_storage_directory(ophys_session_id: int) -> str:
+    """gets the session level storage directory filepath for a
+    specific ophys session
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        unique identifier for an ophys session
+
+    Returns
+    -------
+    str
+        filepath string to the session storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    ophys_sessions
+
+    WHERE
+    id = {}
+    '''.format(ophys_session_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_behavior_session_storage_directory(behavior_session_id: int) -> str:
+    """gets the behavior session level storage directory filepath for a
+    specific behavior session
+
+    Parameters
+    ----------
+    behavior_session_id : int
+        unique identifier for a behavior session
+
+    Returns
+    -------
+    str
+        filepath string to the session storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    behavior_sessions
+
+    WHERE
+    id = {}
+    '''.format(behavior_session_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_container_storage_directory(ophys_container_id: int) -> str:
+    """gets the container level storage directory filepath for a
+    specific ophys container
+    Parameters
+    ----------
+    ophys_container_id : int
+        unique identifier for an ophys container
+
+    Returns
+    -------
+    str
+        filepath string to the container storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    visual_behavior_experiment_containers
+
+    WHERE
+    id = {}
+    '''.format(ophys_container_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_super_container_storage_directory(super_container_id: int) -> str:
+    """gets the container level storage directory filepath for a
+    specific ophys container
+    Parameters
+    ----------
+    ophys_container_id : int
+        unique identifier for an ophys container
+
+    Returns
+    -------
+    str
+        filepath string to the container storage directory folder
+    """
+    query = '''
+    SELECT
+    storage_directory
+
+    FROM
+    visual_behavior_supercontainers
+
+    WHERE
+    id = {}
+    '''.format(super_container_id)
+    directory_df = mixin.select(query)
+    directory_df = utils.correct_dataframe_filepath(directory_df, "storage_directory")
+    directory_path = directory_df["storage_directory"][0]
+    return directory_path
+
+
+def get_all_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame:
     """_summary_
 
     Parameters
     ----------
     id_type : str
         options are the keys in the OPHYS_ID_TYPES_DICT
+        "specimen_id"
         "ophys_experiment_id"
         "ophys_session_id"
         "foraging_id"
@@ -622,12 +788,12 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     """
 
     query = '''
-    specimens.storage_directory AS specimen_storage_directory,
-    oe.storage_directory AS experiment_storage_directory,
-    bs.storage_directory AS behavior_storage_directory,
-    os.storage_directory AS session_storage_directory,
-    vbec.storage_directory AS container_storage_directory,
-    vbs.storage_directory as supercontainer_storage_directory
+    specimens.storage_directory   AS specimen_storage_directory,
+    oe.storage_directory          AS experiment_storage_directory,
+    bs.storage_directory          AS behavior_storage_directory,
+    os.storage_directory          AS session_storage_directory,
+    vbec.storage_directory        AS container_storage_directory,
+    vbs.storage_directory         AS supercontainer_storage_directory
 
     FROM
     ophys_experiments oe
@@ -654,7 +820,7 @@ def get_storage_directories_for_id(id_type: str, id_number: int) -> pd.DataFrame
     {} = {}
     '''.format(OPHYS_ID_TYPES_DICT[id_type]["query_abbrev"], id_number)
     storage_directories_df = mixin.select(query)
-    storage_directories_df = correct_LIMS_storage_directory_filepaths(storage_directories_df)
+    # storage_directories_df = correct_LIMS_storage_directory_filepaths(storage_directories_df)
     return storage_directories_df
 
 
@@ -718,7 +884,7 @@ def validate_ophys_associated_with_behavior(behavior_session_id: int):
     behavior_session_id : _type_
         _description_
     """
-    validate_LIMS_id_type(behavior_session_id, "behavior_session_id")
+    validate_LIMS_id_type("behavior_session_id", behavior_session_id)
     ophys_session_id = get_all_imaging_ids_for_imaging_id('behavior_session_id', behavior_session_id)['ophys_session_id'][0]
     assert ophys_session_id is not None, "There is no ophys_session_id \
         associated with this behavior_session_id: {}".format(behavior_session_id)
