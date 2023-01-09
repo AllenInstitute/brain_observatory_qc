@@ -4,6 +4,32 @@ import uuid
 from dateutil import tz, parser
 import datetime
 import logging
+from functools import wraps
+
+
+
+
+def catch_trials_pkl_hack(pkl_dict):
+    """Hack to get around pkl error when loading catch trials
+
+    TODO: exand doc
+    Basically, for associative learning pilots in 2022/2023, there are no
+    catch trials.So this inserts the correct key and sets them all to false
+
+    Parameters
+    ----------
+    pkl_dict : dict
+        pkl_file dict with catch trials
+    
+    Returns
+    -------
+    dict
+        pkl_file dict with catch trials set to false
+    """
+    for t in pkl_dict['items']['behavior']["trial_log"]:
+        t["trial_params"]["catch"] = False
+    return pkl_dict
+
 
 
 # VBA
@@ -137,3 +163,29 @@ class ListHandler(logging.Handler):
 DoubleColonFormatter = logging.Formatter(
     "%(levelname)s::%(name)s::%(message)s",
 )
+
+# TODO UPDATE
+def inplace(func):
+    """ decorator which allows functions that modify a dataframe inplace
+    to use a copy instead
+    """
+
+    @wraps(func)
+    def df_wrapper(df, *args, **kwargs):
+
+        try:
+            inplace = kwargs.pop('inplace')
+        except KeyError:
+            inplace = False
+
+        if inplace is False:
+            df = df.copy()
+
+        func(df, *args, **kwargs)
+
+        if inplace is False:
+            return df
+        else:
+            return None
+
+    return df_wrapper

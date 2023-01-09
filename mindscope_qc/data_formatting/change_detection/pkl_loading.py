@@ -2,7 +2,7 @@ import pandas as pd
 from six import PY3
 import pickle
 
-from .utilities import local_time, ListHandler, DoubleColonFormatter
+from .utils import local_time, ListHandler, DoubleColonFormatter
 
 from .extract import get_trial_log, get_stimuli, get_pre_change_time, \
     annotate_licks, annotate_rewards, annotate_optogenetics, annotate_responses, \

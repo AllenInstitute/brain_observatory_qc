@@ -6,9 +6,9 @@ from copy import deepcopy
 from six import iteritems
 import re
 
-from .utilities import compute_running_speed  # , calc_deriv
-from .utilities import make_deterministic_session_uuid
-from .utilities import local_time
+from .utils import compute_running_speed  # , calc_deriv
+from .utils import make_deterministic_session_uuid
+from .utils import local_time
 # from ... import devices
 
 logger = logging.getLogger(__name__)
