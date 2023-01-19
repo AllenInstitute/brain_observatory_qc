@@ -12,7 +12,7 @@ import dask.array as da
 
 def get_paired_planes_list(session_path: Union[str, Path]) -> list:
     """Get list of paired planes experiment IDs within a session, for
-    example 4x2 configuration on mesoscope has 8 experiments with 
+    example 4x2 configuration on mesoscope has 8 experiments with
     4 pairs of 2.
 
     Parameters
@@ -148,7 +148,6 @@ def paired_shifts_regression_eid(expts_ids):
     # get all paired slope for all experiments
     all_pairs = []
     for eid in expts_ids:
-        print(eid)
         info = from_lims.get_general_info_for_ophys_experiment_id(eid)
         session_path = info.session_storage_directory.loc[0]
         all_pairs.append(get_paired_slope(session_path))
@@ -164,7 +163,6 @@ def paired_shifts_regression(sids):
     all_pairs = []
     for sid in sids:
         try:
-            print(sid)
             info = from_lims.get_general_info_for_ophys_session_id(sid)
             session_path = info.session_storage_directory.loc[0]
             all_pairs.append(get_paired_slope(session_path))
@@ -269,14 +267,15 @@ def shift_and_save_frames(frames,
 
     # save frames
     if save_path is not None:
+        print(f"Saving h5 (shape: {sframes.shape}) file: {save_path}")
         with h5py.File(save_path, 'w') as f:
             f.create_dataset('data', data=sframes)
 
-    print(sframes.shape)
     return sframes
 
 
-def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path: Path = None):
+def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path: Path = None,
+                                         return_frames: bool = False):
     """Generate shifted frames for an experiment
 
     Parameters
@@ -293,6 +292,9 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     np.ndarray
         shifted frames
     """
+    if save_path is not None:
+        save_path = Path(save_path)
+
     expt_path = from_lims.get_general_info_for_ophys_experiment_id(
         eid).experiment_storage_directory.iloc[0]
     raw_h5 = expt_path / (str(eid) + '.h5')
@@ -339,37 +341,37 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
                                                x_shifts=paired_shifts.x,
                                                block_size=block_size,
                                                save_path=p2_og_fn)
+    if return_frames:
+        # TODO: make motio correction cropping
+        p1y, p1x = get_motion_correction_crop_xy_range(eid)
+        p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
 
-    # TODO: make motio correction cropping
-    p1y, p1x = get_motion_correction_crop_xy_range(eid)
-    p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
+        # crop frames
+        p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+        p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+        p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+        p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
 
-    # crop frames
-    p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-    p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-    p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-    p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+        # add all to dict
+        shifted_frames = {'plane1_original': p1_original_frames,
+                          'plane2_paired': p2_paired_frames,
+                          'plane1_paired': p1_paired_frames,
+                          'plane2_original': p2_original_frames}
 
-    # add all to dict
-    shifted_frames = {'plane1_original': p1_original_frames,
-                      'plane2_paired': p2_paired_frames,
-                      'plane1_paired': p1_paired_frames,
-                      'plane2_original': p2_original_frames}
+        # # concat plane 1
+        # plane1 = xr.concat([xr.DataArray(p1_original_frames, dims=['frame', 'y', 'x'], name='plane1_original'),
+        #                     xr.DataArray(p1_paired_frames, dims=['frame', 'y', 'x'], name='plane1_paired')],
+        #                     dim='plane')
 
-    # # concat plane 1
-    # plane1 = xr.concat([xr.DataArray(p1_original_frames, dims=['frame', 'y', 'x'], name='plane1_original'),
-    #                     xr.DataArray(p1_paired_frames, dims=['frame', 'y', 'x'], name='plane1_paired')],
-    #                     dim='plane')
+        # # concat plane 2
+        # plane2 = xr.concat([xr.DataArray(p2_original_frames, dims=['frame', 'y', 'x'], name='plane2_original'),
+        #                     xr.DataArray(p2_paired_frames, dims=['frame', 'y', 'x'], name='plane2_paired')],
+        #                     dim='plane')
 
-    # # concat plane 2
-    # plane2 = xr.concat([xr.DataArray(p2_original_frames, dims=['frame', 'y', 'x'], name='plane2_original'),
-    #                     xr.DataArray(p2_paired_frames, dims=['frame', 'y', 'x'], name='plane2_paired')],
-    #                     dim='plane')
+        # # concat planes
+        # concat_frames = xr.concat([plane1, plane2], dim='plane')
 
-    # # concat planes
-    # concat_frames = xr.concat([plane1, plane2], dim='plane')
-
-    return shifted_frames
+        return shifted_frames
 
 
 def chunk_movie(movie, n_chunks):
