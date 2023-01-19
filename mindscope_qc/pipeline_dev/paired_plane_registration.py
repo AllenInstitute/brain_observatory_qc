@@ -284,7 +284,7 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     eid : int
         experiment id
     block_size : int, optional
-        number of frames to shift, by default None
+        number of frames to shift, if None, shift all frames
     save_path : Path, optional
         path to save shifted frames, by default None
 
@@ -296,8 +296,8 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     expt_path = from_lims.get_general_info_for_ophys_experiment_id(
         eid).experiment_storage_directory.iloc[0]
     raw_h5 = expt_path / (str(eid) + '.h5')
-    frames = load_h5_dask(raw_h5)
-    shifts = get_s2p_rigid_motion_transform(eid)
+    plane1_frames = load_h5_dask(raw_h5)
+    plane1_shifts = get_s2p_rigid_motion_transform(eid)
 
     # get shifts for paired
     paired_id = get_paired_plane_id(eid)
@@ -305,32 +305,42 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     expt_path_paired = from_lims.get_general_info_for_ophys_experiment_id(
         paired_id).experiment_storage_directory.iloc[0]
     raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
-    frames_paired = load_h5_dask(raw_h5_paired)
+    plane2_frames = load_h5_dask(raw_h5_paired)
 
-    p1_original_frames = shift_and_save_frames(frames=frames,
-                                               y_shifts=shifts.y,
-                                               x_shifts=shifts.x,
+    # if save path, make all 4 filenames
+    if save_path is not None:
+        save_path.mkdir(exist_ok=True)
+
+        p1_og_fn = save_path / f'{eid}_original_shift.h5'
+        p2_paired_fn = save_path / f'{paired_id}_paired_shift.h5'
+        p1_paired_fn = save_path / f'{eid}_paired_shift.h5'
+        p2_og_fn = save_path / f'{paired_id}_original_shift.h5'
+
+    p1_original_frames = shift_and_save_frames(frames=plane1_frames,
+                                               y_shifts=plane1_shifts.y,
+                                               x_shifts=plane1_shifts.x,
                                                block_size=block_size,
-                                               save_path=save_path)
+                                               save_path=p1_og_fn)
 
-    p2_paired_frames = shift_and_save_frames(frames=frames_paired,
-                                             y_shifts=shifts.y,
-                                             x_shifts=shifts.x,
+    p2_paired_frames = shift_and_save_frames(frames=plane2_frames,
+                                             y_shifts=plane1_shifts.y,
+                                             x_shifts=plane1_shifts.x,
                                              block_size=block_size,
-                                             save_path=save_path)
+                                             save_path=p2_paired_fn)
 
-    p1_paired_frames = shift_and_save_frames(frames=frames,
+    p1_paired_frames = shift_and_save_frames(frames=plane1_frames,
                                              y_shifts=paired_shifts.y,
                                              x_shifts=paired_shifts.x,
                                              block_size=block_size,
-                                             save_path=save_path)
+                                             save_path=p1_paired_fn)
 
-    p2_original_frames = shift_and_save_frames(frames=frames_paired,
+    p2_original_frames = shift_and_save_frames(frames=plane2_frames,
                                                y_shifts=paired_shifts.y,
                                                x_shifts=paired_shifts.x,
                                                block_size=block_size,
-                                               save_path=save_path)
+                                               save_path=p2_og_fn)
 
+    # TODO: make motio correction cropping
     p1y, p1x = get_motion_correction_crop_xy_range(eid)
     p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
 
