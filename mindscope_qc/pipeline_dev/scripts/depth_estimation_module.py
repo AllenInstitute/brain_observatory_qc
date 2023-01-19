@@ -3,7 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from pystackreg import StackReg
-import os, h5py, scipy, skimage, cv2, imageio, tifffile
+import os
+import h5py
+import scipy
+import skimage
+import cv2
+import imageio
+import tifffile
 from PIL import Image
 from pathlib import Path
 
@@ -12,12 +18,15 @@ from mindscope_qc.data_access import from_lims
 from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
 
-global_base_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\','/'))
+global_base_dir = Path(
+    r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\', '/'))
 
-##########################################
-### General tools
-##########################################
-def image_normalization_uint8(image, im_thresh = 0):
+###############################################################################
+# General tools
+###############################################################################
+
+
+def image_normalization_uint8(image, im_thresh=0):
     """Normalize 2D image and convert to uint8
     Prevent saturation.
 
@@ -29,12 +38,16 @@ def image_normalization_uint8(image, im_thresh = 0):
     Return:
         norm_image (np.ndarray)
     """
-    clip_image = np.clip(image, np.percentile(image[image>im_thresh],0.2), np.percentile(image[image>im_thresh],99.8))
-    norm_image = (clip_image - np.amin(clip_image)) / (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint8_image = ((norm_image+0.05)*np.iinfo(np.uint8).max*0.9).astype(np.uint8)
+    clip_image = np.clip(image, np.percentile(
+        image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
+    norm_image = (clip_image - np.amin(clip_image)) / \
+        (np.amax(clip_image) - np.amin(clip_image)) * 0.9
+    uint8_image = ((norm_image + 0.05) *
+                   np.iinfo(np.uint8).max * 0.9).astype(np.uint8)
     return uint8_image
 
-def image_normalization_uint16(image, im_thresh = 0):
+
+def image_normalization_uint16(image, im_thresh=0):
     """Normalize 2D image and convert to uint16
     Prevent saturation.
 
@@ -46,10 +59,14 @@ def image_normalization_uint16(image, im_thresh = 0):
     Return:
         norm_image (np.ndarray)
     """
-    clip_image = np.clip(image, np.percentile(image[image>im_thresh],0.2), np.percentile(image[image>im_thresh],99.8))
-    norm_image = (clip_image - np.amin(clip_image)) / (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint16_image = ((norm_image+0.05)*np.iinfo(np.uint16).max*0.9).astype(np.uint16)
+    clip_image = np.clip(image, np.percentile(
+        image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
+    norm_image = (clip_image - np.amin(clip_image)) / \
+        (np.amax(clip_image) - np.amin(clip_image)) * 0.9
+    uint16_image = ((norm_image + 0.05) *
+                    np.iinfo(np.uint16).max * 0.9).astype(np.uint16)
     return uint16_image
+
 
 def moving_average(data1d, window=10):
     ''' Moving average
@@ -60,16 +77,17 @@ def moving_average(data1d, window=10):
         avg_data (1d array): smoothed data
     '''
 
-    assert len(data1d.shape)==1
+    assert len(data1d.shape) == 1
     avg_data = np.zeros(len(data1d))
     for i in range(len(data1d)):
-        min_idx = np.max([i-window//2,0])
-        max_idx = np.min([i+window//2,len(data1d)])
+        min_idx = np.max([i - window // 2, 0])
+        max_idx = np.min([i + window // 2, len(data1d)])
         avg_data[i] = np.mean(data1d[min_idx:max_idx])
     return avg_data
 
+
 def get_frame_start_end(movie_len, segment_len):
-    """Get frame start and end of each segment, 
+    """Get frame start and end of each segment,
     given the length of movie and that of a segment.
 
     Parameters
@@ -84,11 +102,11 @@ def get_frame_start_end(movie_len, segment_len):
     list
         [frame start, frame end] for each segment
     """
-    dividers = range(0,movie_len,segment_len)
+    dividers = range(0, movie_len, segment_len)
     frame_start_end = []
-    for i in range(len(dividers)-2):
-        frame_start_end.append([dividers[i], dividers[i+1]])
-    if movie_len//segment_len == int(np.round(movie_len/segment_len)):
+    for i in range(len(dividers) - 2):
+        frame_start_end.append([dividers[i], dividers[i + 1]])
+    if movie_len // segment_len == int(np.round(movie_len / segment_len)):
         # the last segment is appended
         frame_start_end.append([dividers[-2], movie_len])
     else:
@@ -96,6 +114,7 @@ def get_frame_start_end(movie_len, segment_len):
         frame_start_end.append([dividers[-2], dividers[-1]])
         frame_start_end.append([dividers[-1], movie_len])
     return frame_start_end
+
 
 def im_blend(image, overlay, alpha):
     """Blend two images to show match or discrepancy
@@ -114,19 +133,22 @@ def im_blend(image, overlay, alpha):
     np.ndimage (2d)
         blended image
     """
-    assert len(image.shape)==2
-    assert len(overlay.shape)==2
+    assert len(image.shape) == 2
+    assert len(overlay.shape) == 2
     assert image.shape == overlay.shape
     img_uint8 = image_normalization_uint8(image)
-    img_rgb = (np.dstack((img_uint8, np.zeros_like(img_uint8), img_uint8))) * (1-alpha)
+    img_rgb = (np.dstack((img_uint8, np.zeros_like(
+        img_uint8), img_uint8))) * (1 - alpha)
     overlay_uint8 = image_normalization_uint8(overlay)
-    overlay_rgb = np.dstack((np.zeros_like(img_uint8), overlay_uint8, overlay_uint8)) * alpha
+    overlay_rgb = np.dstack(
+        (np.zeros_like(img_uint8), overlay_uint8, overlay_uint8)) * alpha
     blended = img_rgb + overlay_rgb
     return blended
 
-########################################
-### General LIMS tools
-#######################################
+###############################################################################
+# General LIMS tools
+###############################################################################
+
 
 def get_motion_correction_crop_xy_range(oeid):
     """Get x-y ranges to crop motion-correction frame rolling
@@ -141,17 +163,18 @@ def get_motion_correction_crop_xy_range(oeid):
     list, list
         Lists of y range and x range, [start, end] pixel index
     """
-    #TODO: validate in case where max < 0 or min > 0 (if there exists an example)
-    motion_df = pd.read_csv(from_lims.get_motion_xy_offset_filepath(oeid))    
-    max_y = np.ceil(max(motion_df.y.max(),1)).astype(int)
-    min_y = np.floor(min(motion_df.y.min(),0)).astype(int)
-    max_x = np.ceil(max(motion_df.x.max(),1)).astype(int)
-    min_x = np.floor(min(motion_df.x.min(),0)).astype(int)
+    # TODO: validate in case where max < 0 or min > 0 (if there exists an example)
+    motion_df = pd.read_csv(from_lims.get_motion_xy_offset_filepath(oeid))
+    max_y = np.ceil(max(motion_df.y.max(), 1)).astype(int)
+    min_y = np.floor(min(motion_df.y.min(), 0)).astype(int)
+    max_x = np.ceil(max(motion_df.x.max(), 1)).astype(int)
+    min_x = np.floor(min(motion_df.x.min(), 0)).astype(int)
     range_y = [-min_y, -max_y]
     range_x = [-min_x, -max_x]
     return range_y, range_x
 
-def check_correct_data(ophys_experiment_id, correct_image_size = (512,512)):
+
+def check_correct_data(ophys_experiment_id, correct_image_size=(512, 512)):
     """ Check the dimension of experiment images
 
     Parameters
@@ -175,7 +198,8 @@ def check_correct_data(ophys_experiment_id, correct_image_size = (512,512)):
         return True
     else:
         return False
-    
+
+
 def get_image_size(ophys_experiment_id):
     """Get image size
 
@@ -191,18 +215,19 @@ def get_image_size(ophys_experiment_id):
     """
     try:
         raw_h5_fn = get_raw_h5_filepath(ophys_experiment_id)
-    except:
-        Ly,Lx = (0,0)
-        return Ly,Lx 
+    except Exception:
+        Ly, Lx = (0, 0)
+        return Ly, Lx
     if os.path.isfile(raw_h5_fn):
         with h5py.File(raw_h5_fn, 'r') as h:
             if 'data' in h.keys():
-                Ly,Lx = (h['data'].shape[1:])
+                Ly, Lx = (h['data'].shape[1:])
             else:
-                Ly,Lx = (0,0)
+                Ly, Lx = (0, 0)
     else:
-        Ly,Lx = (0,0)
-    return Ly,Lx
+        Ly, Lx = (0, 0)
+    return Ly, Lx
+
 
 def get_correct_frame_rate(ophys_experiment_id):
     """ Getting the correct frame rate, rather than fixed 11.0 from the metadata
@@ -215,12 +240,15 @@ def get_correct_frame_rate(ophys_experiment_id):
     """
     # TODO: change from_lims_utilities from vba to that in mindscope_qc.
     # mindscope_qc currently does not seem to have tools for getting timestamps.
-    lims_data = from_lims_utilities.utils.get_lims_data(ophys_experiment_id) # not yet implemented in mindscope_qc
-    timestamps = from_lims_utilities.utils.get_timestamps(lims_data) # not yet implemented in mindscope_qc
-    frame_rate = 1/np.mean(np.diff(timestamps.ophys_frames.timestamps))
+    lims_data = from_lims_utilities.utils.get_lims_data(
+        ophys_experiment_id)  # not yet implemented in mindscope_qc
+    timestamps = from_lims_utilities.utils.get_timestamps(
+        lims_data)  # not yet implemented in mindscope_qc
+    frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
     return frame_rate, timestamps
 
-def find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_only = True, correct_image_size=(512,512)):
+
+def find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_only=True, correct_image_size=(512, 512)):
     """Find the first experiment ID from the ophys container ID.
     Assume experiment IDs are assigned chronologically.
 
@@ -241,8 +269,9 @@ def find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_o
         the first experiment ID
     """
     # Get all ophys_experiment_ids from the ophys container id
-    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id)
-    
+    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+        ophys_container_id)
+
     # There are random errors where first_oeid is not assigned.
 
     # # Pick the first one after sorting the ids (assume experiment ids are generated in ascending number)
@@ -256,20 +285,23 @@ def find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_o
     #     first_oeid = oeids[0]
 
     # Attach correctness to the DataFrame first, gather all experiments with correct data, and sort them.
-    
+
     if valid_only:
         correct_data = []
         for oeid in oeid_df.ophys_experiment_id.values:
-            correct_data.append(check_correct_data(oeid, correct_image_size=correct_image_size))
+            correct_data.append(check_correct_data(
+                oeid, correct_image_size=correct_image_size))
         oeid_df['correct_data'] = correct_data
-        oeids = np.sort(oeid_df[oeid_df.correct_data].ophys_experiment_id.values)
+        oeids = np.sort(
+            oeid_df[oeid_df.correct_data].ophys_experiment_id.values)
     else:
         oeids = np.sort(oeid_df.ophys_experiment_id.values)
     first_oeid = oeids[0]
-    
+
     return first_oeid
 
-def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id, valid_only=True, correct_image_size=(512,512)):
+
+def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id, valid_only=True, correct_image_size=(512, 512)):
     """Find the first experiment ID from the ophys experiment ID.
     Assume experiment IDs are assigned chronologically.
 
@@ -290,9 +322,12 @@ def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id, valid
         the first experiment ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
-    first_oeid = find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
+    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+        ophys_experiment_id)
+    first_oeid = find_first_experiment_id_from_ophys_container_id(
+        ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
     return first_oeid
+
 
 def check_if_ophys_experiment_id_in_ophys_container_id(ophys_experiment_id, ophys_container_id):
     """ Check if ophys experiment ID is in the ophys container ID
@@ -310,12 +345,14 @@ def check_if_ophys_experiment_id_in_ophys_container_id(ophys_experiment_id, ophy
         True if ophys experiment ID is in ophys container ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id_from_ophys_experiment_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(ophys_experiment_id)
+    ophys_container_id_from_ophys_experiment_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+        ophys_experiment_id)
     return ophys_container_id_from_ophys_experiment_id == ophys_container_id
 
 ##########################################
-### Query tools
+# Query tools
 ##########################################
+
 
 def get_ophys_session_ids_for_mouse_id(mouse_id):
     """Get ophys session IDs for mouse ID
@@ -336,6 +373,7 @@ def get_ophys_session_ids_for_mouse_id(mouse_id):
     WHERE sp.external_specimen_name = '{mouse_id}'"
     lims_results = db.lims_query(q_str)
     return lims_results
+
 
 def get_region_depth_ophys_experiment_id(ophys_experiment_id):
     """Get targeted region and depths for an ophys experiment ID
@@ -358,6 +396,7 @@ def get_region_depth_ophys_experiment_id(ophys_experiment_id):
     lims_results = db.lims_query(q_str)
     return lims_results.acronym[0], lims_results.depth[0]
 
+
 def get_oeid_region_depth_for_ophys_session_id(ophys_session_id):
     """Get targeted region and depths for the ophys experiment IDs within an ophys session ID
 
@@ -371,11 +410,13 @@ def get_oeid_region_depth_for_ophys_session_id(ophys_session_id):
     DataFrame
         containing ophys experiment IDs and their corresponding targeted region and depth
     """
-    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_session_id(ophys_session_id)
+    oeid_df = from_lims.get_ophys_experiment_ids_for_ophys_session_id(
+        ophys_session_id)
     target_region = []
     depths = []
     for i in range(len(oeid_df)):
-        (target, depth) = get_region_depth_ophys_experiment_id(oeid_df.ophys_experiment_id.values[i])
+        (target, depth) = get_region_depth_ophys_experiment_id(
+            oeid_df.ophys_experiment_id.values[i])
         target_region.append(target)
         depths.append(depth)
     oeid_df['target_region'] = target_region
@@ -383,8 +424,9 @@ def get_oeid_region_depth_for_ophys_session_id(ophys_session_id):
     return oeid_df
 
 ##########################################
-### Get-path tools
+# Get-path tools
 ##########################################
+
 
 def get_local_zstack_path(ophys_experiment_id):
     """Get local z-stack path
@@ -403,7 +445,8 @@ def get_local_zstack_path(ophys_experiment_id):
     zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
         / f'{ophys_experiment_id}_z_stack_local.h5'
     return zstack_fp
-    
+
+
 def get_storage_directory_path_for_ophys_experiment_id(ophys_experiment_id):
     """Get storage directory path for ophys_experiment_id
 
@@ -419,16 +462,20 @@ def get_storage_directory_path_for_ophys_experiment_id(ophys_experiment_id):
     """
     # sometimes dff is not generated
     # dir_path = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent
-    osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(ophys_experiment_id)
-    dir_path = from_lims.get_session_h5_filepath(osid).parent / f'ophys_experiment_{ophys_experiment_id}'
+    osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+        ophys_experiment_id)
+    dir_path = from_lims.get_session_h5_filepath(
+        osid).parent / f'ophys_experiment_{ophys_experiment_id}'
     return dir_path
+
 
 def get_raw_h5_filepath(ophys_experiment_id):
     return get_storage_directory_path_for_ophys_experiment_id(ophys_experiment_id) / f'{ophys_experiment_id}.h5'
 
 ########################################
-### Z-stack tools
+# Z-stack tools
 ########################################
+
 
 def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir):
     """Get within and between plane registered z-stack from an experiment.
@@ -463,6 +510,7 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir):
             h.create_dataset('data', data=reg_zstack)
     return reg_zstack
 
+
 def register_z_stack(ophys_experiment_id, number_of_z_planes=81, number_of_repeats=20):
     """Get registered z-stack, both within and between planes
     Can work for both taken by step protocol and loop protocol
@@ -489,11 +537,13 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=81, number_of_repea
 
     mean_local_zstack_reg = []
     for plane_ind in range(number_of_z_planes):
-        single_plane_images = local_z_stack[range(plane_ind, total_num_frames, number_of_z_planes), ...]
+        single_plane_images = local_z_stack[range(
+            plane_ind, total_num_frames, number_of_z_planes), ...]
         single_plane = average_reg_plane(single_plane_images)
         mean_local_zstack_reg.append(single_plane)
     zstack_reg = reg_between_planes(np.array(mean_local_zstack_reg))
     return zstack_reg
+
 
 def average_reg_plane(images):
     """Get mean FOV of a plane after registration. 
@@ -509,12 +559,14 @@ def average_reg_plane(images):
     np.ndarray (2D)
         mean FOV of a plane after registration.
     """
-    mean_img = np.mean(images,axis=0)
+    mean_img = np.mean(images, axis=0)
     reg = np.zeros_like(images)
     for i in range(images.shape[0]):
-        shift,_,_ = skimage.registration.phase_cross_correlation(mean_img, images[i,:,:], normalization=None)
-        reg[i,:,:] = scipy.ndimage.shift(images[i,:,:], shift)
-    return np.mean(reg,axis=0)
+        shift, _, _ = skimage.registration.phase_cross_correlation(
+            mean_img, images[i, :, :], normalization=None)
+        reg[i, :, :] = scipy.ndimage.shift(images[i, :, :], shift)
+    return np.mean(reg, axis=0)
+
 
 def reg_between_planes(stack_imgs):
     """Register between planes. Each plane with single 2D image
@@ -534,15 +586,19 @@ def reg_between_planes(stack_imgs):
     """
     num_planes = stack_imgs.shape[0]
     reg_stack_imgs = np.zeros_like(stack_imgs)
-    reg_stack_imgs[0,:,:] = stack_imgs[0,:,:]
+    reg_stack_imgs[0, :, :] = stack_imgs[0, :, :]
     medfilt_stack_imgs = med_filt_z_stack(stack_imgs)
     reg_medfilt_imgs = np.zeros_like(stack_imgs)
-    reg_medfilt_imgs[0,:,:] = medfilt_stack_imgs[0,:,:]
-    for i in range(1,num_planes):
-        shift,_,_ = skimage.registration.phase_cross_correlation(reg_medfilt_imgs[i-1,:,:], medfilt_stack_imgs[i,:,:], normalization=None)
-        reg_medfilt_imgs[i,:,:] = scipy.ndimage.shift(medfilt_stack_imgs[i,:,:], shift)
-        reg_stack_imgs[i,:,:] = scipy.ndimage.shift(stack_imgs[i,:,:], shift)
+    reg_medfilt_imgs[0, :, :] = medfilt_stack_imgs[0, :, :]
+    for i in range(1, num_planes):
+        shift, _, _ = skimage.registration.phase_cross_correlation(
+            reg_medfilt_imgs[i - 1, :, :], medfilt_stack_imgs[i, :, :], normalization=None)
+        reg_medfilt_imgs[i, :, :] = scipy.ndimage.shift(
+            medfilt_stack_imgs[i, :, :], shift)
+        reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
+            stack_imgs[i, :, :], shift)
     return reg_stack_imgs
+
 
 def med_filt_z_stack(zstack, kernel_size=5):
     """Get z-stack with each plane median-filtered
@@ -562,10 +618,12 @@ def med_filt_z_stack(zstack, kernel_size=5):
     """
     filtered_z_stack = []
     for image in zstack:
-        filtered_z_stack.append(cv2.medianBlur(image.astype(np.uint16), kernel_size))
+        filtered_z_stack.append(cv2.medianBlur(
+            image.astype(np.uint16), kernel_size))
     return np.array(filtered_z_stack)
 
-def save_stack_to_video(stack, save_fn_path, frame_rate = 5, vmin=None, vmax=None):
+
+def save_stack_to_video(stack, save_fn_path, frame_rate=5, vmin=None, vmax=None):
     """Save image stack to video
 
     Parameters
@@ -585,19 +643,21 @@ def save_stack_to_video(stack, save_fn_path, frame_rate = 5, vmin=None, vmax=Non
         vmin = 0
     if vmax is None:
         vmax = np.amax(stack)
-    ex_video = ((stack-vmin)/(vmax-vmin)*np.iinfo(np.uint8).max).astype(np.uint8)
+    ex_video = ((stack - vmin) / (vmax - vmin) * np.iinfo(np.uint8).max).astype(np.uint8)
     out = cv2.VideoWriter(str(save_fn_path), cv2.VideoWriter_fourcc(*"divx"), frame_rate, ex_video.shape[1:], False)
     for img in ex_video:
         out.write(img)
     out.release()
 
 #############################################
-### Main z-drift and FOV matching codes
+# Main z-drift and FOV matching codes
 #############################################
-def get_container_zdrift_df(ocid:int, ref_oeid:int = None, correct_image_size = (512,512),
-                            num_planes_zstack=81, zstack_interval_in_micron=0.75, segment_minute:int=10, 
-                            use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True, 
-                            save_dir:Path=None, save_df=True, rerun=False, save_exp=True, save_exp_dir:Path=None):
+
+
+def get_container_zdrift_df(ocid: int, ref_oeid: int = None, correct_image_size=(512, 512),
+                            num_planes_zstack=81, zstack_interval_in_micron=0.75, segment_minute: int = 10,
+                            use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True,
+                            save_dir: Path = None, save_df=True, rerun=False, save_exp=True, save_exp_dir: Path = None):
     """Get DataFrame about zdrift throughout the entire container.
     Get the result if it was saved, unless rerun=True.
     Save the result if save_df=True.
@@ -642,12 +702,15 @@ def get_container_zdrift_df(ocid:int, ref_oeid:int = None, correct_image_size = 
         save_dir = global_base_dir
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
-    if os.path.isfile(save_dir / save_fn) and (not rerun): # retrieve dataframe from a file
+    # retrieve dataframe from a file
+    if os.path.isfile(save_dir / save_fn) and (not rerun):
         zdrift_df = pd.read_pickle(save_dir / save_fn)
     else:
-        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(ocid).ophys_experiment_id.values
-        oeid_to_run = np.asarray([oeid for oeid in oeid_all if check_correct_data(oeid)])
-        
+        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+            ocid).ophys_experiment_id.values
+        oeid_to_run = np.asarray(
+            [oeid for oeid in oeid_all if check_correct_data(oeid)])
+
         # Initialize columns
         matched_plane_indice = []
         zdrift = []
@@ -658,40 +721,42 @@ def get_container_zdrift_df(ocid:int, ref_oeid:int = None, correct_image_size = 
         use_clahe_list = []
         use_valid_pix_pc_list = []
         use_valid_pix_sr_list = []
-        center_plane_ind = np.round(num_planes_zstack/2).astype(int)
+        center_plane_ind = np.round(num_planes_zstack / 2).astype(int)
         for oeid in oeid_to_run:
             _mpi, _cc, *_, rigid_tmat, translation_shift, ops = \
                 get_experiment_zdrift(oeid, ref_oeid, segment_minute=segment_minute, correct_image_size=correct_image_size,
-                                use_clahe=use_clahe, use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr,
-                                save_dir=save_exp_dir, save_data=save_exp, rerun=rerun)
+                                      use_clahe=use_clahe, use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr,
+                                      save_dir=save_exp_dir, save_data=save_exp, rerun=rerun)
             translation_shift_list.append(translation_shift)
             rigid_tmat_list.append(rigid_tmat)
             matched_plane_indice.append(_mpi)
-            zdrift.append([(mpi-center_plane_ind)*zstack_interval_in_micron for mpi in _mpi])
+            zdrift.append(
+                [(mpi - center_plane_ind) * zstack_interval_in_micron for mpi in _mpi])
             corrcoef.append(_cc)
-            peak_cc.append(np.amax(_cc,axis=1))
+            peak_cc.append(np.amax(_cc, axis=1))
             use_clahe_list.append(ops['use_clahe'])
             use_valid_pix_pc_list.append(ops['use_valid_pix_pc'])
             use_valid_pix_sr_list.append(ops['use_valid_pix_sr'])
         zdrift_df = pd.DataFrame({'ophys_experiment_id': oeid_to_run,
-                    'zdrift': zdrift,
-                    'peak_cc': peak_cc,
-                    'corrcoef': corrcoef,
-                    'matched_plane_indice': matched_plane_indice,
-                    'translation_shift': translation_shift_list,
-                    'rigid_tmat': rigid_tmat_list,
-                    'ref_experiment_id': ref_oeid,
-                    'use_clahe': use_clahe_list,
-                    'use_valid_pix_pc': use_valid_pix_pc_list,
-                    'use_valid_pix_sr': use_valid_pix_sr_list})    
+                                  'zdrift': zdrift,
+                                  'peak_cc': peak_cc,
+                                  'corrcoef': corrcoef,
+                                  'matched_plane_indice': matched_plane_indice,
+                                  'translation_shift': translation_shift_list,
+                                  'rigid_tmat': rigid_tmat_list,
+                                  'ref_experiment_id': ref_oeid,
+                                  'use_clahe': use_clahe_list,
+                                  'use_valid_pix_pc': use_valid_pix_pc_list,
+                                  'use_valid_pix_sr': use_valid_pix_sr_list})
         if save_df:
             zdrift_df.to_pickle(save_dir / save_fn)
 
     return zdrift_df
 
-def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_image_size = (512,512),
-                        use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True, 
-                        save_dir:Path=None, save_data=True, rerun=False):
+
+def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct_image_size=(512, 512),
+                          use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True,
+                          save_dir: Path = None, save_data=True, rerun=False):
     """Get zdrift within an ophys experiment
     Register the mean FOV image to the z-stack using 2-step registration.
     Then, apply the same transformation to segmented FOVs and
@@ -742,21 +807,26 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_im
     dict
         Options for calculating z-drift 
     """
-    valid_threshold = 0.01 # TODO: find the best valid threshold
+    valid_threshold = 0.01  # TODO: find the best valid threshold
 
     # Basic info
     if save_dir is None:
         save_dir = global_base_dir
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(oeid)
-    range_y, range_x = get_motion_correction_crop_xy_range(oeid) # to remove rolling effect from motion correction
+    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+        oeid)
+    range_y, range_x = get_motion_correction_crop_xy_range(
+        oeid)  # to remove rolling effect from motion correction
     if ref_oeid is None:
-        ref_oeid = find_first_experiment_id_from_ophys_experiment_id(oeid, correct_image_size = correct_image_size)
-    ref_dir = save_dir / f'container_{ophys_container_id}' / f'experiment_{ref_oeid}'
-    exp_dir = save_dir / f'container_{ophys_container_id}' / f'experiment_{oeid}'
+        ref_oeid = find_first_experiment_id_from_ophys_experiment_id(
+            oeid, correct_image_size=correct_image_size)
+    ref_dir = save_dir / \
+        f'container_{ophys_container_id}' / f'experiment_{ref_oeid}'
+    exp_dir = save_dir / \
+        f'container_{ophys_container_id}' / f'experiment_{oeid}'
 
     # Get the saved result if there is
     exp_fn = f'{oeid}_zdrift_ref_{ref_oeid}.h5'
-    if os.path.isfile(exp_dir/exp_fn) and (not rerun):
+    if os.path.isfile(exp_dir / exp_fn) and (not rerun):
         with h5py.File(exp_dir / exp_fn, 'r') as h:
             matched_plane_indice = h['matched_plane_indice'][:]
             corrcoef = h['corrcoef'][:]
@@ -771,16 +841,17 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_im
             use_valid_pix_pc = h['ops/use_valid_pix_pc'][0]
             use_valid_pix_sr = h['ops/use_valid_pix_sr'][0]
             ops = {'use_clahe': use_clahe,
-                    'use_valid_pix_pc': use_valid_pix_pc,
-                    'use_valid_pix_sr': use_valid_pix_sr}
+                   'use_valid_pix_pc': use_valid_pix_pc,
+                   'use_valid_pix_sr': use_valid_pix_sr}
 
     else:
         # Get reference z-stack and crop
         ref_zstack = get_registered_zstack(ref_oeid, ref_dir)
-        ref_zstack_crop = ref_zstack[:,range_y[0]:range_y[1], range_x[0]:range_x[1]]
+        ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
         # Get mean FOV and crop
-        mean_img = np.asarray(Image.open(from_lims.get_average_intensity_projection_filepath(oeid))) # in uint8    
+        mean_img = np.asarray(Image.open(
+            from_lims.get_average_intensity_projection_filepath(oeid)))  # in uint8
         mean_img_crop = mean_img[range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
         # Run registration from mean FOV to reference z-stack
@@ -788,11 +859,14 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_im
             mean_img_crop, ref_zstack_crop, use_clahe=use_clahe, use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr)
 
         # Get segmented FOVs and crop
-        segment_mean_images = get_segment_mean_images(oeid, save_dir = exp_dir, segment_minute = segment_minute)
-        segment_mean_images_crop = segment_mean_images[:,range_y[0]:range_y[1],range_x[0]:range_x[1]]
+        segment_mean_images = get_segment_mean_images(
+            oeid, save_dir=exp_dir, segment_minute=segment_minute)
+        segment_mean_images_crop = segment_mean_images[:,
+                                                       range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
         # Apply transformations from the mean FOV registration
-        segment_reg_imgs = twostep_fov_reg_zdrift(segment_mean_images_crop, translation_shift, rigid_tmat)
+        segment_reg_imgs = twostep_fov_reg_zdrift(
+            segment_mean_images_crop, translation_shift, rigid_tmat)
 
         # Calculate correlation coefficients and estimate matched plane indice
         matched_plane_indice = []
@@ -802,7 +876,8 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_im
             corrcoef = np.zeros_like(np.zeros(ref_zstack_crop.shape[0]))
             for pi in range(len(corrcoef)):
                 valid_y, valid_x = np.where(fov > valid_threshold)
-                corrcoef[pi] = np.corrcoef(ref_zstack_crop[pi, valid_y, valid_x].flatten(), fov[valid_y, valid_x].flatten())[0,1]
+                corrcoef[pi] = np.corrcoef(ref_zstack_crop[pi, valid_y, valid_x].flatten(
+                ), fov[valid_y, valid_x].flatten())[0, 1]
             corrcoef = moving_average(np.array(corrcoef), 5)
             matched_plane_index = np.argmax(corrcoef)
             corrcoef_list.append(corrcoef)
@@ -811,33 +886,39 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute:int=10, correct_im
         matched_plane_indice = np.asarray(matched_plane_indice).astype(int)
 
         ops = {'use_clahe': use_clahe,
-                'use_valid_pix_pc': use_valid_pix_pc,
-                'use_valid_pix_sr': use_valid_pix_sr}
+               'use_valid_pix_pc': use_valid_pix_pc,
+               'use_valid_pix_sr': use_valid_pix_sr}
 
         if save_data:
             # Save the result
             if not os.path.isdir(exp_dir):
                 os.makedirs(exp_dir)
             with h5py.File(exp_dir / exp_fn, 'w') as h:
-                h.create_dataset('matched_plane_indice', data=matched_plane_indice)
+                h.create_dataset('matched_plane_indice',
+                                 data=matched_plane_indice)
                 h.create_dataset('corrcoef', data=corrcoef)
-                h.create_dataset('segment_fov_registered', data=segment_reg_imgs)
-                h.create_dataset('matched_plane_index_mean_fov', shape=(1,), data=mpi_mean_fov)
+                h.create_dataset('segment_fov_registered',
+                                 data=segment_reg_imgs)
+                h.create_dataset('matched_plane_index_mean_fov',
+                                 shape=(1,), data=mpi_mean_fov)
                 h.create_dataset('corrcoef_index_mean_fov', data=cc_mean_fov)
                 h.create_dataset('mean_fov_registered', data=regimg_mean_fov)
                 h.create_dataset('ref_zstack_crop', data=ref_zstack_crop)
                 h.create_dataset('rigid_tmat', data=rigid_tmat)
                 h.create_dataset('translation_shift', data=translation_shift)
                 h.create_dataset('ops/use_clahe', shape=(1,), data=use_clahe)
-                h.create_dataset('ops/use_valid_pix_pc', shape=(1,), data=use_valid_pix_pc)
-                h.create_dataset('ops/use_valid_pix_sr', shape=(1,), data=use_valid_pix_sr)
+                h.create_dataset('ops/use_valid_pix_pc',
+                                 shape=(1,), data=use_valid_pix_pc)
+                h.create_dataset('ops/use_valid_pix_sr',
+                                 shape=(1,), data=use_valid_pix_sr)
 
     return matched_plane_indice, corrcoef, segment_reg_imgs, \
         mpi_mean_fov, cc_mean_fov, regimg_mean_fov, ref_zstack_crop, \
         rigid_tmat, translation_shift, ops
 
-def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array, 
-                                use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True):
+
+def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array,
+                                   use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True):
     """Estimate matched plane of the FOV from the first z-stack.
     Assume both inputs are cropped using the motion correction result (get_motion_correction_crop_xy_range)
     Use phase correlation, and then StackReg.RIGID_BODY.
@@ -858,7 +939,7 @@ def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array
     use_valid_pix_sr : bool, optional
         if to use valid pixels only for correlation coefficient calculation 
         during the 2nd step - StackReg registration, by default True
-    
+
     Returns
     -------
     matched_plane_index: int
@@ -874,29 +955,33 @@ def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array
     registered_fov_pc: np.ndarray
         2d FOV after phase correlation registration.
     """
-    assert len(fov_crop.shape)==2
-    assert len(ref_zstack_crop.shape)==3
+    assert len(fov_crop.shape) == 2
+    assert len(ref_zstack_crop.shape) == 3
     assert fov_crop.shape == ref_zstack_crop.shape[1:]
 
     # Register using phase correlation (translation only)
     fov_reg_stack_pre, corrcoef_pre, shift_list = \
-        fov_stack_register_phase_correlation(fov_crop, ref_zstack_crop, use_clahe=use_clahe, use_valid_pix=use_valid_pix_pc)
+        fov_stack_register_phase_correlation(
+            fov_crop, ref_zstack_crop, use_clahe=use_clahe, use_valid_pix=use_valid_pix_pc)
     corrcoef_pre = moving_average(corrcoef_pre)
 
-    # TODO: Find a better measure to test first pass registration 
+    # TODO: Find a better measure to test first pass registration
     # Select the best registered FOV and translation shift
     matched_pi_pre = np.argmax(corrcoef_pre)
-    fov_pre = fov_reg_stack_pre[matched_pi_pre,:,:]
+    fov_pre = fov_reg_stack_pre[matched_pi_pre, :, :]
     translation_shift = shift_list[matched_pi_pre]
 
     # Crop the best fov and zstack using valid indices
-    valid_y, valid_x = np.where(fov_pre>0) # 0 is fine because it is translation
+    # 0 is fine because it is translation
+    valid_y, valid_x = np.where(fov_pre > 0)
     fov_pre = fov_pre[min(valid_y):max(valid_y), min(valid_x):max(valid_x)]
-    z_stack_for_rigid = ref_zstack_crop[:,min(valid_y):max(valid_y), min(valid_x):max(valid_x)] # this works because it is translation
+    z_stack_for_rigid = ref_zstack_crop[:, min(valid_y):max(valid_y), min(
+        valid_x):max(valid_x)]  # this works because it is translation
 
     # Rigid-body registration (allowing rotation)
     # After applying CLAHE and uint16 image normalization
-    matched_plane_index, corrcoef_second, rigid_tmat = fov_stack_register_rigid(fov_pre, z_stack_for_rigid, use_valid_pix=use_valid_pix_sr)
+    matched_plane_index, corrcoef_second, rigid_tmat = fov_stack_register_rigid(
+        fov_pre, z_stack_for_rigid, use_valid_pix=use_valid_pix_sr)
 
     # Get the registered fovs matched to the input fov dimension
     registered_fov_pc = scipy.ndimage.shift(fov_crop, translation_shift)
@@ -904,6 +989,7 @@ def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array
     registered_fov = sr.transform(registered_fov_pc, tmat=rigid_tmat)
 
     return matched_plane_index, corrcoef_second, registered_fov, corrcoef_pre, registered_fov_pc, rigid_tmat, translation_shift
+
 
 def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_pix=True):
     """ Reigster FOV to each plane in the stack
@@ -919,7 +1005,7 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     use_valid_pix : bool, optional
         If to use valid pixels (non-blank pixels after transfromation) 
         to calculate correlation coefficient, by default True
-    
+
     Returns
     -------
     np.ndarray (3d)
@@ -929,8 +1015,8 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     list
         list of translation shifts
     """
-    assert len(fov.shape)==2
-    assert len(stack.shape)==3
+    assert len(fov.shape) == 2
+    assert len(stack.shape) == 3
     assert fov.shape == stack.shape[1:]
 
     # median filtering the z-stack as default
@@ -940,10 +1026,12 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     #     stack_pre = stack.copy()
 
     if use_clahe:
-        fov_for_reg = image_normalization_uint16(skimage.exposure.equalize_adapthist(fov.astype(np.uint16))) # normalization to make it uint16
+        fov_for_reg = image_normalization_uint16(skimage.exposure.equalize_adapthist(
+            fov.astype(np.uint16)))  # normalization to make it uint16
         stack_for_reg = np.zeros_like(stack_pre)
         for pi in range(stack.shape[0]):
-            stack_for_reg[pi,:,:] = image_normalization_uint16(skimage.exposure.equalize_adapthist(stack_pre[pi,:,:].astype(np.uint16)))
+            stack_for_reg[pi, :, :] = image_normalization_uint16(
+                skimage.exposure.equalize_adapthist(stack_pre[pi, :, :].astype(np.uint16)))
     else:
         fov_for_reg = fov.copy()
         stack_for_reg = stack_pre.copy()
@@ -952,16 +1040,20 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     corrcoef = np.zeros(stack.shape[0])
     shift_list = []
     for pi in range(stack.shape[0]):
-        shift,_,_ = skimage.registration.phase_cross_correlation(stack_for_reg[pi,:,:], fov_for_reg, normalization=None)
+        shift, _, _ = skimage.registration.phase_cross_correlation(
+            stack_for_reg[pi, :, :], fov_for_reg, normalization=None)
         fov_reg = scipy.ndimage.shift(fov, shift)
-        fov_reg_stack[pi,:,:] = fov_reg
+        fov_reg_stack[pi, :, :] = fov_reg
         if use_valid_pix:
-            valid_y, valid_x = np.where(fov_reg>0.01)
-            corrcoef[pi] = np.corrcoef(stack[pi,valid_y,valid_x].flatten(), fov_reg[valid_y,valid_x].flatten())[0,1]
+            valid_y, valid_x = np.where(fov_reg > 0.01)
+            corrcoef[pi] = np.corrcoef(stack[pi, valid_y, valid_x].flatten(
+            ), fov_reg[valid_y, valid_x].flatten())[0, 1]
         else:
-            corrcoef[pi] = np.corrcoef(stack[pi,:,:].flatten(), fov_reg.flatten())[0,1]
+            corrcoef[pi] = np.corrcoef(
+                stack[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
         shift_list.append(shift)
     return fov_reg_stack, corrcoef, shift_list
+
 
 def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
     """Find the best-matched plane index from the stack using rigid-body registration (StackReg)
@@ -985,10 +1077,10 @@ def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
     -------
     np.ndarray (1D)
         matched plane index
-    
+
     """
-    assert len(fov.shape)==2
-    assert len(stack.shape)==3
+    assert len(fov.shape) == 2
+    assert len(stack.shape) == 3
     assert fov.shape == stack.shape[1:]
 
     # TODO: figure out what is the best threshold. This value should be larger than one because of the results after registration
@@ -1003,48 +1095,55 @@ def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
     sr = StackReg(StackReg.RIGID_BODY)
 
     # apply CLAHE and normalize to make it uint16 (for StackReg)
-    fov_clahe = image_normalization_uint16(skimage.exposure.equalize_adapthist(fov.astype(np.uint16))) # normalization to make it uint16
+    fov_clahe = image_normalization_uint16(skimage.exposure.equalize_adapthist(
+        fov.astype(np.uint16)))  # normalization to make it uint16
     stack_clahe = np.zeros_like(stack_pre)
     for pi in range(stack_pre.shape[0]):
-        stack_clahe[pi,:,:] = image_normalization_uint16(skimage.exposure.equalize_adapthist(stack_pre[pi,:,:].astype(np.uint16)))
+        stack_clahe[pi, :, :] = image_normalization_uint16(
+            skimage.exposure.equalize_adapthist(stack_pre[pi, :, :].astype(np.uint16)))
 
     # Initialize
     corrcoef_first = np.zeros(stack_clahe.shape[0])
     fov_reg_stack = np.zeros_like(stack)
     tmat_list = []
     for pi in range(len(corrcoef_first)):
-        tmat = sr.register(stack_clahe[pi,:,:], fov_clahe)
+        tmat = sr.register(stack_clahe[pi, :, :], fov_clahe)
         # Apply the transformation matrix to the FOV registered using phase correlation
         fov_reg = sr.transform(fov, tmat=tmat)
         if use_valid_pix:
-            valid_y, valid_x = np.where(fov_reg>valid_pix_threshold) 
-            corrcoef_first[pi] = np.corrcoef(stack[pi,valid_y,valid_x].flatten(), fov_reg[valid_y, valid_x].flatten())[0,1]
+            valid_y, valid_x = np.where(fov_reg > valid_pix_threshold)
+            corrcoef_first[pi] = np.corrcoef(
+                stack[pi, valid_y, valid_x].flatten(), fov_reg[valid_y, valid_x].flatten())[0, 1]
         else:
-            corrcoef_first[pi] = np.corrcoef(stack[pi,:,:].flatten(), fov_reg.flatten())[0,1]
-        fov_reg_stack[pi,:,:] = fov_reg
+            corrcoef_first[pi] = np.corrcoef(
+                stack[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
+        fov_reg_stack[pi, :, :] = fov_reg
         tmat_list.append(tmat)
 
     corrcoef_first = moving_average(corrcoef_first, 5)
     max_pi_first = np.argmax(corrcoef_first)
 
     # Use the best registered FOV to sweep through the first z-stack again
-    fov_final = fov_reg_stack[max_pi_first,:,:]
-    valid_y, valid_x = np.where(fov_final>valid_pix_threshold)
+    fov_final = fov_reg_stack[max_pi_first, :, :]
+    valid_y, valid_x = np.where(fov_final > valid_pix_threshold)
 
     # Calculate correlation between each z-stack to the best RIGID_BODY registered FOV
     corrcoef_second = np.zeros_like(corrcoef_first)
     for pi in range(len(corrcoef_first)):
         if use_valid_pix:
-            corrcoef_second[pi] = np.corrcoef(stack[pi,valid_y,valid_x].flatten(), fov_final[valid_y,valid_x].flatten())[0,1]
+            corrcoef_second[pi] = np.corrcoef(stack[pi, valid_y, valid_x].flatten(
+            ), fov_final[valid_y, valid_x].flatten())[0, 1]
         else:
-            corrcoef_second[pi] = np.corrcoef(stack[pi,:,:].flatten(), fov_final.flatten())[0,1]
+            corrcoef_second[pi] = np.corrcoef(
+                stack[pi, :, :].flatten(), fov_final.flatten())[0, 1]
     corrcoef_second = moving_average(np.array(corrcoef_second), 5)
     matched_plane_index = np.argmax(corrcoef_second)
     tmat = tmat_list[matched_plane_index]
-    
+
     return matched_plane_index, corrcoef_second, tmat
 
-def get_segment_mean_images(ophys_experiment_id, save_dir=None, save_images = True, segment_minute = 10):
+
+def get_segment_mean_images(ophys_experiment_id, save_dir=None, save_images=True, segment_minute=10):
     """Get segmented mean images of an experiment
     And save the result, in case the directory was specified.
 
@@ -1073,25 +1172,28 @@ def get_segment_mean_images(ophys_experiment_id, save_dir=None, save_images = Tr
             mean_images = h['data'][:]
             got_flag = 1
 
-    if got_flag==0:
+    if got_flag == 0:
         frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
-        movie_fp = from_lims.get_motion_corrected_movie_filepath(ophys_experiment_id)
+        movie_fp = from_lims.get_motion_corrected_movie_filepath(
+            ophys_experiment_id)
         h = h5py.File(movie_fp, 'r')
         movie_len = h['data'].shape[0]
         segment_len = int(np.round(segment_minute * frame_rate * 60))
 
         # get frame start and end (for range) indices
         frame_start_end = get_frame_start_end(movie_len, segment_len)
-        
+
         mean_images = np.zeros((len(frame_start_end), *h['data'].shape[1:]))
         for i in range(len(frame_start_end)):
-            mean_images[i,:,:] = np.mean(h['data'][frame_start_end[i][0]:frame_start_end[i][1],:,:], axis=0)
+            mean_images[i, :, :] = np.mean(
+                h['data'][frame_start_end[i][0]:frame_start_end[i][1], :, :], axis=0)
         if save_images:
             if not os.path.isdir(save_dir):
                 os.makedirs(save_dir)
             with h5py.File(segment_fov_fp, 'w') as h:
                 h.create_dataset('data', data=mean_images)
     return mean_images
+
 
 def twostep_fov_reg_zdrift(segment_mean_images, translation_shift, rigid_tmat):
     """FOV registration using translation (1st step) and rigid body (2nd step).
@@ -1112,30 +1214,30 @@ def twostep_fov_reg_zdrift(segment_mean_images, translation_shift, rigid_tmat):
         resulting image(s)
     """
     sr = StackReg(StackReg.RIGID_BODY)
-    if len(segment_mean_images.shape)==2:
-        segment_mean_images = np.expand_dims(segment_mean_images,0)
-    assert len(segment_mean_images.shape)==3
+    if len(segment_mean_images.shape) == 2:
+        segment_mean_images = np.expand_dims(segment_mean_images, 0)
+    assert len(segment_mean_images.shape) == 3
     segment_reg_imgs = np.zeros_like(segment_mean_images)
     for i in range(segment_mean_images.shape[0]):
         fov = segment_mean_images[i]
         registered_fov_pc = scipy.ndimage.shift(fov, translation_shift)
         segment_reg_imgs[i] = sr.transform(registered_fov_pc, tmat=rigid_tmat)
-    if segment_reg_imgs.shape[0]==1:
+    if segment_reg_imgs.shape[0] == 1:
         segment_reg_imgs = segment_reg_imgs[0]
     return segment_reg_imgs
 
 
 ########################################
-### Plot
+# Plot
 ########################################
 
-def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=True, fig_size=(6,5), 
-                                    cc_threshold=0.5, y_min=-20, y_max=20):
+def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=True, fig_size=(6, 5),
+                                   cc_threshold=0.5, y_min=-20, y_max=20):
     if save_dir is None:
         save_dir = global_base_dir
     png_fn = f'container_{ocid}_zdrift.png'
     pdf_fn = f'container_{ocid}_zdrift.pdf'
-    
+
     zdrift = zdrift_df.zdrift.values
     peak_cc = zdrift_df.peak_cc.values
     max_num_segments = max([len(z) for z in zdrift])
@@ -1144,31 +1246,34 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
     fig, ax = plt.subplots(figsize=fig_size)
     for i in range(num_exp):
         depth = np.asarray(zdrift[i])
-        x = np.linspace(i,i+len(depth)/max_num_segments,len(depth)+1)[:-1]
+        x = np.linspace(i, i + len(depth) / max_num_segments, len(depth) + 1)[:-1]
         ax.plot(x, depth, 'k-', zorder=-1)
         colors = peak_cc[i]
-        h1 = ax.scatter(x,depth, s = 20, c=colors, cmap='binary', vmin=cc_threshold, vmax=1)
-        
-        under_threshold_ind = np.where(colors<cc_threshold)[0]
-        if len(under_threshold_ind)>0:
+        h1 = ax.scatter(x, depth, s=20, c=colors,
+                        cmap='binary', vmin=cc_threshold, vmax=1)
+
+        under_threshold_ind = np.where(colors < cc_threshold)[0]
+        if len(under_threshold_ind) > 0:
             has_low_cc = 1
-            h2 = ax.scatter(x[under_threshold_ind],depth[under_threshold_ind], s = 20, c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
-    if has_low_cc==0:
+            # h2 = ax.scatter(x[under_threshold_ind], depth[under_threshold_ind], s=20,
+            #                 c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
+    if has_low_cc == 0:
         ylim = ax.get_ybound()
         xlim = ax.get_xbound()
-        h2 = ax.scatter(xlim[0]-1, ylim[0]-1, c = 0, cmap='Reds_r', vmin=0, vmax=cc_threshold)
+        # h2 = ax.scatter(xlim[0] - 1, ylim[0] - 1, c=0,
+        #                 cmap='Reds_r', vmin=0, vmax=cc_threshold)
         ax.set_ylim(ylim)
         ax.set_xlim(xlim)
-    cax1 = fig.add_axes([ax.get_position().x1+0.01,
-                        ax.get_position().y0+(ax.get_position().height)*cc_threshold,
+    cax1 = fig.add_axes([ax.get_position().x1 + 0.01,
+                        ax.get_position().y0 + (ax.get_position().height) * cc_threshold,
                         0.02,
-                        ax.get_position().height*(1-cc_threshold)])
+                        ax.get_position().height * (1 - cc_threshold)])
     bar1 = plt.colorbar(h1, cax=cax1)
-    cax2 = fig.add_axes([ax.get_position().x1+0.01,
-                        ax.get_position().y0,
-                        0.02,
-                        ax.get_position().height*cc_threshold])
-    bar2 = plt.colorbar(h2, cax=cax2)
+    # cax2 = fig.add_axes([ax.get_position().x1 + 0.01,
+    #                     ax.get_position().y0,
+    #                     0.02,
+    #                     ax.get_position().height * cc_threshold])
+    # bar2 = plt.colorbar(h2, cax=cax2)
     bar1.set_label('Correlation coefficient')
 
     ax.set_xlabel('Session #')
@@ -1182,58 +1287,65 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
             ax.tick_params(axis='y', colors='red')
         else:
             ax.set_ylim(y_min, y_max)
-    # if (not os.path.isfile(save_dir / png_fn)) or (not os.path.isfile(save_dir / pdf_fn)):   
-    if save_figure: 
-        fig.savefig(save_dir/png_fn, bbox_inches='tight')
-        fig.savefig(save_dir/pdf_fn, bbox_inches='tight')
+    # if (not os.path.isfile(save_dir / png_fn)) or (not os.path.isfile(save_dir / pdf_fn)):
+    if save_figure:
+        fig.savefig(save_dir / png_fn, bbox_inches='tight')
+        fig.savefig(save_dir / pdf_fn, bbox_inches='tight')
     return fig, ax
 
-def plot_experiment_zdrift(oeid, ref_oeid=None, save_dir=None, save_figure=True, fig_size=(18,10)):
+
+def plot_experiment_zdrift(oeid, ref_oeid=None, save_dir=None, save_figure=True, fig_size=(18, 10)):
     if ref_oeid is None:
         ref_oeid = find_first_experiment_id_from_ophys_experiment_id(oeid)
     matched_plane_indice, corrcoef, segment_reg_imgs, \
         mpi_mean_fov, cc_mean_fov, regimg_mean_fov, ref_zstack_crop, \
-        rigid_tmat, translation_shift, ops = get_experiment_zdrift(oeid, ref_oeid=ref_oeid)    
+        rigid_tmat, translation_shift, ops = get_experiment_zdrift(
+            oeid, ref_oeid=ref_oeid)
 
-    fig, ax = plt.subplots(2,3, figsize=fig_size)
-    ax[0,0].imshow(ref_zstack_crop[mpi_mean_fov])
-    ax[0,0].set_title('Matched z-stack plane')
-    ax[0,1].imshow(regimg_mean_fov)
-    ax[0,1].set_title('Mean FOV')
-    ax[0,2].imshow(image_normalization_uint8(im_blend(ref_zstack_crop[mpi_mean_fov], regimg_mean_fov, 0.5)))
-    ax[0,2].set_title('Merged')
-    ax[1,0].axhline(mpi_mean_fov, 0,1, linestyle='--', color='r', zorder=-1)
-    ax[1,0].plot(range(len(matched_plane_indice)), matched_plane_indice, 'k-')
-    h = ax[1,0].scatter(range(len(matched_plane_indice)), matched_plane_indice, s = 100, c=np.max(corrcoef,axis=1), cmap='binary',
-    vmin=0, vmax=1)
-    cax = fig.add_axes([ax[1,0].get_position().x1+0.005,
-                        ax[1,0].get_position().y0,
+    fig, ax = plt.subplots(2, 3, figsize=fig_size)
+    ax[0, 0].imshow(ref_zstack_crop[mpi_mean_fov])
+    ax[0, 0].set_title('Matched z-stack plane')
+    ax[0, 1].imshow(regimg_mean_fov)
+    ax[0, 1].set_title('Mean FOV')
+    ax[0, 2].imshow(image_normalization_uint8(
+        im_blend(ref_zstack_crop[mpi_mean_fov], regimg_mean_fov, 0.5)))
+    ax[0, 2].set_title('Merged')
+    ax[1, 0].axhline(mpi_mean_fov, 0, 1, linestyle='--', color='r', zorder=-1)
+    ax[1, 0].plot(range(len(matched_plane_indice)), matched_plane_indice, 'k-')
+    h = ax[1, 0].scatter(range(len(matched_plane_indice)), matched_plane_indice, s=100, c=np.max(corrcoef, axis=1), cmap='binary',
+                         vmin=0, vmax=1)
+    cax = fig.add_axes([ax[1, 0].get_position().x1 + 0.005,
+                        ax[1, 0].get_position().y0,
                         0.01,
-                        ax[1,0].get_position().height])
+                        ax[1, 0].get_position().height])
     bar = plt.colorbar(h, cax=cax)
     bar.set_label('Correlation coefficient')
-    ax[1,0].set_xlabel('Segment')
-    ax[1,0].set_ylabel('Matched plane index')
-    ax[1,0].set_yticks(range(np.amin(matched_plane_indice), np.amax(matched_plane_indice)+1))
+    ax[1, 0].set_xlabel('Segment')
+    ax[1, 0].set_ylabel('Matched plane index')
+    ax[1, 0].set_yticks(range(np.amin(matched_plane_indice),
+                        np.amax(matched_plane_indice) + 1))
 
-    ax[1,1].axis('off')
+    ax[1, 1].axis('off')
 
     for i in range(len(matched_plane_indice)):
         # ax[1,2].plot(corrcoef[i,:], color=[0, 0, 1-(i+1)/(len(matched_plane_indice)+1)], label=f'segment {i}')
-        ax[1,2].plot(corrcoef[i,:], c=cm.winter(i/len(matched_plane_indice)), label=f'segment {i}')
-        
-    ax[1,2].legend()
-    ax[1,2].set_ylabel('Correlation coefficient')
-    ax[1,2].set_xlabel('z-stack plane index')
+        ax[1, 2].plot(corrcoef[i, :], c=cm.winter(
+            i / len(matched_plane_indice)), label=f'segment {i}')
+
+    ax[1, 2].legend()
+    ax[1, 2].set_ylabel('Correlation coefficient')
+    ax[1, 2].set_xlabel('z-stack plane index')
 
     fig.suptitle(f'Exp {oeid} z-drift from {ref_oeid}')
 
     return fig
 
 #####################################
-###    For QC 
+# For QC
 #####################################
-def plot_corrcoef_container(ophys_container_id, container_dir, save_dir = None, container_info = None, ref_oeid = None):
+
+
+def plot_corrcoef_container(ophys_container_id, container_dir, save_dir=None, container_info=None, ref_oeid=None):
     container_title = f'Container {ophys_container_id}: '
     if container_info is not None:
         if 'mouse_id' in container_info.keys():
@@ -1246,18 +1358,20 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir = None, 
             targeted_layer = container_info.upper_or_lower
             container_title = f'{container_title} {targeted_layer}'
     if ref_oeid is None:
-        ref_oeid = find_first_experiment_id_from_ophys_container_id(ophys_container_id, valid_only=True)
+        ref_oeid = find_first_experiment_id_from_ophys_container_id(
+            ophys_container_id, valid_only=True)
     container_title = f'{container_title} (reference epxeriment = {ref_oeid})'
 
-    oeids = from_lims.get_ophys_experiment_ids_for_ophys_container_id(ophys_container_id).ophys_experiment_id.values
+    oeids = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+        ophys_container_id).ophys_experiment_id.values
     num_oeid = len(oeids)
     nx = int(6)
     ny = int(np.ceil(num_oeid / nx))
-    fig, ax = plt.subplots(ny, nx, figsize=(nx*3, ny*3))
-    for ax_i in range(ny*nx):
+    fig, ax = plt.subplots(ny, nx, figsize=(nx * 3, ny * 3))
+    for ax_i in range(ny * nx):
         yi = ax_i // nx
         xi = ax_i % nx
-        ax_temp = ax[yi,xi]
+        ax_temp = ax[yi, xi]
         if ax_i < num_oeid:
             oeid = oeids[ax_i]
             if check_correct_data(oeid):
@@ -1272,17 +1386,21 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir = None, 
                 num_segments = len(matched_plane_indice)
                 num_planes = len(corrcoef[0])
                 for i in range(num_segments):
-                    x = range(-matched_plane_indice[i],-matched_plane_indice[i]+num_planes)
-                    ax_temp.plot(x, corrcoef[i], c=cm.winter(i/num_segments), label=f'segment_{i}')
+                    x = range(-matched_plane_indice[i], -
+                              matched_plane_indice[i] + num_planes)
+                    ax_temp.plot(x, corrcoef[i], c=cm.winter(
+                        i / num_segments), label=f'segment_{i}')
                 ax_temp.legend(fontsize=7)
-                if yi == ny-1:
-                    ax_temp.set_xlabel('Plane index\n(Relative to the matched plane)', fontsize=10)
+                if yi == ny - 1:
+                    ax_temp.set_xlabel(
+                        'Plane index\n(Relative to the matched plane)', fontsize=10)
                 if xi == 0:
                     ax_temp.set_ylabel('Correlation coefficient', fontsize=10)
                 ax_temp.set_title(f'Experiment {oeid}', fontsize=10)
                 ax_temp.tick_params(axis='both', which='major', labelsize=8)
             else:
-                ax_temp.set_title(f'DATA ERROR: Experiment {oeid}', fontsize=10)
+                ax_temp.set_title(
+                    f'DATA ERROR: Experiment {oeid}', fontsize=10)
                 ax_temp.tick_params(axis='both', which='major', labelsize=8)
         else:
             ax_temp.axis('off')
@@ -1291,10 +1409,13 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir = None, 
 
     if save_dir is not None:
         save_fn_base = f'container_{ophys_container_id}_FOV_matching_correlation_plot'
-        fig.savefig(save_dir/f'{save_fn_base}.png',bbox_inches='tight',dpi=300)
-        fig.savefig(save_dir/f'{save_fn_base}.pdf',bbox_inches='tight',dpi=300, transparent=True)
+        fig.savefig(save_dir / f'{save_fn_base}.png',
+                    bbox_inches='tight', dpi=300)
+        fig.savefig(save_dir / f'{save_fn_base}.pdf',
+                    bbox_inches='tight', dpi=300, transparent=True)
 
-def get_raw_segment_mean_images(ophys_experiment_id, save_dir=None, segment_minute = 10):
+
+def get_raw_segment_mean_images(ophys_experiment_id, save_dir=None, segment_minute=10):
     """Get segmented mean images of an experiment
     And save the result, in case the directory was specified.
 
@@ -1321,7 +1442,7 @@ def get_raw_segment_mean_images(ophys_experiment_id, save_dir=None, segment_minu
                 mean_images = h['data'][:]
                 got_flag = 1
 
-    if got_flag==0:
+    if got_flag == 0:
         frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
         raw_h5_fp = get_raw_h5_filepath(ophys_experiment_id)
         h = h5py.File(raw_h5_fp, 'r')
@@ -1330,10 +1451,11 @@ def get_raw_segment_mean_images(ophys_experiment_id, save_dir=None, segment_minu
 
         # get frame start and end (for range) indices
         frame_start_end = get_frame_start_end(movie_len, segment_len)
-        
+
         mean_images = np.zeros((len(frame_start_end), *h['data'].shape[1:]))
         for i in range(len(frame_start_end)):
-            mean_images[i,:,:] = np.mean(h['data'][frame_start_end[i][0]:frame_start_end[i][1],:,:], axis=0)
+            mean_images[i, :, :] = np.mean(
+                h['data'][frame_start_end[i][0]:frame_start_end[i][1], :, :], axis=0)
         if save_dir is not None:
             if not os.path.isdir(save_dir):
                 os.makedirs(save_dir)
@@ -1341,17 +1463,20 @@ def get_raw_segment_mean_images(ophys_experiment_id, save_dir=None, segment_minu
                 h.create_dataset('data', data=mean_images)
     return mean_images
 
+
 def register_between_mean_fovs(mean_fovs):
     reg_fovs = np.zeros_like(mean_fovs)
     reg_fovs[0] = mean_fovs[0]
     shift_prev = np.array([0, 0]).astype(np.float64)
-    for i in range(1,mean_fovs.shape[0]):
-        shift_temp,_,_ = skimage.registration.phase_cross_correlation(mean_fovs[i-1,:,:], mean_fovs[i,:,:], normalization=None)
+    for i in range(1, mean_fovs.shape[0]):
+        shift_temp, _, _ = skimage.registration.phase_cross_correlation(
+            mean_fovs[i - 1, :, :], mean_fovs[i, :, :], normalization=None)
         shift_prev += shift_temp
-        reg_fovs[i,:,:] = scipy.ndimage.shift(mean_fovs[i,:,:], shift_prev)
+        reg_fovs[i, :, :] = scipy.ndimage.shift(mean_fovs[i, :, :], shift_prev)
     return reg_fovs
 
-def get_raw_segment_mean_images_registered(ophys_experiment_id, save_dir=None, segment_minute = 10):
+
+def get_raw_segment_mean_images_registered(ophys_experiment_id, save_dir=None, segment_minute=10):
     got_flag = 0
     if save_dir is not None:
         raw_reg_segment_fov_fp = save_dir / 'raw_segment_fov_registered.h5'
@@ -1360,7 +1485,8 @@ def get_raw_segment_mean_images_registered(ophys_experiment_id, save_dir=None, s
                 mean_images_reg = h['data'][:]
                 got_flag = 1
     if got_flag == 0:
-        mean_images = get_raw_segment_mean_images(ophys_experiment_id, save_dir=save_dir, segment_minute = segment_minute)
+        mean_images = get_raw_segment_mean_images(
+            ophys_experiment_id, save_dir=save_dir, segment_minute=segment_minute)
         mean_images_reg = register_between_mean_fovs(mean_images)
         if save_dir is not None:
             if not os.path.isdir(save_dir):
@@ -1369,43 +1495,62 @@ def get_raw_segment_mean_images_registered(ophys_experiment_id, save_dir=None, s
                 h.create_dataset('data', data=mean_images_reg)
     return mean_images_reg
 
-def save_segment_fov_motion_crop(ophys_experiment_id, save_dir, segment_minute = 10):
-    save_dir_bases = ['tif','gif']
+
+def save_segment_fov_motion_crop(ophys_experiment_id, save_dir, segment_minute=10):
+    save_dir_bases = ['tif', 'gif']
     for dir_base in save_dir_bases:
         if not os.path.isdir(save_dir / dir_base):
             os.makedirs(save_dir / dir_base)
-    if os.path.isfile(save_dir/ 'gif' / f'{ophys_experiment_id}_segment_fov.gif'):
+    if os.path.isfile(save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif'):
         print(f'{ophys_experiment_id} already saved.')
     else:
-        range_y, range_x = get_motion_correction_crop_xy_range(ophys_experiment_id)
-        segment_fovs = get_segment_mean_images(ophys_experiment_id, segment_minute=segment_minute)
-        segment_fovs_crop = segment_fovs[:,range_y[0]:range_y[1], range_x[0]:range_x[1]]
+        range_y, range_x = get_motion_correction_crop_xy_range(
+            ophys_experiment_id)
+        segment_fovs = get_segment_mean_images(
+            ophys_experiment_id, segment_minute=segment_minute)
+        segment_fovs_crop = segment_fovs[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
-        norm_uint8_segment_fovs = image_normalization_uint8(np.array(segment_fovs_crop), im_thresh=0) # for gif and mp4
-        norm_uint16_segment_fovs = image_normalization_uint16(np.array(segment_fovs_crop), im_thresh=0) # for tiff stack
-        tifffile.imwrite(save_dir/ 'tif' / f'{ophys_experiment_id}_segment_fov.tif', norm_uint16_segment_fovs)
-        imageio.mimsave(save_dir/ 'gif' / f'{ophys_experiment_id}_segment_fov.gif',norm_uint8_segment_fovs,fps=2)
+        norm_uint8_segment_fovs = image_normalization_uint8(
+            np.array(segment_fovs_crop), im_thresh=0)  # for gif and mp4
+        norm_uint16_segment_fovs = image_normalization_uint16(
+            np.array(segment_fovs_crop), im_thresh=0)  # for tiff stack
+        tifffile.imwrite(
+            save_dir / 'tif' / f'{ophys_experiment_id}_segment_fov.tif', norm_uint16_segment_fovs)
+        imageio.mimsave(
+            save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif', norm_uint8_segment_fovs, fps=2)
 
-def save_segment_fov(ophys_experiment_id, save_dir, segment_minute = 10):
-    save_dir_bases = ['tif','gif']
+
+def save_segment_fov(ophys_experiment_id, save_dir, segment_minute=10):
+    save_dir_bases = ['tif', 'gif']
     for dir_base in save_dir_bases:
         if not os.path.isdir(save_dir / dir_base):
             os.makedirs(save_dir / dir_base)
-    if os.path.isfile(save_dir/ 'gif' / f'{ophys_experiment_id}_segment_fov.gif'):
+    if os.path.isfile(save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif'):
         print(f'{ophys_experiment_id} already saved.')
     else:
-        segment_fovs = get_segment_mean_images(ophys_experiment_id, segment_minute=segment_minute)
-        norm_uint8_segment_fovs = image_normalization_uint8(np.array(segment_fovs), im_thresh=0) # for gif and mp4
-        norm_uint16_segment_fovs = image_normalization_uint16(np.array(segment_fovs), im_thresh=0) # for tiff stack
-        tifffile.imwrite(save_dir/ 'tif' / f'{ophys_experiment_id}_segment_fov.tif', norm_uint16_segment_fovs)
-        imageio.mimsave(save_dir/ 'gif' / f'{ophys_experiment_id}_segment_fov.gif',norm_uint8_segment_fovs,fps=2)
+        segment_fovs = get_segment_mean_images(
+            ophys_experiment_id, segment_minute=segment_minute)
+        norm_uint8_segment_fovs = image_normalization_uint8(
+            np.array(segment_fovs), im_thresh=0)  # for gif and mp4
+        norm_uint16_segment_fovs = image_normalization_uint16(
+            np.array(segment_fovs), im_thresh=0)  # for tiff stack
+        tifffile.imwrite(
+            save_dir / 'tif' / f'{ophys_experiment_id}_segment_fov.tif', norm_uint16_segment_fovs)
+        imageio.mimsave(
+            save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif', norm_uint8_segment_fovs, fps=2)
+
 
 def save_raw_segment_fov(ophys_experiment_id, save_dir):
-    raw_segment_fovs_registered = get_raw_segment_mean_images_registered(ophys_experiment_id, save_dir)
-    norm_uint8_segment_fovs = image_normalization_uint8(np.array(raw_segment_fovs_registered), im_thresh=0) # for gif and mp4
-    norm_uint16_segment_fovs = image_normalization_uint16(np.array(raw_segment_fovs_registered), im_thresh=0) # for tiff stack
-    with h5py.File(save_dir/'raw_segment_fov.h5', 'w') as h:
+    raw_segment_fovs_registered = get_raw_segment_mean_images_registered(
+        ophys_experiment_id, save_dir)
+    norm_uint8_segment_fovs = image_normalization_uint8(
+        np.array(raw_segment_fovs_registered), im_thresh=0)  # for gif and mp4
+    norm_uint16_segment_fovs = image_normalization_uint16(
+        np.array(raw_segment_fovs_registered), im_thresh=0)  # for tiff stack
+    with h5py.File(save_dir / 'raw_segment_fov.h5', 'w') as h:
         h.create_dataset('data', data=np.array(raw_segment_fovs_registered))
-    tifffile.imwrite(save_dir/'raw_segment_fov.tif', norm_uint16_segment_fovs)
-    save_stack_to_video(norm_uint8_segment_fovs,save_dir/'raw_segment_fov.mp4', frame_rate=2)
-    imageio.mimsave(save_dir/'raw_segment_fov.gif',norm_uint8_segment_fovs,fps=2)
+    tifffile.imwrite(save_dir / 'raw_segment_fov.tif', norm_uint16_segment_fovs)
+    save_stack_to_video(norm_uint8_segment_fovs, save_dir /
+                        'raw_segment_fov.mp4', frame_rate=2)
+    imageio.mimsave(save_dir / 'raw_segment_fov.gif',
+                    norm_uint8_segment_fovs, fps=2)
