@@ -42,8 +42,7 @@ def image_normalization_uint8(image, im_thresh=0):
         image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
     norm_image = (clip_image - np.amin(clip_image)) / \
         (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint8_image = ((norm_image + 0.05) *
-                   np.iinfo(np.uint8).max * 0.9).astype(np.uint8)
+    uint8_image = ((norm_image + 0.05) * np.iinfo(np.uint8).max * 0.9).astype(np.uint8)
     return uint8_image
 
 
@@ -63,8 +62,7 @@ def image_normalization_uint16(image, im_thresh=0):
         image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
     norm_image = (clip_image - np.amin(clip_image)) / \
         (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint16_image = ((norm_image + 0.05) *
-                    np.iinfo(np.uint16).max * 0.9).astype(np.uint16)
+    uint16_image = ((norm_image + 0.05) * np.iinfo(np.uint16).max * 0.9).astype(np.uint16)
     return uint16_image
 
 
@@ -72,7 +70,7 @@ def moving_average(data1d, window=10):
     ''' Moving average
     Input:
         data1d (1d array): data to smooth
-        window (int): window for smoothing. 
+        window (int): window for smoothing.
     Output:
         avg_data (1d array): smoothed data
     '''
@@ -546,7 +544,7 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=81, number_of_repea
 
 
 def average_reg_plane(images):
-    """Get mean FOV of a plane after registration. 
+    """Get mean FOV of a plane after registration.
     Use phase correlation
 
     Parameters
@@ -682,10 +680,10 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, correct_image_size=
     use_clahe : bool, optional
         if to use CLAHE for registration, by default True
     use_valid_pix_pc : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 1st step - phase correlation registration, by default True
     use_valid_pix_sr : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 2nd step - StackReg registration, by default True
     save_dir : Path (from pathlib), optional
         Directory path to save the DataFrame, or to retrieve from, by default None
@@ -776,10 +774,10 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     use_clahe : bool, optional
         if to use CLAHE for registration, by default True
     use_valid_pix_pc : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 1st step - phase correlation registration, by default True
     use_valid_pix_sr : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 2nd step - StackReg registration, by default True
     save_dir : Path (from pathlib), optional
         Directory path to save the DataFrame, or to retrieve from, by default None
@@ -800,12 +798,12 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
         Mean FOV registered to the reference z-stack
     np.ndarray (3d: float)
         Reference z-stack cropped using motion output of the experiment
-    np.ndarray (2d: float) 
+    np.ndarray (2d: float)
         Transformation matrix for StackReg RIGID_BODY
     np.ndarray (1d: int or float)
         An array of translation shift
     dict
-        Options for calculating z-drift 
+        Options for calculating z-drift
     """
     valid_threshold = 0.01  # TODO: find the best valid threshold
 
@@ -934,10 +932,10 @@ def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array
     use_clahe: bool, optional
         If to adjust contrast using CLAHE for phase correlation registration, by default True
     use_valid_pix_pc : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 1st step - phase correlation registration, by default True
     use_valid_pix_sr : bool, optional
-        if to use valid pixels only for correlation coefficient calculation 
+        if to use valid pixels only for correlation coefficient calculation
         during the 2nd step - StackReg registration, by default True
 
     Returns
@@ -1003,7 +1001,7 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     use_clahe: bool, optional
         If to adjust contrast using CLAHE for registration, by default True
     use_valid_pix : bool, optional
-        If to use valid pixels (non-blank pixels after transfromation) 
+        If to use valid pixels (non-blank pixels after transfromation)
         to calculate correlation coefficient, by default True
 
     Returns
@@ -1070,7 +1068,7 @@ def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
     stack : np.ndarray (3D)
         stack images
     use_valid_pix : bool, optional
-        If to use valid pixels (non-blank pixels after transfromation) 
+        If to use valid pixels (non-blank pixels after transfromation)
         to calculate correlation coefficient, by default True
 
     Returns
@@ -1386,8 +1384,7 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir=None, co
                 num_segments = len(matched_plane_indice)
                 num_planes = len(corrcoef[0])
                 for i in range(num_segments):
-                    x = range(-matched_plane_indice[i], -
-                              matched_plane_indice[i] + num_planes)
+                    x = range(-matched_plane_indice[i], - matched_plane_indice[i] + num_planes)
                     ax_temp.plot(x, corrcoef[i], c=cm.winter(
                         i / num_segments), label=f'segment_{i}')
                 ax_temp.legend(fontsize=7)
@@ -1550,7 +1547,6 @@ def save_raw_segment_fov(ophys_experiment_id, save_dir):
     with h5py.File(save_dir / 'raw_segment_fov.h5', 'w') as h:
         h.create_dataset('data', data=np.array(raw_segment_fovs_registered))
     tifffile.imwrite(save_dir / 'raw_segment_fov.tif', norm_uint16_segment_fovs)
-    save_stack_to_video(norm_uint8_segment_fovs, save_dir /
-                        'raw_segment_fov.mp4', frame_rate=2)
+    save_stack_to_video(norm_uint8_segment_fovs, save_dir / 'raw_segment_fov.mp4', frame_rate=2)
     imageio.mimsave(save_dir / 'raw_segment_fov.gif',
                     norm_uint8_segment_fovs, fps=2)

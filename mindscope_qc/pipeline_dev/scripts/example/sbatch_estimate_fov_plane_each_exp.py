@@ -3,13 +3,11 @@ import argparse
 import time
 from simple_slurm import Slurm
 from pathlib import Path
-import pandas as pd
-from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 
 parser = argparse.ArgumentParser(description='running sbatch for estimate_fov_plane_each_exp.py')
 parser.add_argument('--env-path', type=str, default='/home/jinho.kim/anaconda3/envs/allenhpc', metavar='path to conda environment to use')
 
-if __name__=='__main__':
+if __name__ == '__main__':
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
@@ -48,22 +46,20 @@ if __name__=='__main__':
         job_id = Slurm.JOB_ARRAY_ID
         job_array_id = Slurm.JOB_ARRAY_MASTER_ID
         output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
-    
+
         # instantiate a SLURM object
         slurm = Slurm(
             cpus_per_task=1,
             job_name=job_title,
             time=walltime,
             mem=mem,
-            output= output,
+            output=output,
             partition="braintv"
         )
 
         args_string = job_string.format(oeid)
         slurm.sbatch('{} {} {}'.format(
-                python_executable,
-                python_file,
-                args_string,
-            )
-        )
+                     python_executable,
+                     python_file,
+                     args_string,))
         time.sleep(0.01)

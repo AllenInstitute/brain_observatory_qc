@@ -1,5 +1,4 @@
-import time, os
-from pathlib import Path
+import time
 import depth_estimation_module as dem
 
 import argparse
