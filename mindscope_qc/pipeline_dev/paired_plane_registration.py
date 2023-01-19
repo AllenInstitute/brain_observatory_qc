@@ -1,7 +1,4 @@
-# %%
-import mjd_dev.notebook_utils as nu
-from mindscope_qc.data_access.from_network import get_experiment_processed_directory
-import mindscope_qc.data_access.from_lims_utilities as from_limsu
+from typing import Union
 import mindscope_qc.data_access.from_lims as from_lims
 from pathlib import Path
 from scipy import stats
@@ -9,26 +6,40 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import h5py
+import dask.array as da
 
-def get_paired_planes_list(session_path):
+
+def get_paired_planes_list(session_path: Union[str, Path]) -> list:
+    """Get list of paired planes experiment IDs within a session, for
+    example 4x2 configuration on mesoscope has 8 experiments with 
+    4 pairs of 2.
+
+    Parameters
+    ----------
+    session_path : str or pathlib.Path
+        Path to session directory
+
+    Returns
+    -------
+    list
+        List of lists of paired plane experiment IDs
+
+    """
     split_str = 'MESOSCOPE_FILE_SPLITTING_QUEUE*input.json'
 
-    # get splt_str file in session path
+    session_path = Path(session_path)
 
     split_file = list(session_path.glob(f'{split_str}'))
-    assert len(split_file) == 1
+    assert len(split_file) == 1, f'Found {len(split_file)} mesoscope split files, expected 1'
     split_file = split_file[0]
 
-    # load json file
-    
     with open(split_file, 'r') as f:
         split_json = json.load(f)
 
-
-    # get all experiment_ids from split_json
     all_paired = []
     for pg in split_json['plane_groups']:
-        
+
         paired = []
         for expt in pg["ophys_experiments"]:
             paired.append(expt['experiment_id'])
@@ -38,10 +49,47 @@ def get_paired_planes_list(session_path):
     return all_paired
 
 
-def get_paired_plane_id(ophys_experiment_id):
-    eid = ophys_experiment_id
+def session_path_from_eid(eid: int) -> Path:
+    """Get session path from ophsy_experiment_id
+
+    TODO: likley to be replaced by from_lims
+
+    Parameters
+    ----------
+    eid : int
+        ophys_experiment_id
+
+    Returns
+    -------
+    pathlib.Path
+        Path to session directory
+
+    """
     info = from_lims.get_general_info_for_ophys_experiment_id(eid)
     session_path = info.session_storage_directory.loc[0]
+
+    return Path(session_path)
+
+
+def get_paired_plane_id(ophys_experiment_id: int) -> int:
+    """Get experiment ID of paired plane
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        ophys_experiment_id
+
+    Returns
+    -------
+    int
+        ophys_experiment_id of paired plane
+
+    """
+    # assert int
+    assert isinstance(ophys_experiment_id, int), 'ophys_experiment_id must be int'
+
+    session_path = session_path_from_eid(ophys_experiment_id)
+
     all_paired = get_paired_planes_list(session_path)
 
     # find eid pair in all_paired
@@ -67,32 +115,29 @@ def get_s2p_rigid_motion_transform(eid):
     assert len(mc_file) == 1
     mc_file = mc_file[0]
 
-
     return pd.read_csv(mc_file)
 
 
 def get_paired_slope(session_path):
     paired_list = get_paired_planes_list(session_path)
 
-    slope_xs = []
-    slope_ys = []
-
-    dfs=[]
+    dfs = []
     for pair in paired_list:
         p1 = get_s2p_rigid_motion_transform(pair[0])
         p2 = get_s2p_rigid_motion_transform(pair[1])
-        slope_x, intercept_x, r_value_x, p_valu_x, std_err = stats.linregress(p1.x, p2.x)
-        slope_y, intercept_y, r_value_x, p_value_x, std_err = stats.linregress(p1.y, p2.y)
-
+        slope_x, intercept_x, r_value_x, p_valu_x, std_err = stats.linregress(
+            p1.x, p2.x)
+        slope_y, intercept_y, r_value_x, p_value_x, std_err = stats.linregress(
+            p1.y, p2.y)
 
         dfs.append(pd.DataFrame({'slope_x': slope_x, 'slope_y': slope_y,
-                     'intercept_x': intercept_x, 'intercept_y': intercept_y,
-                       'ophys_experiment_id': pair}))
-    
+                                 'intercept_x': intercept_x, 'intercept_y': intercept_y,
+                                 'ophys_experiment_id': pair}))
+
     df_linear = pd.concat(dfs)
 
-    p1= df_linear.loc[0].reset_index(drop=True)
-    p2= df_linear.loc[1].reset_index(drop=True)
+    p1 = df_linear.loc[0].reset_index(drop=True)
+    p2 = df_linear.loc[1].reset_index(drop=True)
 
     p1["paired_id"] = p2["ophys_experiment_id"]
 
@@ -113,21 +158,6 @@ def paired_shifts_regression_eid(expts_ids):
     return all_pairs.reset_index(drop=True)
 
 
-
-def paired_shifts_regression(sids):
-    # get all paired slope for all experiments
-    all_pairs = []
-    for sid in sids:
-        print(eid)
-        info = from_lims.get_general_info_for_ophys_session_id(sid)
-        session_path = info.session_storage_directory.loc[0]
-        all_pairs.append(get_paired_slope(session_path))
-
-    all_pairs = pd.concat(all_pairs)
-
-    return all_pairs.reset_index(drop=True)
-
-
 # ALL SESSIONS
 def paired_shifts_regression(sids):
     # get all paired slope for all experiments
@@ -138,7 +168,7 @@ def paired_shifts_regression(sids):
             info = from_lims.get_general_info_for_ophys_session_id(sid)
             session_path = info.session_storage_directory.loc[0]
             all_pairs.append(get_paired_slope(session_path))
-        except:
+        except Exception:
             print(f'failed for {sid}')
 
     all_pairs = pd.concat(all_pairs)
@@ -148,28 +178,25 @@ def paired_shifts_regression(sids):
 
 def paired_planes_shifted_projections(eid, block_size: int = 10000):
     eid1 = eid
-    expt1_path = from_lims.get_general_info_for_ophys_experiment_id(eid).experiment_storage_directory.iloc[0]
+    expt1_path = from_lims.get_general_info_for_ophys_experiment_id(
+        eid).experiment_storage_directory.iloc[0]
     raw1_h5 = expt1_path / (str(eid1) + '.h5')
-    frames1 = nu.load_h5_dask(raw1_h5)
+    frames1 = load_h5_dask(raw1_h5)
 
     expt1_shifts = get_s2p_rigid_motion_transform(eid1)
 
     eid2 = get_paired_plane_id(eid1)
-    expt2_path = from_lims.get_general_info_for_ophys_experiment_id(eid2).experiment_storage_directory.iloc[0]
+    expt2_path = from_lims.get_general_info_for_ophys_experiment_id(
+        eid2).experiment_storage_directory.iloc[0]
     raw2_h5 = expt2_path / (str(eid2) + '.h5')
-    frames2 = nu.load_h5_dask(raw2_h5)
+    frames2 = load_h5_dask(raw2_h5)
     expt2_shifts = get_s2p_rigid_motion_transform(eid2)
-
-
-    
 
     block1 = frames1[:block_size].compute()
     expt1_img_raw = block1.mean(axis=0)
 
-
     e1y, e1x = expt1_shifts.y, expt1_shifts.x
     e2y, e2x = expt2_shifts.y, expt2_shifts.x
-
 
     block1_shift = block1.copy()
     for frame, dy, dx in zip(block1_shift, e1y, e1x):
@@ -181,7 +208,7 @@ def paired_planes_shifted_projections(eid, block_size: int = 10000):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
     expt1_img_p2_shifted = block1_pshift.mean(axis=0)
 
-    ## plane 2 
+    # plane 2
     block2 = frames2[:block_size].compute()
     expt2_img_raw = block2.mean(axis=0)
 
@@ -205,16 +232,16 @@ def paired_planes_shifted_projections(eid, block_size: int = 10000):
 
     return images
 
-# import union
-from typing import Union
 
-def shift_and_save_frames(frames, 
+# import union
+
+def shift_and_save_frames(frames,
                           y_shifts: Union[np.ndarray, pd.Series],
                           x_shifts: Union[np.ndarray, pd.Series],
                           block_size: int = None,
                           save_path: Path = None):
     """Shift frames and save to h5 file
-    
+
     Parameters
     ----------
     frames : np.ndarray or dask.array
@@ -225,7 +252,7 @@ def shift_and_save_frames(frames,
         y shifts to apply to frames
     x_shifts : np.ndarray or pd.Series
         x shifts to apply to frames
-        
+
     Returns
     -------
     None"""
@@ -245,13 +272,13 @@ def shift_and_save_frames(frames,
         with h5py.File(save_path, 'w') as f:
             f.create_dataset('data', data=sframes)
 
-    print (sframes.shape)
+    print(sframes.shape)
     return sframes
 
-import xarray as xr
+
 def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path: Path = None):
     """Generate shifted frames for an experiment
-    
+
     Parameters
     ----------
     eid : int
@@ -260,48 +287,49 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
         number of frames to shift, by default None
     save_path : Path, optional
         path to save shifted frames, by default None
-    
+
     Returns
     -------
     np.ndarray
         shifted frames
     """
-    expt_path = from_lims.get_general_info_for_ophys_experiment_id(eid).experiment_storage_directory.iloc[0]
+    expt_path = from_lims.get_general_info_for_ophys_experiment_id(
+        eid).experiment_storage_directory.iloc[0]
     raw_h5 = expt_path / (str(eid) + '.h5')
-    frames = nu.load_h5_dask(raw_h5)
+    frames = load_h5_dask(raw_h5)
     shifts = get_s2p_rigid_motion_transform(eid)
 
     # get shifts for paired
     paired_id = get_paired_plane_id(eid)
     paired_shifts = get_s2p_rigid_motion_transform(paired_id)
-    expt_path_paired = from_lims.get_general_info_for_ophys_experiment_id(paired_id).experiment_storage_directory.iloc[0]
+    expt_path_paired = from_lims.get_general_info_for_ophys_experiment_id(
+        paired_id).experiment_storage_directory.iloc[0]
     raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
-    frames_paired = nu.load_h5_dask(raw_h5_paired)
-
+    frames_paired = load_h5_dask(raw_h5_paired)
 
     p1_original_frames = shift_and_save_frames(frames=frames,
-                                          y_shifts=shifts.y,
-                                          x_shifts=shifts.x,
-                                          block_size=block_size,
-                                          save_path=save_path)
+                                               y_shifts=shifts.y,
+                                               x_shifts=shifts.x,
+                                               block_size=block_size,
+                                               save_path=save_path)
 
     p2_paired_frames = shift_and_save_frames(frames=frames_paired,
-                                            y_shifts=shifts.y,
-                                            x_shifts=shifts.x,
-                                            block_size=block_size,
-                                            save_path=save_path)
+                                             y_shifts=shifts.y,
+                                             x_shifts=shifts.x,
+                                             block_size=block_size,
+                                             save_path=save_path)
 
     p1_paired_frames = shift_and_save_frames(frames=frames,
-                                            y_shifts=paired_shifts.y,
-                                            x_shifts=paired_shifts.x,
-                                            block_size=block_size,
-                                            save_path=save_path)
+                                             y_shifts=paired_shifts.y,
+                                             x_shifts=paired_shifts.x,
+                                             block_size=block_size,
+                                             save_path=save_path)
 
     p2_original_frames = shift_and_save_frames(frames=frames_paired,
-                                            y_shifts=paired_shifts.y,
-                                            x_shifts=paired_shifts.x,
-                                            block_size=block_size,
-                                            save_path=save_path)
+                                               y_shifts=paired_shifts.y,
+                                               x_shifts=paired_shifts.x,
+                                               block_size=block_size,
+                                               save_path=save_path)
 
     p1y, p1x = get_motion_correction_crop_xy_range(eid)
     p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
@@ -312,16 +340,13 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
     p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
 
-
-
     # add all to dict
     shifted_frames = {'plane1_original': p1_original_frames,
                       'plane2_paired': p2_paired_frames,
                       'plane1_paired': p1_paired_frames,
                       'plane2_original': p2_original_frames}
 
-
-    # # concat plane 1 
+    # # concat plane 1
     # plane1 = xr.concat([xr.DataArray(p1_original_frames, dims=['frame', 'y', 'x'], name='plane1_original'),
     #                     xr.DataArray(p1_paired_frames, dims=['frame', 'y', 'x'], name='plane1_paired')],
     #                     dim='plane')
@@ -334,25 +359,25 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     # # concat planes
     # concat_frames = xr.concat([plane1, plane2], dim='plane')
 
-
     return shifted_frames
 
-    
 
 def chunk_movie(movie, n_chunks):
+    # TODO: move to utils
     # get length of movie divided into 12 chunks
-    chunk_len = int(movie.shape[0]/n_chunks)
+    chunk_len = int(movie.shape[0] / n_chunks)
 
     # get mean of each chunk
     chunk_means = []
     for i in range(n_chunks):
-        chunk = movie[i*chunk_len:(i+1)*chunk_len,:,:]
+        chunk = movie[i * chunk_len:(i + 1) * chunk_len, :, :]
         chunk_mean = chunk.mean(axis=0)
         chunk_means.append(chunk_mean)
     return chunk_means
 
-def save_gif(image_stack, gif_folder, fn):
 
+def save_gif(image_stack, gif_folder, fn):
+    # TODO: move to utils
     # save im_norm as gif
     import imageio
     import os
@@ -368,17 +393,19 @@ def save_gif(image_stack, gif_folder, fn):
         # set max of img to 99th percentile
         vmax = np.percentile(img, 99)
         img = img.clip(0, vmax)
-    
+
         # convert to 8-bit
         img = (img - np.min(img)) / (np.max(img) - np.min(img))
         img = (img * 255).astype(np.uint8)
-        
+
         images.append(img)
     imageio.mimsave(gif_folder / fn, images, duration=0.1)
 
 
 def get_motion_correction_crop_xy_range(oeid):
     """Get x-y ranges to crop motion-correction frame rolling
+
+    TODO: move to utils
 
     Parameters
     ----------
@@ -390,106 +417,15 @@ def get_motion_correction_crop_xy_range(oeid):
     list, list
         Lists of y range and x range, [start, end] pixel index
     """
-    #TODO: validate in case where max < 0 or min > 0 (if there exists an example)
-    motion_df = pd.read_csv(from_lims.get_motion_xy_offset_filepath(oeid))    
-    max_y = np.ceil(max(motion_df.y.max(),1)).astype(int)
-    min_y = np.floor(min(motion_df.y.min(),0)).astype(int)
-    max_x = np.ceil(max(motion_df.x.max(),1)).astype(int)
-    min_x = np.floor(min(motion_df.x.min(),0)).astype(int)
+    # TODO: validate in case where max < 0 or min > 0 (if there exists an example)
+    motion_df = pd.read_csv(from_lims.get_motion_xy_offset_filepath(oeid))
+    max_y = np.ceil(max(motion_df.y.max(), 1)).astype(int)
+    min_y = np.floor(min(motion_df.y.min(), 0)).astype(int)
+    max_x = np.ceil(max(motion_df.x.max(), 1)).astype(int)
+    min_x = np.floor(min(motion_df.x.min(), 0)).astype(int)
     range_y = [-min_y, -max_y]
     range_x = [-min_x, -max_x]
     return range_y, range_x
-###############################################################################
-# PLOTS
-###############################################################################
-
-def plot_equality_line(ax):
-    # plot equlaity line, fit current plot
-    x = np.linspace(*ax.get_xlim())
-    y = x
-    plt.plot(x, y, color='black', linestyle='--', label='equality line')
-
-
-def plot_paired_shifts(p1,p2,eid,paired_id, ax=None):
-
-
-    # calculate difference between planes
-    p1['x_diff'] = p1.x - p2.x
-    p1['y_diff'] = p1.y - p2.y
-
-    # plot diff
-    fig, ax = plt.subplots(figsize=(10, 5))
-    plt.plot(p1.x_diff, label='x')
-    plt.plot(p1.y_diff, label='y')
-    ax.set_title('difference between planes')
-
-    # calculate x and y, corrected by first frame
-    p1['x_bl'] = np.abs(p1.x - p1.x[0])
-    p1['y_bl'] = np.abs(p1.y - p1.y[0])
-    p2['x_bl'] = np.abs(p2.x - p2.x[0])
-    p2['y_bl'] = np.abs(p2.y - p2.y[0])
-
-
-    # p1['x_bl'] = np.abs(p1.x)
-    # p1['y_bl'] = np.abs(p1.y)
-    # p2['x_bl'] = np.abs(p2.x)
-    # p2['y_bl'] = np.abs(p2.y)
-
-
-    # plot x_bl scatter
-    fig, ax = plt.subplots()
-    plt.scatter(p1.x_bl, p2.x_bl, label='X offset',s=1, marker=',')
-    plt.scatter(p1.y_bl, p2.y_bl, label='Y offset', s=1, marker=',')
-    ax.set_title('x_bl')
-    plot_equality_line(ax)
-    plt.legend()
-
-    # make plot square
-    ax.set_aspect('equal', 'box')
-    ax.set_xlabel("Plane 1 absolute shifts")
-    ax.set_ylabel("Plane 2 absolute shifts")
-    ax.set_title(f"Rigid motion correction shifts \n (absolute shifts from first frame) \n p1 = {eid}, p2 = {paired_id}")
-
-
-def plot_equality_line(ax):
-    # plot equlaity line, fit current plot
-    x = np.linspace(*ax.get_xlim())
-    y = x
-    plt.plot(x, y, color='black', linestyle='--', label='equality line')
-
-
-def plot_paired_shifts_regression(p1,p2):
-    # plot scatter
-    fig, ax = plt.subplots()
-    plt.scatter(p1.x, p2.x, label='X')
-    plt.scatter(p1.y, p2.y, label='Y')
-    ax.set_title('x')
-    plt.legend()
-
-    # calc liner regression
-    from scipy import stats
-    slope, intercept, r_value, p_value, std_err = stats.linregress(p1.x.values, p2.x.values)
-    print(f"r-squared: {r_value**2}")
-
-    # plot linear regression
-    x = np.linspace(*ax.get_xlim())
-    y = slope * x + intercept
-
-    plt.plot(x, y, color='black', linestyle='--', label=f'slope: {slope:.2f}, intercept: {intercept:.2f}, r-squared: {r_value**2:.2f}')
-
-
-    slope, intercept, r_value, p_value, std_err = stats.linregress(p1.y, p2.y)
-    print(f"r-squared: {r_value**2}")
-
-    # plot linear regression
-    x = np.linspace(*ax.get_xlim())
-    y = slope * x + intercept
-
-    plt.plot(x, y, color='red', linestyle='--', label=f'slope: {slope:.2f}, intercept: {intercept:.2f}, r-squared: {r_value**2:.2f}')
-
-    plt.legend()
-
-    #plt.scatter(p1.y, p2.y, label='plane 2')
 
 
 def shift_frame(frame: np.ndarray, dy: int, dx: int) -> np.ndarray:
@@ -509,33 +445,121 @@ def shift_frame(frame: np.ndarray, dy: int, dx: int) -> np.ndarray:
     frame_shifted: Ly x Lx
         The shifted frame
 
-    NOTE: from suite2p
+    # TODO: move to utils
 
     """
+    assert frame.ndim == 2, "frame must be 2D"
+    assert np.abs(dy) < frame.shape[0], "dy must be less than frame height"
+    assert np.abs(dx) < frame.shape[1], "dx must be less than frame width"
+
     return np.roll(frame, (-dy, -dx), axis=(0, 1))
 
+###############################################################################
+# PLOTS
+###############################################################################
+
+
+def plot_paired_shifts(p1, p2, eid, paired_id, ax=None):
+
+    # calculate difference between planes
+    p1['x_diff'] = p1.x - p2.x
+    p1['y_diff'] = p1.y - p2.y
+
+    # plot diff
+    fig, ax = plt.subplots(figsize=(10, 5))
+    plt.plot(p1.x_diff, label='x')
+    plt.plot(p1.y_diff, label='y')
+    ax.set_title('difference between planes')
+
+    # calculate x and y, corrected by first frame
+    p1['x_bl'] = np.abs(p1.x - p1.x[0])
+    p1['y_bl'] = np.abs(p1.y - p1.y[0])
+    p2['x_bl'] = np.abs(p2.x - p2.x[0])
+    p2['y_bl'] = np.abs(p2.y - p2.y[0])
+
+    # p1['x_bl'] = np.abs(p1.x)
+    # p1['y_bl'] = np.abs(p1.y)
+    # p2['x_bl'] = np.abs(p2.x)
+    # p2['y_bl'] = np.abs(p2.y)
+
+    # plot x_bl scatter
+    fig, ax = plt.subplots()
+    plt.scatter(p1.x_bl, p2.x_bl, label='X offset', s=1, marker=',')
+    plt.scatter(p1.y_bl, p2.y_bl, label='Y offset', s=1, marker=',')
+    ax.set_title('x_bl')
+    plot_equality_line(ax)
+    plt.legend()
+
+    # make plot square
+    ax.set_aspect('equal', 'box')
+    ax.set_xlabel("Plane 1 absolute shifts")
+    ax.set_ylabel("Plane 2 absolute shifts")
+    ax.set_title(
+        f"Rigid motion correction shifts \n (absolute shifts from first frame) \n p1 = {eid}, p2 = {paired_id}")
+
+
+def plot_paired_shifts_regression(p1, p2):
+    # plot scatter
+    fig, ax = plt.subplots()
+    plt.scatter(p1.x, p2.x, label='X')
+    plt.scatter(p1.y, p2.y, label='Y')
+    ax.set_title('x')
+    plt.legend()
+
+    # calc liner regression
+    from scipy import stats
+    slope, intercept, r_value, p_value, std_err = stats.linregress(
+        p1.x.values, p2.x.values)
+    print(f"r-squared: {r_value**2}")
+
+    # plot linear regression
+    x = np.linspace(*ax.get_xlim())
+    y = slope * x + intercept
+
+    plt.plot(x, y, color='black', linestyle='--',
+             label=f'slope: {slope:.2f}, intercept: {intercept:.2f}, r-squared: {r_value**2:.2f}')
+
+    slope, intercept, r_value, p_value, std_err = stats.linregress(p1.y, p2.y)
+    print(f"r-squared: {r_value**2}")
+
+    # plot linear regression
+    x = np.linspace(*ax.get_xlim())
+    y = slope * x + intercept
+
+    plt.plot(x, y, color='red', linestyle='--',
+             label=f'slope: {slope:.2f}, intercept: {intercept:.2f}, r-squared: {r_value**2:.2f}')
+
+    plt.legend()
+
+    # plt.scatter(p1.y, p2.y, label='plane 2')
 
 
 def fig_paired_planes_shifted_projections(projections_dict: dict):
-    # get 99 percentile of all images
+
+    # get 99 percentile of all images to set vmax
     images = [v for k, v in projections_dict.items()]
     max_val = np.percentile(np.concatenate(images), 99.9)
 
+    keys = ['plane1_raw', 'plane1_original_shifted', 'plane1_paired_shifted',
+            'plane2_raw', 'plane2_original_shifted', 'plane2_paired_shifted']
+
+    # check that all keys are in dict
+    assert all([k in projections_dict.keys() for k in keys]), "missing keys in projections_dict"
 
     # subplots show all images
     fig, ax = plt.subplots(2, 3, figsize=(10, 10))
-    ax[0, 0].imshow(expt1_img_raw, cmap='gray', vmax = max_val)
+    ax[0, 0].imshow(projections_dict["plane1_raw"], cmap='gray', vmax=max_val)
     ax[0, 0].set_title('plane 1 raw')
-    ax[0, 1].imshow(expt1_img_og_shifted, cmap='gray', vmax = max_val)
+    ax[0, 1].imshow(projections_dict["plane1_original_shifted"], cmap='gray', vmax=max_val)
     ax[0, 1].set_title('plane 1 orignal shifts')
-    ax[0, 2].imshow(expt1_img_p2_shifted, cmap='gray',vmax = max_val)
+    ax[0, 2].imshow(projections_dict["plane1_paired_shifted"], cmap='gray', vmax=max_val)
     ax[0, 2].set_title('plane 1 shifted to plane 2')
 
-    ax[1, 0].imshow(expt2_img_raw, cmap='gray')
+    ax[1, 0].imshow(projections_dict["plane2_raw"], cmap='gray')
     ax[1, 0].set_title('plane 2 raw')
-    ax[1, 1].imshow(expt2_img_og_shifted, cmap='gray',vmax = max_val)
+    ax[1, 1].imshow(projections_dict["plane2_original_shifted"], cmap='gray', vmax=max_val)
     ax[1, 1].set_title('plane 2 original shifts')
-    ax[1, 2].imshow(expt2_img_p1_shifted, cmap='gray',vmax = max_val)
+    ax[1, 2].imshow(projections_dict["plane2_paired_shifted"], cmap='gray', vmax=max_val)
     ax[1, 2].set_title('plane 2 shifted to plane 1')
 
     # turn off axis labels
@@ -547,11 +571,11 @@ def fig_paired_planes_shifted_projections(projections_dict: dict):
     plt.show()
 
 
-def hitogram_shifts(expt1_shifts, expt2_shifts):
+def histogram_shifts(expt1_shifts, expt2_shifts):
     e1y, e1x = expt1_shifts.y, expt1_shifts.x
     e2y, e2x = expt2_shifts.y, expt2_shifts.x
 
-    fig, ax = plt.subplots(2, 2, figsize=(7, 7),sharex=True,sharey=True)
+    fig, ax = plt.subplots(2, 2, figsize=(7, 7), sharex=True, sharey=True)
     ax[0, 0].hist(e1y, bins=25)
     ax[0, 0].set_title('plane 1 y shifts')
     ax[0, 1].hist(e1x, bins=25)
@@ -564,12 +588,6 @@ def hitogram_shifts(expt1_shifts, expt2_shifts):
     plt.show()
 
 
-
-
-
-
-
-
 def acutances_by_blocks(eid):
     from ophys_etl.modules.suite2p_registration.suite2p_utils import compute_acutance
 
@@ -579,28 +597,51 @@ def acutances_by_blocks(eid):
     dfs = []
     for bs in block_size:
 
-
-        
-        projs = paired_planes_shifted_projections(eid, block_size = bs)
+        projs = paired_planes_shifted_projections(eid, block_size=bs)
 
         # compute acutnace for item in dic
-
         acutances = []
         for var, proj in projs.items():
             acu = compute_acutance(proj)
             acutances.append(acu)
-        
+
         # make dataframe, columns = projs keys, rows = acutances
-        acutances_df = pd.DataFrame(acutances,index = projs.keys())
+        acutances_df = pd.DataFrame(acutances, index=projs.keys())
         acutances_df.columns = ['acutance']
         acutances_df['block_size'] = bs
         acutances_df['eid'] = eid
 
         # swap rows and columns
-
-
         dfs.append(acutances_df)
 
     acutances_df = pd.concat(dfs).reset_index(names=['projection'])
 
     return acutances_df
+
+
+####################################################################################################
+# TODO: move to utils
+####################################################################################################
+
+def load_h5_dask(h5_path):
+
+    # load h5 file
+    h5 = h5py.File(h5_path, 'r')
+
+    # check if h5 has 'data' key
+    if 'data' not in h5.keys():
+        raise KeyError(f'{h5_path} does not have "data" key')
+
+    movie = da.from_array(h5["data"])
+
+    # close h5? not sure array not computed yet...
+
+    return movie
+
+
+def plot_equality_line(ax):
+    # TODO: move to utils
+    # plot equlaity line, fit current plot
+    x = np.linspace(*ax.get_xlim())
+    y = x
+    plt.plot(x, y, color='black', linestyle='--', label='equality line')
