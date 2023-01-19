@@ -13,7 +13,7 @@ import tifffile
 from PIL import Image
 from pathlib import Path
 
-from mindscope_qc.data_access import from_lims
+from visual_behavior.data_access import from_lims
 # Migrate dependency from visual_behavior to mindscope_qc when all necessary functions are implemented in the mindscope_qc
 from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
