@@ -102,37 +102,72 @@ def get_paired_plane_id(ophys_experiment_id: int) -> int:
     return other_id
 
 
-def get_s2p_rigid_motion_transform(eid):
+def get_s2p_rigid_motion_transform(eid: int) -> pd.DataFrame:
+    """Get suite2p rigid motion transform for experiment
+
+    Parameters
+    ----------
+    eid : int
+        ophys_experiment_id
+
+    Returns
+    -------
+    pandas.DataFrame
+
+    """
     info = from_lims.get_general_info_for_ophys_experiment_id(eid)
     expt_path = info.experiment_storage_directory.loc[0]
     proc_path = expt_path / 'processed'
 
     mc_str = '*suite2p_rigid_motion_transform.csv'
 
-    # get splt_str file in session path
-
     mc_file = list(proc_path.glob(f'{mc_str}'))
-    assert len(mc_file) == 1
+
+    assert len(mc_file) == 1, f'Found {len(mc_file)} motion correction files, expected 1'
     mc_file = mc_file[0]
 
     return pd.read_csv(mc_file)
 
 
-def get_paired_slope(session_path):
+def get_paired_slope(session_path: Union[str, Path]) -> pd.DataFrame:
+    """ Get slope and intercept of linear regression from paired planes XY shifts
+
+    Parameters
+    ----------
+    session_path : str or pathlib.Path
+        Path to session directory
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns 'slope_x', 'slope_y', 'intercept_x', 'intercept_y'
+
+    """
+
+    session_path = Path(session_path)
+    assert session_path.exists(), f'Path {session_path} does not exist'
+
     paired_list = get_paired_planes_list(session_path)
 
     dfs = []
     for pair in paired_list:
-        p1 = get_s2p_rigid_motion_transform(pair[0])
-        p2 = get_s2p_rigid_motion_transform(pair[1])
-        slope_x, intercept_x, r_value_x, p_valu_x, std_err = stats.linregress(
-            p1.x, p2.x)
-        slope_y, intercept_y, r_value_x, p_value_x, std_err = stats.linregress(
-            p1.y, p2.y)
+        try:
+            p1 = get_s2p_rigid_motion_transform(pair[0])
+            p2 = get_s2p_rigid_motion_transform(pair[1])
+            slope_x, intercept_x, r_value_x, p_valu_x, std_err = stats.linregress(
+                p1.x, p2.x)
+            slope_y, intercept_y, r_value_x, p_value_x, std_err = stats.linregress(
+                p1.y, p2.y)
 
-        dfs.append(pd.DataFrame({'slope_x': slope_x, 'slope_y': slope_y,
-                                 'intercept_x': intercept_x, 'intercept_y': intercept_y,
-                                 'ophys_experiment_id': pair}))
+            dfs.append(pd.DataFrame({'slope_x': slope_x,
+                                     'slope_y': slope_y,
+                                     'intercept_x': intercept_x,
+                                     'intercept_y': intercept_y,
+                                     'ophys_experiment_id': pair}))
+        except AssertionError:
+            print(f'No motion correction file found for eid pair: {pair}')
+    if len(dfs) == 0:
+        return pd.DataFrame()
 
     df_linear = pd.concat(dfs)
 
@@ -144,7 +179,18 @@ def get_paired_slope(session_path):
     return p1
 
 
-def paired_shifts_regression_eid(expts_ids):
+def paired_shifts_regression_eid(expts_ids: list):
+    """Get paired shifts regression for list of ophys_experiment_ids
+
+    Parameters
+    ----------
+    expts_ids : list
+        list of ophys_experiment_ids
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
     # get all paired slope for all experiments
     all_pairs = []
     for eid in expts_ids:
@@ -152,16 +198,29 @@ def paired_shifts_regression_eid(expts_ids):
         session_path = info.session_storage_directory.loc[0]
         all_pairs.append(get_paired_slope(session_path))
 
-    all_pairs = pd.concat(all_pairs)
-
+    try:
+        all_pairs = pd.concat(all_pairs)
+    except ValueError:
+        print('No paired experiments found')
+        all_pairs = pd.DataFrame()
     return all_pairs.reset_index(drop=True)
 
 
-# ALL SESSIONS
-def paired_shifts_regression(sids):
-    # get all paired slope for all experiments
+def paired_shifts_regression(sessions_ids: list):
+    """Get paired shifts regression for list of ophys_session_ids
+
+    Parameters
+    ----------
+    sessions_ids : list
+        list of ophys_session_ids
+
+    Returns
+    -------
+    pandas.DataFrame
+    """
+
     all_pairs = []
-    for sid in sids:
+    for sid in sessions_ids:
         try:
             info = from_lims.get_general_info_for_ophys_session_id(sid)
             session_path = info.session_storage_directory.loc[0]
@@ -174,7 +233,21 @@ def paired_shifts_regression(sids):
     return all_pairs.reset_index(drop=True)
 
 
-def paired_planes_shifted_projections(eid, block_size: int = 10000):
+def paired_planes_shifted_projections(eid: int, block_size: int = 10000):
+    """Get shifted projections for paired planes
+
+    Parameters
+    ----------
+    eid : int
+        ophys_experiment_id
+    block_size : int, optional
+        block size for dask, by default 10000
+
+    Returns
+    -------
+    dask.array.core.Array
+        dask array of shifted projections
+    """
     eid1 = eid
     expt1_path = from_lims.get_general_info_for_ophys_experiment_id(
         eid).experiment_storage_directory.iloc[0]
@@ -231,8 +304,6 @@ def paired_planes_shifted_projections(eid, block_size: int = 10000):
     return images
 
 
-# import union
-
 def shift_and_save_frames(frames,
                           y_shifts: Union[np.ndarray, pd.Series],
                           x_shifts: Union[np.ndarray, pd.Series],
@@ -274,8 +345,10 @@ def shift_and_save_frames(frames,
     return sframes
 
 
-def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path: Path = None,
-                                         return_frames: bool = False):
+def generate_all_pairings_shifted_frames(eid, block_size: int = None,
+                                         save_path: Path = None,
+                                         return_frames: bool = False,
+                                         shift_original: bool = False):
     """Generate shifted frames for an experiment
 
     Parameters
@@ -286,6 +359,10 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
         number of frames to shift, if None, shift all frames
     save_path : Path, optional
         path to save shifted frames, by default None
+    return_frames : bool, optional
+        return shifted frames, by default False, currently return frames are cropped.
+    shift_original : bool, optional
+        shift the h5 using the orignal motion correction shifts, by default False
 
     Returns
     -------
@@ -294,6 +371,9 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
     """
     if save_path is not None:
         save_path = Path(save_path)
+
+    if save_path is None and return_frames is False:
+        raise ValueError("Must save frames or return frames")
 
     expt_path = from_lims.get_general_info_for_ophys_experiment_id(
         eid).experiment_storage_directory.iloc[0]
@@ -318,11 +398,9 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
         p1_paired_fn = save_path / f'{eid}_paired_shift.h5'
         p2_og_fn = save_path / f'{paired_id}_original_shift.h5'
 
-    p1_original_frames = shift_and_save_frames(frames=plane1_frames,
-                                               y_shifts=plane1_shifts.y,
-                                               x_shifts=plane1_shifts.x,
-                                               block_size=block_size,
-                                               save_path=p1_og_fn)
+    # for cropping rolling effect
+    p1y, p1x = get_motion_correction_crop_xy_range(eid)
+    p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
 
     p2_paired_frames = shift_and_save_frames(frames=plane2_frames,
                                              y_shifts=plane1_shifts.y,
@@ -336,82 +414,34 @@ def generate_all_pairings_shifted_frames(eid, block_size: int = None, save_path:
                                              block_size=block_size,
                                              save_path=p1_paired_fn)
 
-    p2_original_frames = shift_and_save_frames(frames=plane2_frames,
-                                               y_shifts=paired_shifts.y,
-                                               x_shifts=paired_shifts.x,
-                                               block_size=block_size,
-                                               save_path=p2_og_fn)
-    if return_frames:
-        # TODO: make motio correction cropping
-        p1y, p1x = get_motion_correction_crop_xy_range(eid)
-        p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
+    p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+    p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
 
-        # crop frames
+    shifted_frames = {'plane2_paired': p2_paired_frames,
+                      'plane1_paired': p1_paired_frames}
+
+    if shift_original:
+        p1_original_frames = shift_and_save_frames(frames=plane1_frames,
+                                                   y_shifts=plane1_shifts.y,
+                                                   x_shifts=plane1_shifts.x,
+                                                   block_size=block_size,
+                                                   save_path=p1_og_fn)
+
+        p2_original_frames = shift_and_save_frames(frames=plane2_frames,
+                                                   y_shifts=paired_shifts.y,
+                                                   x_shifts=paired_shifts.x,
+                                                   block_size=block_size,
+                                                   save_path=p2_og_fn)
+
         p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-        p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-        p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
         p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
 
-        # add all to dict
-        shifted_frames = {'plane1_original': p1_original_frames,
-                          'plane2_paired': p2_paired_frames,
-                          'plane1_paired': p1_paired_frames,
-                          'plane2_original': p2_original_frames}
-
-        # # concat plane 1
-        # plane1 = xr.concat([xr.DataArray(p1_original_frames, dims=['frame', 'y', 'x'], name='plane1_original'),
-        #                     xr.DataArray(p1_paired_frames, dims=['frame', 'y', 'x'], name='plane1_paired')],
-        #                     dim='plane')
-
-        # # concat plane 2
-        # plane2 = xr.concat([xr.DataArray(p2_original_frames, dims=['frame', 'y', 'x'], name='plane2_original'),
-        #                     xr.DataArray(p2_paired_frames, dims=['frame', 'y', 'x'], name='plane2_paired')],
-        #                     dim='plane')
-
-        # # concat planes
-        # concat_frames = xr.concat([plane1, plane2], dim='plane')
+        # add to shifted frames dict
+        shifted_frames.update({'plane1_original': p1_original_frames,
+                               'plane2_original': p2_original_frames})
+    if return_frames:
 
         return shifted_frames
-
-
-def chunk_movie(movie, n_chunks):
-    # TODO: move to utils
-    # get length of movie divided into 12 chunks
-    chunk_len = int(movie.shape[0] / n_chunks)
-
-    # get mean of each chunk
-    chunk_means = []
-    for i in range(n_chunks):
-        chunk = movie[i * chunk_len:(i + 1) * chunk_len, :, :]
-        chunk_mean = chunk.mean(axis=0)
-        chunk_means.append(chunk_mean)
-    return chunk_means
-
-
-def save_gif(image_stack, gif_folder, fn):
-    # TODO: move to utils
-    # save im_norm as gif
-    import imageio
-    import os
-
-    # create folder for gif
-    if not os.path.exists(gif_folder):
-        os.makedirs(gif_folder)
-
-    # save im_norm as animated gif
-    images = []
-    for img in image_stack:
-
-        # set max of img to 99th percentile
-        vmax = np.percentile(img, 99)
-        img = img.clip(0, vmax)
-
-        # convert to 8-bit
-        img = (img - np.min(img)) / (np.max(img) - np.min(img))
-        img = (img * 255).astype(np.uint8)
-
-        images.append(img)
-    imageio.mimsave(gif_folder / fn, images, duration=0.1)
 
 
 def get_motion_correction_crop_xy_range(oeid):
@@ -657,3 +687,43 @@ def plot_equality_line(ax):
     x = np.linspace(*ax.get_xlim())
     y = x
     plt.plot(x, y, color='black', linestyle='--', label='equality line')
+
+
+def chunk_movie(movie, n_chunks):
+    # TODO: move to utils
+    # get length of movie divided into 12 chunks
+    chunk_len = int(movie.shape[0] / n_chunks)
+
+    # get mean of each chunk
+    chunk_means = []
+    for i in range(n_chunks):
+        chunk = movie[i * chunk_len:(i + 1) * chunk_len, :, :]
+        chunk_mean = chunk.mean(axis=0)
+        chunk_means.append(chunk_mean)
+    return chunk_means
+
+
+def save_gif(image_stack, gif_folder, fn):
+    # TODO: move to utils
+    # save im_norm as gif
+    import imageio
+    import os
+
+    # create folder for gif
+    if not os.path.exists(gif_folder):
+        os.makedirs(gif_folder)
+
+    # save im_norm as animated gif
+    images = []
+    for img in image_stack:
+
+        # set max of img to 99th percentile
+        vmax = np.percentile(img, 99)
+        img = img.clip(0, vmax)
+
+        # convert to 8-bit
+        img = (img - np.min(img)) / (np.max(img) - np.min(img))
+        img = (img * 255).astype(np.uint8)
+
+        images.append(img)
+    imageio.mimsave(gif_folder / fn, images, duration=0.1)
