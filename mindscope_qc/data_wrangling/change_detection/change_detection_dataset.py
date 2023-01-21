@@ -1,11 +1,12 @@
 import pandas as pd
 
-import mindscope_qc.data_formatting.change_detection.data_wrangling.utils as utils
-import mindscope_qc.data_formatting.change_detection.data_wrangling.pkl_translator as pkl_translator
-import mindscope_qc.data_formatting.change_detection.data_wrangling.annotate as annotate
-import mindscope_qc.data_formatting.change_detection.data_wrangling.extended_trials_dataframe as ext_trials_df
+import mindscope_qc.data_wrangling.change_detection.utils as utils
+import mindscope_qc.data_wrangling.change_detection.pkl_translator as pkl_translator
+import mindscope_qc.data_wrangling.change_detection.annotate as annotate
+import mindscope_qc.data_wrangling.change_detection.extended_trials_dataframe as ext_trials_df
 
 import mindscope_qc.data_access.from_lims as from_lims
+
 
 class ChangeDetectionDataset(object):
     def __init__(self, data_file=None, behavior_session_id=None,
