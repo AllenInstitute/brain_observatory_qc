@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 
-from mindscope_qc.pipeline_dev.behavior_ophys_experiment_dev \
+from mindscope_qc.data_access.behavior_ophys_experiment_dev \
     import BehaviorOphysExperimentDev
 
 ########################
