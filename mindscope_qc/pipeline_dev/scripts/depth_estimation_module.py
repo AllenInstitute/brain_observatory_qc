@@ -480,7 +480,7 @@ def get_raw_h5_filepath(ophys_experiment_id):
 ########################################
 
 
-def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir):
+def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir, number_of_z_planes=None, number_of_repeats=20):
     """Get within and between plane registered z-stack from an experiment.
     If it was already processed, get it from the saved file.
     If not, process z-stack registration and save the results.
@@ -497,6 +497,9 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir):
     np.ndarray (3D)
         within and between plane registered z-stack
     """
+    if number_of_z_planes is None:
+        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
+        number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     reg_zstack_fn = f'{ophys_experiment_id}_zstack_reg.h5'
     reg_zstack_fp = ophys_experiment_dir / reg_zstack_fn
     if os.path.isfile(reg_zstack_fp):
@@ -507,14 +510,14 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir):
         if not os.path.isdir(ophys_experiment_dir):
             os.makedirs(ophys_experiment_dir)
         # Register the first z-stack
-        reg_zstack = register_z_stack(ophys_experiment_id)
+        reg_zstack = register_z_stack(ophys_experiment_id, number_of_z_planes=number_of_z_planes, number_of_repeats=number_of_repeats)
         # Save the registered first z-stack
         with h5py.File(reg_zstack_fp, 'w') as h:
             h.create_dataset('data', data=reg_zstack)
     return reg_zstack
 
 
-def register_z_stack(ophys_experiment_id, number_of_z_planes=81, number_of_repeats=20):
+def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_repeats=20):
     """Get registered z-stack, both within and between planes
     Can work for both taken by step protocol and loop protocol
     TODO: check if it also works for loop protocol, after fixing the rolling effect
@@ -532,6 +535,9 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=81, number_of_repea
     np.ndarray (3D)
         within and between plane registered z-stack
     """
+    if number_of_z_planes is None:
+        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
+        number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     local_zstack_path = get_local_zstack_path(ophys_experiment_id)
     h = h5py.File(local_zstack_path, 'r')
     local_z_stack = h['data'][:]
@@ -1169,7 +1175,7 @@ def get_segment_mean_images(ophys_experiment_id, save_dir=None, save_images=True
     if save_dir is None:
         save_dir = global_base_dir
     got_flag = 0
-    segment_fov_fp = save_dir / 'segment_fov.h5'
+    segment_fov_fp = save_dir / f'{ophys_experiment_id}_segment_fov.h5'
     if os.path.isfile(segment_fov_fp):
         with h5py.File(segment_fov_fp, 'r') as h:
             mean_images = h['data'][:]
@@ -1531,7 +1537,7 @@ def save_segment_fov(ophys_experiment_id, save_dir, segment_minute=10):
         print(f'{ophys_experiment_id} already saved.')
     else:
         segment_fovs = get_segment_mean_images(
-            ophys_experiment_id, segment_minute=segment_minute)
+            ophys_experiment_id, save_dir=save_dir, segment_minute=segment_minute)
         norm_uint8_segment_fovs = image_normalization_uint8(
             np.array(segment_fovs), im_thresh=0)  # for gif and mp4
         norm_uint16_segment_fovs = image_normalization_uint16(
