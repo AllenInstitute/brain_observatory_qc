@@ -12,17 +12,20 @@ import unittest as test
 import uuid
 
 
-def validate_value_in_dict_keys(input_value, dictionary, dict_name):
-    assert input_value in dictionary, "Error: input value {} is not in {} keys.".format(input_value, dict_name)
+def validate_key_in_dict_keys(input_key, dictionary, dict_name: str):
+    assert input_key in dictionary, "Error; input key:{} is not in keys for dictionary:{}".format(input_key, dict_name)
 
+def validate_value_in_list(input_value, list, list_name):
+    assert input_value in list, "Error; input value:{} is not in list:{}".format(input_value, list_name) 
 
 def validate_not_none(input, input_name):
-    assert input is not None, "Error: {} is None.".format(input_name)
+    assert input is not None, "Error; {} is None.".format(input_name)
 
 
-def validate_string_not_empty(input_string, string_name):
+def validate_string_not_empty(input_string: str, string_name: str):
     assert bool(input_string) and bool(input_string.strip()), "Error: \
         {} is empty".format(string_name)
+
 
 
 ### DATA TYPES ###                                                         # noqa: E266
