@@ -278,7 +278,7 @@ def general_id_type_query(id_type: str, id_number: int):
         Returns a 1xN dataframe that contains all columns
         from the appropriate lims table.
     """
-    conditions.validate_value_in_dict_keys(id_type,
+    conditions.validate_key_in_dict_keys(id_type,
                                            ALL_ID_TYPES_DICT,
                                            "ALL_ID_TYPES_DICT")
     query = '''
@@ -318,7 +318,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     pd.DataFrame
         A table with all of the output IDS listed.
     """
-    conditions.validate_value_in_dict_keys(id_type,
+    conditions.validate_key_in_dict_keys(id_type,
                                            OPHYS_ID_TYPES_DICT,
                                            "OPHYS_ID_TYPES_DICT")
     validate_LIMS_id_type(id_type, id_number)
@@ -420,7 +420,7 @@ def get_mouse_ids_from_id(id_type: str, id_number: int) -> pd.DataFrame:
     pd.DataFrame
         a dataframe with columns for `donor_id`, `labtracks_id`, `specimen_id`
     """
-    conditions.validate_value_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
+    conditions.validate_key_in_dict_keys(id_type, MOUSE_IDS_DICT, "MOUSE_IDS_DICT")
     query = '''
     SELECT
     donors.id                  AS donor_id,
@@ -488,7 +488,7 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
             specimen_storage_directory
     """
 
-    conditions.validate_value_in_dict_keys(id_type,
+    conditions.validate_key_in_dict_keys(id_type,
                                            GEN_INFO_QUERY_DICT,
                                            "GEN_INFO_QUERY_DICT")
     validate_LIMS_id_type(id_type, id_number)
@@ -870,7 +870,7 @@ def validate_LIMS_id_type(desired_id_type: str, id_number: int):
     correct_id_type : string
         [description]
     """
-    conditions.validate_value_in_dict_keys(desired_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
+    conditions.validate_key_in_dict_keys(desired_id_type, ALL_ID_TYPES_DICT, "ID_TYPES_DICT")
     id_number_type = get_LIMS_id_type(id_number)
     assert id_number_type == desired_id_type, "Incorrect id type. Entered Id type is {},\
         correct id type is {}".format(id_number_type, desired_id_type)
