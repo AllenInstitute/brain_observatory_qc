@@ -1,4 +1,3 @@
-import mjd_dev.notebook_utils as nu
 import h5py
 import pandas as pd
 import numpy as np
@@ -23,29 +22,29 @@ OG_GIFS_FOLDER = "/allen/programs/braintv/workgroups/nc-ophys/Doug/matt/og_rigid
 RIGID_SEGMENT_DIR = '/data/learning/pipeline_validation/fov_tilt/tif'
 
 
-def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
+def get_acutance_df(nonrigid_fn_df: pd.DataFrame,
+                    og_rigid: bool = False) -> pd.DataFrame:
     """
     For each fn load the h5 file and compute the acutance for each frame, and put each value in dataframe
 
     """
-    eid = 1000000000 #CHANGE
-
-    df = segment_fn_df
 
     EXTRA_CROP_PX = 15
 
     acutance_df = pd.DataFrame()
     acutance_mean_df = pd.DataFrame()
 
-    for i in range(len(segment_fn_df)):
-        fn = segment_fn_df['fn'].iloc[i]
+    df = get_rigid_df(nonrigid_fn_df)
+
+    for i in range(len(nonrigid_fn_df)):
+        fn = nonrigid_fn_df['fn'].iloc[i]
         with h5py.File(fn, 'r') as hr:
             data = hr['data'][:]
 
-        oeid = segment_fn_df['oeid'].iloc[i]
+        oeid = nonrigid_fn_df['oeid'].iloc[i]
 
         # RIGID SEGMENT
-        rigid_fn = df[df['eid']==oeid]['tif_fn'].iloc[0]
+        rigid_fn = df[df['eid'] == oeid]['tif_fn'].iloc[0]
         rigid_tif = tifffile.imread(rigid_fn)
         rigid_mean = np.mean(rigid_tif, axis=0)
         print(rigid_mean.shape)
@@ -54,8 +53,6 @@ def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
         rigid_acutance = su.compute_acutance(rigid_mean)
 
         # load orginal data and calc mean
-
-        og_rigid = False
         if og_rigid:
             og_rigid_mean = iu.get_corrected_movie_projection(oeid)
             og_rigid_mean = iu.crop_oeid(og_rigid_mean, oeid)
@@ -65,7 +62,6 @@ def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
         else:
             og_rigid_acutance = np.nan
             og_rigid_mean = np.nan
-
 
         if 'raw' in fn:
             data = iu.crop_oeid(data, oeid)
@@ -78,12 +74,12 @@ def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
 
         # iterate through each frame and compute acutance
         for j in range(data.shape[0]):
-            acutance = su.compute_acutance(data[j,:,:])
+            acutance = su.compute_acutance(data[j, :, :])
             # rewrite with pd.concat
- 
+
             # append acutance to dataframe
-            acutance_df = acutance_df.append({'oeid': oeid, 'bs': segment_fn_df['bs'].iloc[i], 'mc': segment_fn_df['mc'].iloc[i],
-                                              'raw': segment_fn_df['raw'].iloc[i], 'acutance': acutance}, ignore_index=True)
+            acutance_df = acutance_df.append({'oeid': oeid, 'bs': nonrigid_fn_df['bs'].iloc[i], 'mc': nonrigid_fn_df['mc'].iloc[i],
+                                              'raw': nonrigid_fn_df['raw'].iloc[i], 'acutance': acutance}, ignore_index=True)
 
         # take mean of data
         nr_img = np.mean(data, axis=0)
@@ -92,8 +88,8 @@ def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
 
         # append mean acutance to dataframe
         # (really messy way to build this dfs, could iterate the rows in loop above)
-        acutance_mean_df = acutance_mean_df.append({'oeid': oeid, 'bs': segment_fn_df['bs'].iloc[i], 'mc': segment_fn_df['mc'].iloc[i],
-                                                    'raw': segment_fn_df['raw'].iloc[i], 'acutance': acutance, "img": nr_img,
+        acutance_mean_df = acutance_mean_df.append({'oeid': oeid, 'bs': nonrigid_fn_df['bs'].iloc[i], 'mc': nonrigid_fn_df['mc'].iloc[i],
+                                                    'raw': nonrigid_fn_df['raw'].iloc[i], 'acutance': acutance, "img": nr_img,
                                                     'rigid_img': rigid_mean, 'rigid_acutance': rigid_acutance,
                                                     'og_rigid_mean': og_rigid_mean, 'og_rigid_acutance': og_rigid_acutance}, ignore_index=True)
 
@@ -106,9 +102,27 @@ def get_acutance_df(segment_fn_df: pd.DataFrame) -> pd.DataFrame:
     return acutance_df, acutance_mean_df
 
 
-def nonrigid_segmented_files_to_df(path):
+def get_rigid_df(segment_fn_df):
 
-    
+    oeids = segment_fn_df.oeid.unique()
+
+    RIGID_SEGMENT_DIR = '/data/learning/pipeline_validation/fov_tilt/tif'
+
+    # get all tif files
+    tif_list = glob.glob(str(Path(RIGID_SEGMENT_DIR) / '*.tif'))
+    eid_list = [int(fn.split('/')[-1].split('_')[0]) for fn in tif_list]
+
+    # put into df
+    df = pd.DataFrame({'eid': eid_list, 'tif_fn': tif_list})
+
+    # get ids that match oeids
+    df = df[df['eid'].isin(oeids)]
+
+    return df
+
+
+def nonrigid_segmented_files_to_df(path):
+    """Get the filepaths for all the nonrigid segmented files in a directory"""
 
     # get all files with 'segment' in all subdirectories
     segment_fn_list = glob.glob(f'{path}**/*segment.h5', recursive=True)
@@ -116,19 +130,10 @@ def nonrigid_segmented_files_to_df(path):
     segment_fn_list
 
     # put filenames into a dataframe
-    segment_fn_df = pd.DataFrame(segment_fn_list, columns=['fn'])
-    segment_fn_df['oeid'] = segment_fn_df['fn'].apply(lambda x: int(x.split('/')[-2]))
-    segment_fn_df['bs'] = segment_fn_df['fn'].apply(lambda x: int(x.split('_bs')[-1].split('_')[0]))
-    segment_fn_df['mc'] = segment_fn_df['fn'].apply(lambda x: 'mc' in x)
-    segment_fn_df['raw'] = segment_fn_df['fn'].apply(lambda x: 'raw' in x)
+    nonrigid_fn_df = pd.DataFrame(segment_fn_list, columns=['fn'])
+    nonrigid_fn_df['oeid'] = nonrigid_fn_df['fn'].apply(lambda x: int(x.split('/')[-2]))
+    nonrigid_fn_df['bs'] = nonrigid_fn_df['fn'].apply(lambda x: int(x.split('_bs')[-1].split('_')[0]))
+    nonrigid_fn_df['mc'] = nonrigid_fn_df['fn'].apply(lambda x: 'mc' in x)
+    nonrigid_fn_df['raw'] = nonrigid_fn_df['fn'].apply(lambda x: 'raw' in x)
 
-
-    return segment_fn_df
-
-
-# RUN
-DEV_DIR = "/data/learning/pipeline_validation/nonrigid_registration/"
-#segment_fn_df = nonrigid_segmented_files_to_df(DEV_DIR)
-
-#acutance_df, acutance_mean_df = get_acutance_df(segment_fn_df)
-        
+    return nonrigid_fn_df
