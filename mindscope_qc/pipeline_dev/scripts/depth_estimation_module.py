@@ -18,8 +18,11 @@ from visual_behavior.data_access import from_lims
 from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
 
-global_base_dir = Path(
-    r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\', '/'))
+if os.name == 'nt':
+    global_base_dir = Path(
+        r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\', '/'))
+else:
+    global_base_dir = Path('/allen/programs/mindscope/workgroups/learning/ophys/zdrift')
 
 ###############################################################################
 # General tools
@@ -444,7 +447,7 @@ def get_local_zstack_path(ophys_experiment_id):
         / f'{ophys_experiment_id}_z_stack_local.h5'
     if not os.path.isfile(zstack_fp):
         zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
-            / f'{ophys_experiment_id}_zstack_local.h5'
+            / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
     if not os.path.isfile(zstack_fp):
         raise Exception(f'Error: zstack file path might be wrong ({zstack_fp})')
     return zstack_fp
@@ -663,7 +666,7 @@ def save_stack_to_video(stack, save_fn_path, frame_rate=5, vmin=None, vmax=None)
 #############################################
 
 
-def get_container_zdrift_df(ocid: int, ref_oeid: int = None, correct_image_size=(512, 512),
+def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.ndarray = None, correct_image_size=(512, 512),
                             num_planes_zstack=81, zstack_interval_in_micron=0.75, segment_minute: int = 10,
                             use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True,
                             save_dir: Path = None, save_df=True, rerun=False, save_exp=True, save_exp_dir: Path = None):
@@ -704,22 +707,31 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, correct_image_size=
     DataFrame
         DataFrame about the container-wise z-drift
     """
+    if oeid_to_run is None:
+        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+            ocid).ophys_experiment_id.values
+        oeid_to_run = np.asarray(
+            [oeid for oeid in oeid_all if check_correct_data(oeid)])
+    else:
+        oeid_to_run = np.asarray(oeid_to_run)  # In case if it is not an array
     if ref_oeid is None:
-        ref_oeid = find_first_experiment_id_from_ophys_container_id(ocid)
+        ref_oeid = min(oeid_to_run)  # Assume oeid is sorted.
     save_fn = f'{ocid}_zdrift_ref_{ref_oeid}.pkl'
     if save_dir is None:
         save_dir = global_base_dir
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
+    if save_exp_dir is None:
+        save_exp_dir = save_dir
     # retrieve dataframe from a file
+    run_flag = 0
     if os.path.isfile(save_dir / save_fn) and (not rerun):
         zdrift_df = pd.read_pickle(save_dir / save_fn)
-    else:
-        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
-            ocid).ophys_experiment_id.values
-        oeid_to_run = np.asarray(
-            [oeid for oeid in oeid_all if check_correct_data(oeid)])
-
+        if (np.sort(zdrift_df.ophys_experiment_id.values) == np.sort(oeid_to_run)).all():
+            run_flag = 1
+        # TODO: save to different versions with different set of oeid_to_run
+        # What's the use case?
+    if run_flag == 0:
         # Initialize columns
         matched_plane_indice = []
         zdrift = []
@@ -1264,13 +1276,13 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
         under_threshold_ind = np.where(colors < cc_threshold)[0]
         if len(under_threshold_ind) > 0:
             has_low_cc = 1
-            # h2 = ax.scatter(x[under_threshold_ind], depth[under_threshold_ind], s=20,
-            #                 c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
+            h2 = ax.scatter(x[under_threshold_ind], depth[under_threshold_ind], s=20,
+                            c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
     if has_low_cc == 0:
         ylim = ax.get_ybound()
         xlim = ax.get_xbound()
-        # h2 = ax.scatter(xlim[0] - 1, ylim[0] - 1, c=0,
-        #                 cmap='Reds_r', vmin=0, vmax=cc_threshold)
+        h2 = ax.scatter(xlim[0] - 1, ylim[0] - 1, c=0,
+                        cmap='Reds_r', vmin=0, vmax=cc_threshold)
         ax.set_ylim(ylim)
         ax.set_xlim(xlim)
     cax1 = fig.add_axes([ax.get_position().x1 + 0.01,
@@ -1278,11 +1290,11 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
                         0.02,
                         ax.get_position().height * (1 - cc_threshold)])
     bar1 = plt.colorbar(h1, cax=cax1)
-    # cax2 = fig.add_axes([ax.get_position().x1 + 0.01,
-    #                     ax.get_position().y0,
-    #                     0.02,
-    #                     ax.get_position().height * cc_threshold])
-    # bar2 = plt.colorbar(h2, cax=cax2)
+    cax2 = fig.add_axes([ax.get_position().x1 + 0.01,
+                        ax.get_position().y0,
+                        0.02,
+                        ax.get_position().height * cc_threshold])
+    bar2 = plt.colorbar(h2, cax=cax2)
     bar1.set_label('Correlation coefficient')
 
     ax.set_xlabel('Session #')
