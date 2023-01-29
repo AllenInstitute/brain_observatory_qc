@@ -1294,7 +1294,7 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
                         ax.get_position().y0,
                         0.02,
                         ax.get_position().height * cc_threshold])
-    bar2 = plt.colorbar(h2, cax=cax2)
+    plt.colorbar(h2, cax=cax2)
     bar1.set_label('Correlation coefficient')
 
     ax.set_xlabel('Session #')
