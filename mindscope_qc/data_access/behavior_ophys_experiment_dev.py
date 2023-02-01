@@ -50,12 +50,17 @@ class BehaviorOphysExperimentDev:
         """Get new dff traces from pipeline_dev folder"""
 
         # TODO: not hardcoded
-        pipeline_dev_path = Path("/allen/programs/mindscope/workgroups"
-                                 "/learning/pipeline_validation/dff")
+        pipeline_dev_paths = [Path("//allen/programs/mindscope/workgroups"
+                                   "/learning/pipeline_validation/dff"),
+                              Path("//allen/programs/braintv/workgroups"
+                                   "/nc-ophys/visual_behavior"
+                                   "/Jinho/data/GH_data/dff")]
 
         # check if file exits, matching pattern "ophys_experiment_id_dff_*.h5"
         dff_fn = f"{self.ophys_experiment_id}_new_dff.h5"
-        dff_file = list(pipeline_dev_path.glob(dff_fn))
+        dff_file = []
+        for path in pipeline_dev_paths:
+            dff_file += list(path.glob(dff_fn))
         if len(dff_file) == 0:
             raise FileNotFoundError((f"No dff file for ophys_experiment_id"
                                      f"{self.ophys_experiment_id}"))
