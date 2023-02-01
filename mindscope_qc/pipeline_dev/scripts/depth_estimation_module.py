@@ -28,6 +28,31 @@ else:
 # General tools
 ###############################################################################
 
+def calculate_valid_pix(img1, img2, valid_pix_threshold=1e-3):
+    """Calculate valid pixels for registration between two images
+    Parameters
+    ----------
+    img1 : np.ndarray (2D)
+        Image 1
+    img2 : np.ndarray (2D)
+        Image 2
+    valid_pix_threshold : float, optional
+        threshold for valid pixels, by default 1e-3
+
+    Returns
+    -------
+    list
+        valid y range
+    list
+        valid x range
+    """
+    y1, x1 = np.where(img1 > valid_pix_threshold)
+    y2, x2 = np.where(img2 > valid_pix_threshold)
+    # unravel the indices
+    valid_y = [max(min(y1), min(y2)), min(max(y1), max(y2))]
+    valid_x = [max(min(x1), min(x2)), min(max(x1), max(x2))]
+    return valid_y, valid_x
+
 
 def image_normalization_uint8(image, im_thresh=0):
     """Normalize 2D image and convert to uint8
@@ -538,8 +563,8 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     np.ndarray (3D)
         within and between plane registered z-stack
     """
+    equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
     if number_of_z_planes is None:
-        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     local_zstack_path = get_local_zstack_path(ophys_experiment_id)
     h = h5py.File(local_zstack_path, 'r')
@@ -553,6 +578,8 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
             plane_ind, total_num_frames, number_of_z_planes), ...]
         single_plane = average_reg_plane(single_plane_images)
         mean_local_zstack_reg.append(single_plane)
+    if 'CAM2P' in equipment_name:
+        mean_local_zstack_reg = mean_local_zstack_reg[5:]
     zstack_reg = reg_between_planes(np.array(mean_local_zstack_reg))
     return zstack_reg
 
@@ -580,7 +607,7 @@ def average_reg_plane(images):
     return np.mean(reg, axis=0)
 
 
-def reg_between_planes(stack_imgs):
+def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapthisteq=True):
     """Register between planes. Each plane with single 2D image
     Use phase correlation.
     Use median filtered images to calculate shift between neighboring planes.
@@ -590,6 +617,12 @@ def reg_between_planes(stack_imgs):
     ----------
     stack_imgs : np.ndarray (3D)
         images of a stack. Typically z-stack with each plane registered and averaged.
+    top_ring_buffer : int, optional
+        number of top lines to skip due to ringing noise, by default 10
+    window_size : int, optional
+        window size for rolling, by default 4
+    use_adapthisteq : bool, optional
+        whether to use adaptive histogram equalization, by default True
 
     Returns
     -------
@@ -599,14 +632,28 @@ def reg_between_planes(stack_imgs):
     num_planes = stack_imgs.shape[0]
     reg_stack_imgs = np.zeros_like(stack_imgs)
     reg_stack_imgs[0, :, :] = stack_imgs[0, :, :]
-    medfilt_stack_imgs = med_filt_z_stack(stack_imgs)
-    reg_medfilt_imgs = np.zeros_like(stack_imgs)
-    reg_medfilt_imgs[0, :, :] = medfilt_stack_imgs[0, :, :]
+    ref_stack_imgs = med_filt_z_stack(stack_imgs)
+    if use_adapthisteq:
+        for i in range(num_planes):
+            plane_img = ref_stack_imgs[i, :, :]
+            ref_stack_imgs[i, :, :] = image_normalization_uint16(skimage.exposure.equalize_adapthist(
+                plane_img.astype(np.uint16)))  # normalization to make it uint16
+
+    temp_stack_imgs = np.zeros_like(stack_imgs)
+    temp_stack_imgs[0, :, :] = ref_stack_imgs[0, :, :]
     for i in range(1, num_planes):
+        # Calculation valid pixels
+        temp_ref = np.mean(temp_stack_imgs[max(0, i - window_size): i, :, :], axis=0)
+        temp_mov = ref_stack_imgs[i, :, :]
+        valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
+
+        temp_ref = temp_ref[valid_y[0] + top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+        temp_mov = temp_mov[valid_y[0] + top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+
         shift, _, _ = skimage.registration.phase_cross_correlation(
-            reg_medfilt_imgs[i - 1, :, :], medfilt_stack_imgs[i, :, :], normalization=None)
-        reg_medfilt_imgs[i, :, :] = scipy.ndimage.shift(
-            medfilt_stack_imgs[i, :, :], shift)
+            temp_ref, temp_mov, normalization=None, upsample_factor=10)
+        temp_stack_imgs[i, :, :] = scipy.ndimage.shift(
+            ref_stack_imgs[i, :, :], shift)
         reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
             stack_imgs[i, :, :], shift)
     return reg_stack_imgs
