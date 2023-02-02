@@ -17,7 +17,7 @@ def validate_key_in_dict_keys(input_key, dictionary, dict_name: str):
 
 
 def validate_value_in_list(input_value, list, list_name):
-    assert input_value in list, "Error; input value:{} is not in list:{}".format(input_value, list_name) 
+    assert input_value in list, "Error; input value:{} is not in list:{}".format(input_value, list_name)
 
 
 def validate_not_none(input, input_name):
