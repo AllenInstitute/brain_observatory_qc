@@ -1,7 +1,3 @@
-import numpy as np
-import pandas as pd
-import warnings
-
 import mindscope_qc.utilities.pre_post_conditions as conditions
 
 #####################################################################
@@ -91,13 +87,6 @@ OPHYS_BEHAV_TYPE_DICT = {
 #
 ############################
 
-def split_session_type_elements(session_type: str) ->tuple:
-    element_0: session_type.split('_')[0]
-    element_1: session_type.split('_')[1]
-    element_2: session_type.split('_')[2]
-    element_3: session_type.split('_')[3]
-    return element_0, element_1, element_2, element_3
-
 
 def parse_session_category(session_type: str) ->str:
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
@@ -175,7 +164,6 @@ def parse_session_sub_category(session_type: str) ->str:
         subcat = "gratings"
     elif "images" in session_type: 
         subcat = "images"
-
     return subcat
 
 
@@ -214,7 +202,7 @@ def parse_session_category(session_type: str) -> str:
     """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
     primary_category = parse_session_primary_category(session_type)
-    subcategory = parse_session_subcategory(session_type)
+    subcategory = parse_session_sub_category(session_type)
     full_category = primary_category + "_" + subcategory
     return full_category
 
