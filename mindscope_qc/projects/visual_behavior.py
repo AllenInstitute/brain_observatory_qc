@@ -156,7 +156,7 @@ def parse_behavior_context(session_type: str) ->str:
     return behavior_type
 
 
-def parse_session_subcategory(session_type: str) ->str:
+def parse_session_sub_category(session_type: str) ->str:
     """_summary_
 
     Parameters
@@ -170,13 +170,13 @@ def parse_session_subcategory(session_type: str) ->str:
         _description_
     """
     if "habituation" in session_type:
-        subtype = "habituation"
+        subcat = "habituation"
     elif "gratings" in session_type: 
-        subtype = "gratings"
+        subcat = "gratings"
     elif "images" in session_type: 
-        subtype = "images"
+        subcat = "images"
 
-    return subtype
+    return subcat
 
 
 def parse_session_primary_category(session_type: str) ->str:
@@ -244,7 +244,7 @@ def parse_stimulus_set(session_type: str) ->str:
 
 def parse_stimulus_set_novelty(session_type: str) ->str:
     familiar_ophys_sessions = ["0", "1", "2", "3"]
-    
+
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
 
     if "TRAINING" in session_type:
