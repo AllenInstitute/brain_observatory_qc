@@ -66,8 +66,8 @@ NUM_STRUCTURES_DICT = {
 NUM_DEPTHS_DICT = {
     'VisualBehavior': 1,
     'VisualBehaviorTask1B': 1,
-    'VisualBehaviorMultiscope':4,
-    'VisualBehaviorMultiscope4areasx2d':2}
+    'VisualBehaviorMultiscope': 4,
+    'VisualBehaviorMultiscope4areasx2d': 2}
 
 OPHYS_BEHAV_TYPE_DICT = {
     'active_behavior': ["0", "1", "3", "4", "6"],
@@ -88,20 +88,20 @@ OPHYS_BEHAV_TYPE_DICT = {
 ############################
 
 
-def parse_session_category(session_type: str) ->str:
+def parse_session_category(session_type: str) -> str:
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
 
     if "OPHYS" in session_type:
         if "0" in session_type:
             session_category = "ophys_habituation"
-        else: 
+        else:
             session_category = "ophys_data_collection"
     elif "TRAINING" in session_type:
         session_category = "task_training"
     return session_category
 
 
-def parse_stimulus_type(session_type: str) ->str:
+def parse_stimulus_type(session_type: str) -> str:
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
     if "images" in session_type:
         stimulus_type = "natural_images"
@@ -121,7 +121,7 @@ def parse_stimulus_presentation_type(session_type: str) -> str:
     return stimulus_presentation_type
 
 
-def parse_behavior_context(session_type: str) ->str:
+def parse_behavior_context(session_type: str) -> str:
     """_summary_
 
     Parameters
@@ -145,7 +145,7 @@ def parse_behavior_context(session_type: str) ->str:
     return behavior_type
 
 
-def parse_session_sub_category(session_type: str) ->str:
+def parse_session_sub_category(session_type: str) -> str:
     """_summary_
 
     Parameters
@@ -160,14 +160,14 @@ def parse_session_sub_category(session_type: str) ->str:
     """
     if "habituation" in session_type:
         subcat = "habituation"
-    elif "gratings" in session_type: 
+    elif "gratings" in session_type:
         subcat = "gratings"
-    elif "images" in session_type: 
+    elif "images" in session_type:
         subcat = "images"
     return subcat
 
 
-def parse_session_primary_category(session_type: str) ->str:
+def parse_session_primary_category(session_type: str) -> str:
     """_summary_
 
     Parameters
@@ -207,7 +207,7 @@ def parse_session_category(session_type: str) -> str:
     return full_category
 
 
-def parse_stimulus_set(session_type: str) ->str:
+def parse_stimulus_set(session_type: str) -> str:
     """_summary_
 
     Parameters
@@ -221,7 +221,7 @@ def parse_stimulus_set(session_type: str) ->str:
         _description_
     """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
-    
+
     split_str = session_type.split('_')
     if split_str[2] == 'images':
         stim_set = split_str[2] + "_" + split_str[3]
@@ -240,7 +240,7 @@ def parse_stimulus_set_novelty(session_type: str) ->str:
     elif "7" in session_type:
         stimulus_set_novelty = "NA"
     else:
-        is_familiar = any(familiar_num in session_type for familiar_num in familiar_ophys_sessions) 
+        is_familiar = any(familiar_num in session_type for familiar_num in familiar_ophys_sessions)
         if is_familiar:
             stimulus_set_novelty = "familiar"
         else:
@@ -248,7 +248,7 @@ def parse_stimulus_set_novelty(session_type: str) ->str:
     return stimulus_set_novelty
 
 
-def parse_task_type(session_type: str) ->str:
+def parse_task_type(session_type: str) -> str:
     pass
 
 
@@ -258,7 +258,7 @@ def parse_task_type(session_type: str) ->str:
 #
 ############################
 
-def parse_num_cortical_structures(project_code: str) ->int:
+def parse_num_cortical_structures(project_code: str) -> int:
     """_summary_
 
     Parameters
@@ -275,8 +275,8 @@ def parse_num_cortical_structures(project_code: str) ->int:
     num_structures = NUM_STRUCTURES_DICT[project_code]
     return num_structures
 
-   
-def parse_num_depths(project_code: str) ->int:
+
+def parse_num_depths(project_code: str) -> int:
     """_summary_
 
     Parameters
