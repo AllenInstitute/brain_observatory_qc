@@ -279,8 +279,8 @@ def general_id_type_query(id_type: str, id_number: int):
         from the appropriate lims table.
     """
     conditions.validate_key_in_dict_keys(id_type,
-                                           ALL_ID_TYPES_DICT,
-                                           "ALL_ID_TYPES_DICT")
+                                         ALL_ID_TYPES_DICT,
+                                         "ALL_ID_TYPES_DICT")
     query = '''
     SELECT *
     FROM {}
@@ -319,8 +319,8 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
         A table with all of the output IDS listed.
     """
     conditions.validate_key_in_dict_keys(id_type,
-                                           OPHYS_ID_TYPES_DICT,
-                                           "OPHYS_ID_TYPES_DICT")
+                                         OPHYS_ID_TYPES_DICT,
+                                         "OPHYS_ID_TYPES_DICT")
     validate_LIMS_id_type(id_type, id_number)
 
     query = '''
@@ -489,8 +489,8 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     """
 
     conditions.validate_key_in_dict_keys(id_type,
-                                           GEN_INFO_QUERY_DICT,
-                                           "GEN_INFO_QUERY_DICT")
+                                         GEN_INFO_QUERY_DICT,
+                                         "GEN_INFO_QUERY_DICT")
     validate_LIMS_id_type(id_type, id_number)
     query = '''
     SELECT

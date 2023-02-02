@@ -88,17 +88,17 @@ OPHYS_BEHAV_TYPE_DICT = {
 ############################
 
 
-def parse_session_category(session_type: str) -> str:
+def parse_session_stage(session_type: str) -> str:
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
 
     if "OPHYS" in session_type:
         if "0" in session_type:
-            session_category = "ophys_habituation"
+            session_stage = "ophys_habituation"
         else:
-            session_category = "ophys_data_collection"
+            session_stage = "ophys_data_collection"
     elif "TRAINING" in session_type:
-        session_category = "task_training"
-    return session_category
+        session_stage = "task_training"
+    return session_stage
 
 
 def parse_stimulus_type(session_type: str) -> str:
@@ -230,7 +230,7 @@ def parse_stimulus_set(session_type: str) -> str:
     return stim_set
 
 
-def parse_stimulus_set_novelty(session_type: str) ->str:
+def parse_stimulus_set_novelty(session_type: str) -> str:
     familiar_ophys_sessions = ["0", "1", "2", "3"]
 
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
@@ -292,4 +292,3 @@ def parse_num_depths(project_code: str) -> int:
     conditions.validate_value_in_list(project_code, PROJECT_CODES, "PROJECT_CODES")
     num_depths = NUM_DEPTHS_DICT[project_code]
     return num_depths
-
