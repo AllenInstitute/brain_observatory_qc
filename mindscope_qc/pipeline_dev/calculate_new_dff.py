@@ -36,7 +36,7 @@ def robust_std(x: np.ndarray) -> float:
     return 1.4826 * mad
 
 
-def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
+def noise_std(x: np.ndarray, filter_length: int) -> float:
     """Compute a robust estimation of the standard deviation of the
     noise in a signal `x`. The noise is left after subtracting
     a rolling median filter value from the signal. Outliers are removed
@@ -46,10 +46,11 @@ def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
     ----------
     x: np.ndarray
         1d array of signal (perhaps with noise)
-    filter_length: int (default=31)
+    filter_length: int
         Length of the median filter to compute a rolling baseline,
         which is subtracted from the signal `x`.
         Must be an odd number? TODO: check if this is necessary.
+        Must be calculated based on the frame rate of each experiment.
 
     Returns
     -------
@@ -78,7 +79,8 @@ def nanmedian_filter(x, filter_length):
     Parameters
     ----------
     x: 1D trace to be filtered
-    filter_length: length of the filter
+    filter_length: length of the filter (in frames)
+        Must be calculated based on the frame rate of each experiment.
 
     Return
     ------
@@ -123,6 +125,7 @@ def get_correct_frame_rate(ophys_experiment_id):
 
     Returns:
         float: frame rate
+        pd.DataFrame: timestamps
     """
     # TODO: change from_lims_utilities from vba to that in mindscope_qc.
     # mindscope_qc currently does not seem to have tools for getting timestamps.
@@ -246,10 +249,10 @@ def get_fixed_r_values(ophys_experiment_id, crid_values, num_normal_r_thresh, r_
         else:
             r_out_of_range.append(False)
             num_normal_r += 1
-    r_out_of_range = np.array(r_out_of_range)
+    r_out_of_range = np.array(r_out_of_range).astype(int)
     if num_normal_r < len(crid_values):  # In case there was r out of range
         if num_normal_r > num_normal_r_thresh:
-            r_replace = np.mean([r_list[i] for i in np.where(r_out_of_range == False)[0]])
+            r_replace = np.mean([r_list[i] for i in np.where(r_out_of_range == 0)[0]])
         for i in np.where(r_out_of_range)[0]:
             r_list[i] = r_replace
     return r_list, r_out_of_range
