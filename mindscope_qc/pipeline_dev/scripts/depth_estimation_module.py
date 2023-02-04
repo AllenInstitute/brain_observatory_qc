@@ -754,13 +754,18 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.nda
     DataFrame
         DataFrame about the container-wise z-drift
     """
-    if oeid_to_run is None:
-        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+    oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
             ocid).ophys_experiment_id.values
+    if oeid_to_run is None:
         oeid_to_run = np.asarray(
             [oeid for oeid in oeid_all if check_correct_data(oeid)])
     else:
-        oeid_to_run = np.asarray(oeid_to_run)  # In case if it is not an array
+        oeid_to_run = np.asarray(oeid_to_run)
+        # Check if oeid_to_run is in the oeid_all
+        if not np.all(np.isin(oeid_to_run, oeid_all)):
+            raise ValueError(
+                'oeid_to_run is not in the oeid_all for this container.')
+    
     if ref_oeid is None:
         ref_oeid = min(oeid_to_run)  # Assume oeid is sorted.
     save_fn = f'{ocid}_zdrift_ref_{ref_oeid}.pkl'
@@ -902,6 +907,7 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
             mpi_mean_fov = h['matched_plane_index_mean_fov'][0]
             cc_mean_fov = h['corrcoef_index_mean_fov'][:]
             regimg_mean_fov = h['mean_fov_registered'][:]
+            ref_oeid = h['ref_oeid'][()]
             ref_zstack_crop = h['ref_zstack_crop'][:]
             rigid_tmat = h['rigid_tmat'][:]
             translation_shift = h['translation_shift'][:]
@@ -915,7 +921,7 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     else:
         # Get reference z-stack and crop
         ref_zstack = get_registered_zstack(ref_oeid, ref_dir)
-        ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
+        ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]        
 
         # Get mean FOV and crop
         mean_img = np.asarray(Image.open(
@@ -971,6 +977,7 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
                                  shape=(1,), data=mpi_mean_fov)
                 h.create_dataset('corrcoef_index_mean_fov', data=cc_mean_fov)
                 h.create_dataset('mean_fov_registered', data=regimg_mean_fov)
+                h.create_dataset('ref_oeid', data=ref_oeid)
                 h.create_dataset('ref_zstack_crop', data=ref_zstack_crop)
                 h.create_dataset('rigid_tmat', data=rigid_tmat)
                 h.create_dataset('translation_shift', data=translation_shift)
@@ -981,8 +988,8 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
                                  shape=(1,), data=use_valid_pix_sr)
 
     return matched_plane_indice, corrcoef, segment_reg_imgs, \
-        mpi_mean_fov, cc_mean_fov, regimg_mean_fov, ref_zstack_crop, \
-        rigid_tmat, translation_shift, ops
+        mpi_mean_fov, cc_mean_fov, regimg_mean_fov, \
+        ref_oeid, ref_zstack_crop, rigid_tmat, translation_shift, ops
 
 
 def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array,
