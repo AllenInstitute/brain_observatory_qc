@@ -5,6 +5,11 @@ import pandas as pd
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
     BehaviorOphysExperiment
 
+from mindscope_qc.pipeline_dev import calculate_new_dff
+
+DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
+GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+
 
 class BehaviorOphysExperimentDev:
     """Wrapper class for BehaviorOphysExperiment that adds custom
@@ -50,11 +55,7 @@ class BehaviorOphysExperimentDev:
         """Get new dff traces from pipeline_dev folder"""
 
         # TODO: not hardcoded
-        pipeline_dev_paths = [Path("//allen/programs/mindscope/workgroups"
-                                   "/learning/pipeline_validation/dff"),
-                              Path("//allen/programs/braintv/workgroups"
-                                   "/nc-ophys/visual_behavior"
-                                   "/Jinho/data/GH_data/dff")]
+        pipeline_dev_paths = [DFF_PATH, GH_DFF_PATH]
 
         # check if file exits, matching pattern "ophys_experiment_id_dff_*.h5"
         dff_fn = f"{self.ophys_experiment_id}_new_dff.h5"
@@ -62,8 +63,12 @@ class BehaviorOphysExperimentDev:
         for path in pipeline_dev_paths:
             dff_file += list(path.glob(dff_fn))
         if len(dff_file) == 0:
-            raise FileNotFoundError((f"No dff file for ophys_experiment_id"
-                                     f"{self.ophys_experiment_id}"))
+            # warn and create new dff
+            print(f"No dff file for ophys_experiment_id: "
+                  f"{self.ophys_experiment_id}, creating new one")
+
+            dff_file = self._create_new_dff()
+
         elif len(dff_file) > 1:
             raise FileNotFoundError((f">1 dff files for ophys_experiment_id"
                                      f"{self.ophys_experiment_id}"))
@@ -96,8 +101,21 @@ class BehaviorOphysExperimentDev:
         metadata["ophys_frame_rate"] = 1 / dt
         return metadata
 
-    # delegate all else to the "inherited" BehaviorOphysExperiment object
-    # need attribute error to pickle/multiprocessing
+    def _create_new_dff(self):
+        """Create new dff traces"""
+
+        # get new dff DataFrame
+        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id)
+
+        # Save as h5 file, because of the timestamps
+        dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+
+        print(f"Created new_dff file at: {dff_file}")
+
+        return dff_file
+
+    # Delegate all else to the "inherited" BehaviorOphysExperiment object
+    # Need attribute error to pickle/multiprocessing
     # see: https://stackoverflow.com/a/49380669
     def __getattr__(self, attr):
         if 'inner' not in vars(self):
