@@ -857,7 +857,7 @@ def validate_microscope_type(correct_microscope_type: str, ophys_session_id: int
         {} provided but {} necessary.".format(session_microscope_type, correct_microscope_type)
 
 
-def validate_LIMS_id_type(id_number: int, desired_id_type: str):
+def validate_LIMS_id_type(desired_id_type: str, id_number: int):
     """takes an input id, looks up what type of id it is and then validates
        whether it is the same as the desired/correct id type
 
