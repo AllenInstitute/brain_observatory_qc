@@ -1,8 +1,13 @@
 
-import argparse, time, os
+import argparse
+import time
+import os
 from pathlib import Path
 import calculate_new_dff
-parser = argparse.ArgumentParser(description='dff calculation process across experiments')
+
+
+parser = argparse.ArgumentParser(
+    description='dff calculation process across experiments')
 parser.add_argument(
     'ophys_experiment_id',
     type=int,
