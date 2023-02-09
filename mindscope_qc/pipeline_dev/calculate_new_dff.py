@@ -337,6 +337,8 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
         hf.create_dataset('np_corrected', data=np_corrected_array)
         hf.create_dataset('timestamps', data=timestamps)
 
+    return save_fn
+
 
 def draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid):
     for _, row in new_dff_df.iterrows():
