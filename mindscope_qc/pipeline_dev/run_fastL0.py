@@ -101,9 +101,11 @@ def generate_fastl0_events_for_trace_types(oeids: list = None,
     # where JK saved new_dff h5s
     h5s = get_h5s_from_pipe_dev(input_path_root)
 
+    print(h5s)
+
     # keep only oeid h5s
     if oeids is not None:
-        h5s = [h5 for h5 in h5s if Path(h5).name.split("_")[0] in oeids]
+        h5s = [h5 for h5 in h5s if int(Path(h5).name.split("_")[0]) in oeids]
 
     # if no h5s, error out
     if len(h5s) == 0:
@@ -148,7 +150,7 @@ def generate_fastl0_events_for_trace_types(oeids: list = None,
                 try:
                     opath = output_path_root / f"{expt_id}_trace={k}_tau={tau}.h5"
                     if opath.exists():
-                        print(f"skipping {opath}")
+                        print(f"FILE EXISTS SKIPPING: {opath}")
                         continue
 
                     run_fastl0_wrapper(frame_rate, tau, tmp_path, str(opath), trace_dict["cell_roi_id"], nworkers)
