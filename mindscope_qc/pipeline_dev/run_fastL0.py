@@ -44,7 +44,8 @@ def run_fastl0_wrapper(rate, tau, fpath, opath, rois, nworkers):
     ed.run()
 
 
-def generate_fastl0_events_for_trace_types(trace_keys: list = ['new_dff'],
+def generate_fastl0_events_for_trace_types(oeids: list = None,
+                                           trace_keys: list = ['new_dff'],
                                            taus: list = [.715],
                                            output_path_root: str = LZERO_OUTPUT_PATH,
                                            input_path_root: str = NEW_DFF_PATH,
@@ -57,6 +58,8 @@ def generate_fastl0_events_for_trace_types(trace_keys: list = ['new_dff'],
 
     Parameters
     ----------
+    oeids : list, optional
+        The default is None, will run all oeids in NEW_DFF_PATH.
     trace_keys : list, optional
         DESCRIPTION. The default is ['new_dff']. Options are ['new_dff', 'old_dff', 'np_corrected'],
         which are keys in the h5s from jinhos new_dff module.
@@ -81,6 +84,12 @@ def generate_fastl0_events_for_trace_types(trace_keys: list = ['new_dff'],
     # keep track of experiments with nans, cause they error out
     nan_expt_ids = []
 
+    # check trace_keys valid
+    valid_keys = ['new_dff', 'old_dff', 'np_corrected']
+    for key in trace_keys:
+        if key not in valid_keys:
+            raise ValueError(f"Invalid trace key: {key}")
+
     if log:
         logger = logging.getLogger('generate_fastl0_events_for_trace_types')
         logger.setLevel(logging.DEBUG)
@@ -91,6 +100,14 @@ def generate_fastl0_events_for_trace_types(trace_keys: list = ['new_dff'],
 
     # where JK saved new_dff h5s
     h5s = get_h5s_from_pipe_dev(input_path_root)
+
+    # keep only oeid h5s
+    if oeids is not None:
+        h5s = [h5 for h5 in h5s if Path(h5).name.split("_")[0] in oeids]
+
+    # if no h5s, error out
+    if len(h5s) == 0:
+        raise ValueError("No h5s found")
 
     # load H5s, run FastL0 on each trace type
     for i, h5 in tqdm(enumerate(h5s)):
