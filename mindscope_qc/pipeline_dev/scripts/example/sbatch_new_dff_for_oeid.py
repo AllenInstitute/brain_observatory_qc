@@ -61,8 +61,9 @@ if __name__ == '__main__':
     if dry_run:
         print('dry run, exiting')
         exit()
+    
     # select 10 ids to run
-    #ophys_experiment_ids = ophys_experiment_ids[:10]
+    # ophys_experiment_ids = ophys_experiment_ids[:10]
 
     for oeid in ophys_experiment_ids:
         job_count += 1
@@ -90,7 +91,3 @@ if __name__ == '__main__':
                      python_file,
                      args_string,))
         time.sleep(0.01)
-
-
-# bash list and sort by date ascending
-
