@@ -37,24 +37,24 @@ def get_ssim(img0, img1):
     return ssim_pair
 
 
-# def get_lims_data(lims_id):
-#     ld = LimsDatabase(int(lims_id))
-#     lims_data = ld.get_qc_param()
-#     lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
-#     lims_data.insert(loc=2, column='session_type',
-#                      value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
-#     lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
-#     return lims_data
+def get_lims_data(lims_id):
+    ld = LimsDatabase(int(lims_id))
+    lims_data = ld.get_qc_param()
+    lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
+    lims_data.insert(loc=2, column='session_type',
+                     value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
+    lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
+    return lims_data
 
 
-# def get_timestamps(lims_data):
-#     if '2P6' in lims_data.rig.values[0]:
-#         use_acq_trigger = True
-#     else:
-#         use_acq_trigger = False
-#     sync_data = get_sync_data(lims_data, use_acq_trigger)
-#     timestamps = pd.DataFrame(sync_data)
-#     return timestamps
+def get_timestamps(lims_data):
+    if '2P6' in lims_data.rig.values[0]:
+        use_acq_trigger = True
+    else:
+        use_acq_trigger = False
+    sync_data = get_sync_data(lims_data, use_acq_trigger)
+    timestamps = pd.DataFrame(sync_data)
+    return timestamps
 
 
 def get_sync_path(lims_data):

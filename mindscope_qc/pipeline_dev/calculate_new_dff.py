@@ -5,8 +5,8 @@ from matplotlib import pyplot as plt
 from scipy.ndimage import percentile_filter
 import os
 
-from visual_behavior.data_access import from_lims, from_lims_utilities
-# from mindscope_qc.data_access import from_lims, from_lims_utilities
+# from visual_behavior.data_access import from_lims, from_lims_utilities
+from mindscope_qc.data_access import from_lims, from_lims_utilities
 # TODO: remove dependency from vba by using mindscope_qc.data_access
 # Need to implement some functions to do so
 
