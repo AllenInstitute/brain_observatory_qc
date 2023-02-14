@@ -47,7 +47,7 @@ def run_s2p_with_params(oeid, scratch_path, params):
     # load the h5 file and crop, save to srcatch space
     
     with h5py.File(h5_file, 'r') as f:
-        frames = f['data']
+        frames = f['data'][:]
     y_range, x_range = get_motion_correction_crop_xy_range(oeid)
     print(f"CROP RIGID: Saving cropped h5 file to scratch space, borders: y={y_range}, x={x_range}")
     cropped_h5_file = str(scratch_path / f"{oeid}_cropped.h5")

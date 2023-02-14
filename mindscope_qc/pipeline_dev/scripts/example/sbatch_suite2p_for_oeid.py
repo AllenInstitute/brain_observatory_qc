@@ -16,6 +16,8 @@ parser.add_argument('--test_run', action='store_true', default=False, help='test
 NONRIGID_OUTPUT_PATH = Path('//allen/programs/mindscope/workgroups/learning/pipeline_validation/nonrigid_registration_parameter_search')
 
 
+# 48.3 k frames, NR128, c32, 2300 secs 
+
 if __name__ == '__main__':
     args = parser.parse_args()
     python_executable = "{}/bin/python".format(args.env_path)
@@ -47,7 +49,7 @@ if __name__ == '__main__':
     # ophys_experiment_ids = [oeid for oeid in ophys_experiment_ids if oeid not in processed_ids]
 
     ophys_experiment_ids = [1227116668]  # unstable JK manual
-    ophys_experiment_ids = [1171605650]  # jk stable
+    # ophys_experiment_ids = [1171605650]  # jk stable
     oeid = ophys_experiment_ids[0]
     print(oeid)
 
@@ -84,13 +86,13 @@ if __name__ == '__main__':
         
         bs, mnrs, sts = param
         job_title = f'oeid_{oeid}_param_bs_{bs}_mnrs_{mnrs}_sts_{sts}'
-        walltime = '1:00:00'
-        mem = '55G'
+        walltime = '1:30:00'
+        mem = '100G'
         tmp = '75G',
         job_id = Slurm.JOB_ARRAY_ID
         job_array_id = Slurm.JOB_ARRAY_MASTER_ID
         output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
-        cpus_per_task = 16
+        cpus_per_task = 32
         print(output)
 
         # instantiate a SLURM object
