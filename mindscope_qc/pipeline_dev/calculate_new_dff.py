@@ -135,7 +135,7 @@ def get_correct_frame_rate(ophys_experiment_id):
     return frame_rate, timestamps
 
 
-def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10):
+def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, use_valid_rois=True):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -170,7 +170,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     short_filter_length = int(round(frame_rate * 60 * 10))  # 10 min
 
     # Get neuropil-corrected traces as DataFrame
-    np_corrected_df = get_np_corrected_df(ophys_experiment_id)
+    np_corrected_df = get_np_corrected_df(ophys_experiment_id, use_valid_rois=use_valid_rois)
     # Calculate dff using the new method (using "inactive frames" to calculate baseline;
     # "inactive frames" defined by those with signals less than 10th percentile + 3 x noise_sd)
     new_dff_all = []
@@ -258,7 +258,7 @@ def get_fixed_r_values(ophys_experiment_id, crid_values, num_normal_r_thresh, r_
     return r_list, r_out_of_range
 
 
-def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7):
+def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7, use_valid_rois = True):
     """ Get neuropil-corrected traces DataFrame
     Fix r value problem (when r > 1, replace r with the mean of other r values < 1.
     If there are less than "num_normal_r_thresh" of those other r values, than replace with 0.7)
@@ -280,7 +280,8 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     """
     # Get valid cell ROI ID and cell specimen ID
     cell_rois_table = from_lims.get_cell_rois_table(ophys_experiment_id)
-    cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
+    if use_valid_rois:
+        cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
     csid_values = cell_rois_table.cell_specimen_id.values
     if csid_values[0] is None:
         csid_values = [0] * len(csid_values)

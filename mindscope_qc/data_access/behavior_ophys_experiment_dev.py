@@ -105,7 +105,7 @@ class BehaviorOphysExperimentDev:
         """Create new dff traces"""
 
         # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id)
+        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois = False)
 
         # Save as h5 file, because of the timestamps
         dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
