@@ -103,16 +103,18 @@ class BehaviorOphysExperimentDev:
 
     def _create_new_dff(self):
         """Create new dff traces"""
+        try:
+            # get new dff DataFrame
+            new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois = True)
 
-        # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois = False)
+            # Save as h5 file, because of the timestamps
+            dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
-        # Save as h5 file, because of the timestamps
-        dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
-
-        print(f"Created new_dff file at: {dff_file}")
-
-        return dff_file
+            print(f"Created new_dff file at: {dff_file}")
+    
+            return dff_file
+        except AssertionError:
+            print('Could not save new dff file. Encountered Assertion Error.')
 
     # Delegate all else to the "inherited" BehaviorOphysExperiment object
     # Need attribute error to pickle/multiprocessing
