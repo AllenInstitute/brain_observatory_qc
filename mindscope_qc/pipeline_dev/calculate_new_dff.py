@@ -207,7 +207,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     np_corrected_df['old_dff'] = old_dff_all
     # Add timestamps
     ophys_timestamps = timestamps.ophys_frames.timestamps
-    assert len(ophys_timestamps)== len(new_dff_all[0]), "dff traces and ophys_timestamps are different length. This is an issue."
+    assert len(ophys_timestamps) == len(new_dff_all[0]), "dff traces and ophys_timestamps are different length. This is an issue."
     return np_corrected_df, ophys_timestamps
 
 
@@ -259,7 +259,7 @@ def get_fixed_r_values(ophys_experiment_id, crid_values, num_normal_r_thresh, r_
     return r_list, r_out_of_range
 
 
-def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7, use_valid_rois = True):
+def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7, use_valid_rois=True):
     """ Get neuropil-corrected traces DataFrame
     Fix r value problem (when r > 1, replace r with the mean of other r values < 1.
     If there are less than "num_normal_r_thresh" of those other r values, than replace with 0.7)
@@ -284,7 +284,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     if use_valid_rois:
         cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
 
-        if cell_rois_table.shape[0]==0:
+        if cell_rois_table.shape[0] == 0:
             raise Exception(
                 'No valid rois found but only valid rois requested. Set use_valid_rois to False if would like to use invalid rois.')
 
@@ -298,7 +298,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         ophys_experiment_id, crid_values, num_normal_r_thresh, r_replace)
 
     np_corrected_all = []
-    old_neuropil_all =[]
+    old_neuropil_all = []
     demixed_h = h5py.File(
         from_lims.get_demixed_traces_filepath(ophys_experiment_id), 'r')
     neuropil_h = h5py.File(
@@ -312,7 +312,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         roi_ind = np.where(
             [int(rn) == crid for rn in neuropil_h['roi_names']])[0][0]
         neuropil = neuropil_h['data'][roi_ind]
-        if np.isnan(neuropil).all() == True:
+        if np.isnan(neuropil).all() is True:
             print(f'neuropil trace for roi {crid} is NaN.')
         # Calculate neuropil-corrected trace
         corrected = demixed - neuropil * r
@@ -323,7 +323,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     np_corrected_df = pd.DataFrame({'cell_specimen_id': csid_values,
                                     'cell_roi_id': crid_values,
                                     'np_corrected': np_corrected_all,
-                                    'np_not_corrected':old_neuropil_all,
+                                    'np_not_corrected': old_neuropil_all,
                                     'r': r_list,
                                     'r_out_of_range': r_out_of_range})
     return np_corrected_df
