@@ -207,6 +207,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     np_corrected_df['old_dff'] = old_dff_all
     # Add timestamps
     ophys_timestamps = timestamps.ophys_frames.timestamps
+    assert len(ophys_timestamps)== len(new_dff_all[0]), "dff traces and ophys_timestamps are different length. This is an issue."
     return np_corrected_df, ophys_timestamps
 
 
@@ -282,6 +283,11 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     cell_rois_table = from_lims.get_cell_rois_table(ophys_experiment_id)
     if use_valid_rois:
         cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
+
+        if cell_rois_table.shape[0]==0:
+            raise Exception(
+                'No valid rois found but only valid rois requested. Set use_valid_rois to False if would like to use invalid rois.')
+
     csid_values = cell_rois_table.cell_specimen_id.values
     if csid_values[0] is None:
         csid_values = [0] * len(csid_values)
@@ -292,6 +298,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         ophys_experiment_id, crid_values, num_normal_r_thresh, r_replace)
 
     np_corrected_all = []
+    old_neuropil_all =[]
     demixed_h = h5py.File(
         from_lims.get_demixed_traces_filepath(ophys_experiment_id), 'r')
     neuropil_h = h5py.File(
@@ -305,15 +312,18 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         roi_ind = np.where(
             [int(rn) == crid for rn in neuropil_h['roi_names']])[0][0]
         neuropil = neuropil_h['data'][roi_ind]
-
+        if np.isnan(neuropil).all() == True:
+            print(f'neuropil trace for roi {crid} is NaN.')
         # Calculate neuropil-corrected trace
         corrected = demixed - neuropil * r
         # Gather traces
         np_corrected_all.append(corrected)
+        old_neuropil_all.append(neuropil)
     # Build the neuropil-corrected DataFrame
     np_corrected_df = pd.DataFrame({'cell_specimen_id': csid_values,
                                     'cell_roi_id': crid_values,
                                     'np_corrected': np_corrected_all,
+                                    'np_not_corrected':old_neuropil_all,
                                     'r': r_list,
                                     'r_out_of_range': r_out_of_range})
     return np_corrected_df
