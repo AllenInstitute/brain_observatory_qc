@@ -48,8 +48,17 @@ if __name__ == '__main__':
     # # remove processed ids from ophys_experiment_ids
     # ophys_experiment_ids = [oeid for oeid in ophys_experiment_ids if oeid not in processed_ids]
 
-    ophys_experiment_ids = [1227116668]  # unstable JK manual
-    # ophys_experiment_ids = [1171605650]  # jk stable
+    #ophys_experiment_ids = [1227116668]  # unstable JK manual
+    ophys_experiment_ids = [1227116668, 1171605650]  # jk stable
+
+    # paired plane ids
+    ophys_experiment_ids = [1227116670,
+                            1171605652,
+                            1131723115,
+                            1160229055,
+                            1170492558,
+                            1227724667]
+
     oeid = ophys_experiment_ids[0]
     print(oeid)
 
@@ -65,7 +74,8 @@ if __name__ == '__main__':
     # select 10 ids to run
     # ophys_experiment_ids = ophys_experiment_ids[:10]
 
-    bss = [128, 64, 32, 8]
+    #bss = [128, 64, 32, 8]
+    bss = [8]
     maxnrs = [3, 6, 9, 12]
     sts = [0, 1, 2, 5, 10]
 
@@ -78,48 +88,48 @@ if __name__ == '__main__':
 
     if test_run:
         params = params[:1]
+    for oeid in ophys_experiment_ids:
+        for param in params:
+            print(param)
+            job_count += 1
+            print(f'starting cluster job for {oeid}, job count = {job_count}')
+            
+            bs, mnrs, sts = param
+            job_title = f'oeid_{oeid}_param_bs_{bs}_mnrs_{mnrs}_sts_{sts}'
+            walltime = '10:00:00'
+            mem = '75G'
+            tmp = '75G',
+            job_id = Slurm.JOB_ARRAY_ID
+            job_array_id = Slurm.JOB_ARRAY_MASTER_ID
+            output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
+            cpus_per_task = 32
+            print(output)
 
-    for param in params:
-        print(param)
-        job_count += 1
-        print(f'starting cluster job for {oeid}, job count = {job_count}')
-        
-        bs, mnrs, sts = param
-        job_title = f'oeid_{oeid}_param_bs_{bs}_mnrs_{mnrs}_sts_{sts}'
-        walltime = '1:30:00'
-        mem = '100G'
-        tmp = '75G',
-        job_id = Slurm.JOB_ARRAY_ID
-        job_array_id = Slurm.JOB_ARRAY_MASTER_ID
-        output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
-        cpus_per_task = 32
-        print(output)
+            # instantiate a SLURM object
+            slurm = Slurm(
+                cpus_per_task=cpus_per_task,
+                job_name=job_title,
+                time=walltime,
+                mem=mem,
+                output=output,
+                tmp=tmp,
+                partition="braintv"
+            )
 
-        # instantiate a SLURM object
-        slurm = Slurm(
-            cpus_per_task=cpus_per_task,
-            job_name=job_title,
-            time=walltime,
-            mem=mem,
-            output=output,
-            tmp=tmp,
-            partition="braintv"
-        )
+            # get job id from slurm
+            job_id = slurm.JOB_ARRAY_MASTER_ID
+            scratch_dir = f"/scratch/fast/{job_id}"
 
-        # get job id from slurm
-        job_id = slurm.JOB_ARRAY_MASTER_ID
-        scratch_dir = f"/scratch/fast/{job_id}"
+            # WAWRNING: this is inaccurate when interative mode on hpc
+            job_id_str = '$SLURM_JOB_ID'  # get the job id from the environment variable
+            # job_id_str = str(7745718)
 
-        # WAWRNING: this is inaccurate when interative mode on hpc
-        job_id_str = '$SLURM_JOB_ID'  # get the job id from the environment variable
-        # job_id_str = str(7745718)
+            bs, mnrs, sts = param
+            args_string = f"{oeid} {job_id_str} {bs} {mnrs} {sts}"
+            print(args_string)
 
-        bs, mnrs, sts = param
-        args_string = f"{oeid} {job_id_str} {bs} {mnrs} {sts}"
-        print(args_string)
-
-        sbatch_string = f"{python_executable} {python_file} {args_string}"
-        print(sbatch_string)
-        slurm.sbatch(sbatch_string)
-        time.sleep(0.01)
+            sbatch_string = f"{python_executable} {python_file} {args_string}"
+            print(sbatch_string)
+            slurm.sbatch(sbatch_string)
+            time.sleep(0.01)
 # 1171605650 $SLURM_JOB_ID -t

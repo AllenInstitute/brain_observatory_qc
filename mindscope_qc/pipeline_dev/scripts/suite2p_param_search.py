@@ -17,7 +17,7 @@ parser.add_argument("oeid", type=int, help="oeid")
 parser.add_argument("job_id", type=int, help="path to scratch space")
 parser.add_argument("block_size", type=int, help="block size")
 parser.add_argument("max_nr_shift", type=int, help="max_nr_shift")
-parser.add_argument("smooth_time_sigma", type=int, help="smooth_time_sigma")
+parser.add_argument("smooth_sigma_time", type=int, help="smooth_sigma_time")
 parser.add_argument("--single_run", "-s", action="store_true", help="single_run")
 parser.add_argument("--grid_seach", "-g", action="store_true", help="grid seach")
 
@@ -91,7 +91,7 @@ def run_s2p_with_params(oeid, scratch_path, params):
         # reg
         'nonrigid': True,
         'block_size': [params['bs'], params['bs']],
-        'smooth_time_sigma': params['sts'],
+        'smooth_sigma_time': params['sts'],
         'maxregshiftNR': params['mnrs'],
 
         # ROI
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     job_id = args.job_id
     block_size = args.block_size
     max_nr_shift = args.max_nr_shift
-    smooth_time_sigma = args.smooth_time_sigma
+    smooth_sigma_time = args.smooth_sigma_time
     single_run = args.single_run
     grid_search = args.grid_seach
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
     single_run = True
     if single_run:
 
-        params = {"sts": smooth_time_sigma,
+        params = {"sts": smooth_sigma_time,
                   "bs": block_size,
                   "mnrs": max_nr_shift,
                   "ts": 2.0,
