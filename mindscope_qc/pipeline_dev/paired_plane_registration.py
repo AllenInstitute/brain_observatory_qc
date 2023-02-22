@@ -431,8 +431,8 @@ def generate_all_pairings_shifted_frames(oeid, block_size: int = None,
                                              save_path=p1_paired_fn)
 
     # TODO: Be explicit about cropping frames
-    print(f"WARNING: cropping frames to remove rolling effect, may have ill intended effects.
-    see: https://github.com/AllenInstitute/mindscope_qc/pull/134#discussion_r1090282607")
+    print(f"WARNING: cropping frames to remove rolling effect, may have ill intended effects."
+          f"see: https://github.com/AllenInstitute/mindscope_qc/pull/134#discussion_r1090282607")
     p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
     p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
 
