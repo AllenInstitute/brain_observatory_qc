@@ -87,8 +87,6 @@ def experiment_table_extended(df: pd.DataFrame,
     df = add_fixed_reporter_line_column(df)
     df = add_mouse_names_columns(df)
 
-
-
     return df
 
 
@@ -327,5 +325,3 @@ def set_cat_and_order_for_short_session_type(df, project_module):
                                               ordered=True)
 
     return df
-
-
