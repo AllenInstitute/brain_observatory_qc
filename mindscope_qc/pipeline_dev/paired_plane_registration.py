@@ -88,7 +88,6 @@ def get_paired_plane_id(ophys_experiment_id: int) -> int:
         ophys_experiment_id of paired plane
 
     """
-    # assert int
     assert isinstance(ophys_experiment_id, int), 'ophys_experiment_id must be int'
 
     session_path = session_path_from_oeid(ophys_experiment_id)
@@ -186,7 +185,7 @@ def get_paired_slope_for_session(session_path: Union[str, Path]) -> pd.DataFrame
 
 
 def paired_shifts_regression_for_session_oeids(expts_ids: list):
-    """Get paired shifts regression for list of ophys_experiment_ids, 
+    """Get paired shifts regression for list of ophys_experiment_ids,
     that belong to the same session
 
     Parameters
@@ -276,7 +275,7 @@ def paired_planes_shifted_projections(oeid: int, block_size: int = 10000):
 
     e1y, e1x = expt1_shifts.y, expt1_shifts.x
     e2y, e2x = expt2_shifts.y, expt2_shifts.x
-    # TODO: JK rightly suggests to read the motion_correction file, 
+    # TODO: JK rightly suggests to read the motion_correction file,
     # instead of recaculating the shifts
     # Line 396 has the same issue
     block1_shift = block1.copy()
@@ -431,8 +430,8 @@ def generate_all_pairings_shifted_frames(oeid, block_size: int = None,
                                              save_path=p1_paired_fn)
 
     # TODO: Be explicit about cropping frames
-    print(f"WARNING: cropping frames to remove rolling effect, may have ill intended effects."
-          f"see: https://github.com/AllenInstitute/mindscope_qc/pull/134#discussion_r1090282607")
+    print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
+          "see: https://github.com/AllenInstitute/mindscope_qc/pull/134#discussion_r1090282607")
     p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
     p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
 
@@ -699,10 +698,11 @@ def load_h5_dask(h5_path):
 
     return movie
 
+
 # TODO: move to plot_utils
 def plot_equality_line(ax, zorder=0):
     """plot equality line on current axis
-    
+
     Parameters
     ----------
     ax : matplotlib axis
@@ -714,8 +714,9 @@ def plot_equality_line(ax, zorder=0):
     y = x
     plt.plot(x, y, color='black', linestyle='--', label='equality line', zorder=zorder)
 
+
 # TODO: move to utils
-def chunk_movie(movie, n_chunks): 
+def chunk_movie(movie, n_chunks):
     # get length of movie divided into 12 chunks
     chunk_len = int(movie.shape[0] / n_chunks)
 
@@ -726,6 +727,7 @@ def chunk_movie(movie, n_chunks):
         chunk_mean = chunk.mean(axis=0)
         chunk_means.append(chunk_mean)
     return chunk_means
+
 
 # TODO: move to utils
 def save_gif(image_stack, gif_folder, fn):
