@@ -1,5 +1,9 @@
 import pandas as pd
 
+########################################################################
+# Project Agnostic constant
+########################################################################
+
 MOUSE_NAMES = {"603892": "Gold",
                "608368": "Silicon",
                "612764": "Silver",
@@ -10,6 +14,7 @@ MOUSE_NAMES = {"603892": "Gold",
                "636496": "Aluminum",
                "639224": "Mercury",
                "646883": "Iron",
+               "648606": "Zinc",
                "623975": "Helium",
                "623972": "Neon",
                "631563": "Argon",
@@ -17,13 +22,44 @@ MOUSE_NAMES = {"603892": "Gold",
                "637851": "Radon"}
 
 
-def experiment_table_extended(df: pd.DataFrame):
+def import_project(project: str):
+
+    if project == "LearningmFISHTask1A":
+        import mindscope_qc.projects.LearningmFISHTask1A as project_module
+    elif project == "lamf_associative_pilots":
+        import mindscope_qc.projects.lamf_associative_pilots as project_module
+    elif project == "visual_behavior":
+        import mindscope_qc.projects.visual_behavior as project_module
+    else:
+        raise ValueError(f"project {project} not recognized")
+
+    return project_module
+
+
+def experiment_table_extended_project(df: pd.DataFrame, project: str) -> pd.DataFrame:
+    """Adds extra columns to the expt_table, in project specific manner"""
+
+    if project is not None:
+        project_module = import_project(project)
+
+    df = add_short_session_type_column(df, project_module)
+    df = add_n_exposure_short_session_type_column(df)
+    df = add_short_session_type_num_column(df)
+    df = set_cat_and_order_for_short_session_type(df, project_module)
+
+    return df
+
+
+def experiment_table_extended(df: pd.DataFrame,
+                              project: str = None):
     """Adds extra columns to the expt_table #WFDF
 
     Parameters:
     -----------
     df : pandas.DataFrame
         experiment table
+    project : str
+        name of project
 
     Returns:
     --------
@@ -50,11 +86,6 @@ def experiment_table_extended(df: pd.DataFrame):
     df = add_fixed_reporter_line_column(df)
     df = add_fixed_reporter_line_column(df)
     df = add_mouse_names_columns(df)
-
-    # TODO: PROJECT SPECIFIC (order matters)
-    # df = add_short_session_name_column(df)
-    # df = add_n_exposure_stimulus_column(df) #(epe)
-    # df = add_short_session_name_num_column(df)
 
     return df
 
@@ -182,17 +213,6 @@ def add_n_exposure_session_type_column(df):
     return df
 
 
-# TODO: this is an extended column
-def add_n_exposure_stimulus_column(df):
-    """stim exposure based on short session name (which groups stim)"""
-
-    df["n_exposure_stimulus"] = (df.groupby(["mouse_id", "short_session_name"])["date_of_acquisition"]
-                                   .rank(method="dense", ascending=True)
-                                   .astype(int))
-
-    return df
-
-
 def add_abbreviated_reporter_line_column(df):
 
     def abbreviate_reporter_line(row):
@@ -216,13 +236,15 @@ def add_fixed_reporter_line_column(df):
 ###############################################################################
 # PROJECTS
 
-def add_short_session_name_column(df):
-    """Adds a column called 'short_session_name' to expt_table #WKDF
+def add_short_session_type_column(df, project_module):
+    """Adds a column called 'short_session_type' to expt_table #WKDF
 
     Parameters:
     -----------
     df : pandas.DataFrame
         expt_table with "session_type" (et) column
+    project_module : module
+        module containing constants
 
     Returns:
     --------
@@ -232,23 +254,22 @@ def add_short_session_name_column(df):
     ------
 
     """
-    # import mjd_dev.lamf_task1a as constants
-    # df["short_session_name"] = df["session_type"].map(constants.short_session_names)
-    # issue warning, not implemented
+    assert "short_session_type_map" in dir(project_module), \
+        "project module must have a dict called 'short_session_type_map'"
 
-    import warnings
-    warnings.warn("Not implemented")
+    df["short_session_type"] = df["session_type"].map(project_module.short_session_type_map)
 
     return df
 
 
-def add_short_session_name_num_column(df):
-    """Adds a column called 'short_session_name_num' to expt_table #WKDF
+def add_short_session_type_num_column(df):
+    """Adds a column called 'short_session_type_num' to expt_table,
+     num describes the order of each session type.
 
     Parameters:
     -----------
     df : pandas.DataFrame
-        expt_table with "short_session_name" (ete) & "n_exposure_stimulus" (ete)
+        expt_table with "short_session_type" (etep) & "n_exposure_stimulus" (ete)
         columns
 
     Returns:
@@ -260,7 +281,47 @@ def add_short_session_name_num_column(df):
 
     """
 
-    df["short_session_name_num"] = df["short_session_name"] + " - " + \
-        df["n_exposure_stimulus"].astype(str)
+    df["short_session_type_num"] = df["short_session_type"] + " - " + \
+        df["n_exposure_short_session_type"].astype(str)
+
+    return df
+
+
+# TODO: this is an extended column
+def add_n_exposure_short_session_type_column(df):
+    """stim exposure based on short session name (which groups stim)"""
+
+    df["n_exposure_short_session_type"] = \
+        (df.groupby(["mouse_id", "short_session_type"])["date_of_acquisition"]
+           .rank(method="dense", ascending=True)
+           .astype(int))
+
+    return df
+
+
+def set_cat_and_order_for_short_session_type(df, project_module):
+    """Sets the category and order for the short_session_type column #WKDF
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        expt_table with "short_session_type" (etep) column
+    project_module : module
+        module containing constants
+
+    Returns:
+    --------
+    df : pandas.DataFrame
+
+    Notes:
+    ------
+
+    """
+    assert "short_session_type_order" in dir(project_module), \
+        "project module must have a list called 'short_session_type_order'"
+
+    df["short_session_type"] = pd.Categorical(df["short_session_type"],
+                                              categories=project_module.short_session_type_order,
+                                              ordered=True)
 
     return df
