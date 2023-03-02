@@ -1,7 +1,7 @@
 import pandas as pd
 
 ########################################################################
-# Project Agnostic constant
+# Project Agnostic constants
 ########################################################################
 
 MOUSE_NAMES = {"603892": "Gold",
@@ -20,6 +20,10 @@ MOUSE_NAMES = {"603892": "Gold",
                "631563": "Argon",
                "637848": "Xenon",
                "637851": "Radon"}
+
+########################################################################
+# Primary functions
+########################################################################
 
 
 def import_project(project: str):
@@ -46,12 +50,12 @@ def experiment_table_extended_project(df: pd.DataFrame, project: str) -> pd.Data
     df = add_n_exposure_short_session_type_column(df)
     df = add_short_session_type_num_column(df)
     df = set_cat_and_order_for_short_session_type(df, project_module)
+    df = add_tiny_session_type_num(df)
 
     return df
 
 
-def experiment_table_extended(df: pd.DataFrame,
-                              project: str = None):
+def experiment_table_extended(df: pd.DataFrame):
     """Adds extra columns to the expt_table #WFDF
 
     Parameters:
@@ -80,6 +84,7 @@ def experiment_table_extended(df: pd.DataFrame,
 
     """
     df = add_n_exposure_session_type_column(df)
+    df = add_session_number(df)
     df = add_session_type_num_column(df)
     df = add_bisect_layer_column(df)
     df = add_depth_order_column(df)
@@ -88,6 +93,10 @@ def experiment_table_extended(df: pd.DataFrame,
     df = add_mouse_names_columns(df)
 
     return df
+
+########################################################################
+# Project agnostic columns
+########################################################################
 
 
 def add_mouse_names_columns(df: pd.DataFrame):
@@ -105,6 +114,46 @@ def add_mouse_names_columns(df: pd.DataFrame):
     """
 
     df["mouse_name"] = df["mouse_id"].map(MOUSE_NAMES)
+
+    return df
+
+
+def add_session_number(df: pd.DataFrame):
+    """Adds a column called 'session_number' to expt_table, sorted by
+    date_of_acquisition, for each ophys_session_id. Thus, all experiments
+    on the same day will have the same session_number. In general,
+    one session is recorded per day, but we can add a day column if needed.
+
+    Examples:
+    --------
+
+    session_number  sesssion_type
+    --------------  -------------
+    1               TRAINING_1_gratings
+    2               TRAINING_1_gratings
+    3               TRAINING_2_flashed_gratings
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        expt_table
+
+    Returns:
+    --------
+    df : pandas.DataFrame
+
+    """
+    df = df.sort_values(by=["date_of_acquisition"])
+
+    # code seems hacky, but it works (mjd)
+    mice = df["mouse_id"].unique()
+    for mouse in mice:
+        mouse_df = df[df["mouse_id"] == mouse]
+        for i, (n, g) in enumerate(mouse_df.groupby("ophys_session_id")):
+            # assign session number
+            df.loc[g.index, "session_number"] = i + 1
+
+    df["session_number"] = df["session_number"].astype(int)
 
     return df
 
@@ -187,7 +236,6 @@ def add_depth_order_column(df):
     return df
 
 
-###############################################################################
 def add_n_exposure_session_type_column(df):
     """Adds a column called 'n_exposure_session_type' to expt_table #WKDF
 
@@ -233,8 +281,9 @@ def add_fixed_reporter_line_column(df):
     return df
 
 
-###############################################################################
-# PROJECTS
+########################################################################
+# Project specific columns
+########################################################################
 
 def add_short_session_type_column(df, project_module):
     """Adds a column called 'short_session_type' to expt_table #WKDF
@@ -257,7 +306,8 @@ def add_short_session_type_column(df, project_module):
     assert "short_session_type_map" in dir(project_module), \
         "project module must have a dict called 'short_session_type_map'"
 
-    df["short_session_type"] = df["session_type"].map(project_module.short_session_type_map)
+    df["short_session_type"] = df["session_type"].map(
+        project_module.short_session_type_map)
 
     return df
 
@@ -323,5 +373,42 @@ def set_cat_and_order_for_short_session_type(df, project_module):
     df["short_session_type"] = pd.Categorical(df["short_session_type"],
                                               categories=project_module.short_session_type_order,
                                               ordered=True)
+
+    return df
+
+
+def add_tiny_session_type_num(df):
+    """Creates a column called 'tiny_session_type_num' that is a shortened
+    version of the short_session_type_num column. Useful for plotting labels
+
+    Example:
+    --------
+    "Flashed Images - 1" -> "FI1"
+    "Familar Images + Omissions - 2" -> "FIO2"
+
+    Parameters:
+    -----------
+    df : pandas.DataFrame
+        expt_table with "short_session_type_num" (etep) column
+
+    Returns:
+    --------
+    df : pandas.DataFrame
+
+    """
+    def abbrv_text(row):
+        text = row.short_session_type_num
+        name, num = text.split(' - ')
+        split_text = name.split(' ')
+
+        # Only grab first letter of each word
+        new_text = []
+        for word in split_text:
+            if word != '+':
+                new_text.append(word[0].upper())
+
+        return ''.join(new_text) + num
+
+    df['tiny_session_type_num'] = df.apply(abbrv_text, axis=1)
 
     return df
