@@ -1,4 +1,3 @@
-import os
 import argparse
 import time
 from simple_slurm import Slurm
@@ -44,17 +43,17 @@ if __name__ == '__main__':
 
     if test_run:
         h5_list = h5_list[0:1]
-    
+
     for h5 in h5_list:
         oeid = h5.stem.split('_')[0]
         print(h5)
         job_count += 1
         print(f'starting cluster job for {oeid}, job count = {job_count}')
-        
+
         job_title = f'{oeid}_oasis_v1'
         walltime = '1:00:00'
         mem = '2G'
-        #tmp = '3G',
+        # tmp = '3G',
         job_id = Slurm.JOB_ARRAY_ID
         job_array_id = Slurm.JOB_ARRAY_MASTER_ID
         output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
@@ -68,7 +67,7 @@ if __name__ == '__main__':
             time=walltime,
             mem=mem,
             output=output,
-            #tmp=tmp,
+            # tmp=tmp,
             partition="braintv"
         )
 
@@ -79,4 +78,3 @@ if __name__ == '__main__':
         print(sbatch_string)
         slurm.sbatch(sbatch_string)
         time.sleep(0.01)
-# 1171605650 $SLURM_JOB_ID -t
