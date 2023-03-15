@@ -54,7 +54,10 @@ PROJECT_CODES = [
     'VisualBehavior',
     'VisualBehaviorTask1B',
     'VisualBehaviorMultiscope',
-    'VisualBehaviorMultiscope4areasx2d']
+    'VisualBehaviorMultiscope4areasx2d',
+    'VisualBehaviorDevelopment',
+    'VisualBehaviorIntegrationTest',
+    'VisBIntTestDatacube']
 
 NUM_STRUCTURES_DICT = {
     'VisualBehavior': 1,
@@ -89,6 +92,18 @@ OPHYS_BEHAV_TYPE_DICT = {
 
 
 def parse_session_stage(session_type: str) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    session_type : str
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
 
     if "OPHYS" in session_type:
@@ -102,26 +117,6 @@ def parse_session_stage(session_type: str) -> str:
 
 
 def parse_stimulus_type(session_type: str) -> str:
-    conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
-    if "images" in session_type:
-        stimulus_type = "natural_images"
-    elif "gratings" in session_type:
-        stimulus_type = "gratings"
-    return stimulus_type
-
-
-def parse_stimulus_presentation_type(session_type: str) -> str:
-    conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
-    if "0" in session_type or "1" in session_type and "TRAINING" in session_type:
-        stimulus_presentation_type = "static"
-    elif "7" in session_type:
-        stimulus_presentation_type = "repeated_movie_clips"
-    else:
-        stimulus_presentation_type = "flashed"
-    return stimulus_presentation_type
-
-
-def parse_behavior_context(session_type: str) -> str:
     """_summary_
 
     Parameters
@@ -133,6 +128,57 @@ def parse_behavior_context(session_type: str) -> str:
     -------
     str
         _description_
+    """
+    conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
+    if "images" in session_type:
+        stimulus_type = "natural_images"
+    elif "gratings" in session_type:
+        stimulus_type = "gratings"
+    return stimulus_type
+
+
+def parse_stimulus_presentation_type(session_type: str) -> str:
+    """ provides information on how the visual stimulus was 
+    presented.
+    - "static": the visual stimulus is shown continuously until the
+    image or grating is changed to a different image or grating
+    - "repeated_movie_clips": the same movie clip is shown multiple
+    times in a row
+    - "flashed": visual stimulus is flashed between periods
+    of gray screen
+
+    Parameters
+    ----------
+    session_type : str
+        type of session that was run
+
+    Returns
+    -------
+    str
+        an enumerated type, "static", "repeated_movie_clips", or "flashed 
+    """
+    conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
+    if "0" in session_type or "1" in session_type and "TRAINING" in session_type:
+        stimulus_presentation_type = "static"
+    elif "7" in session_type:
+        stimulus_presentation_type = "repeated_movie_clips"
+    else:
+        stimulus_presentation_type = "flashed"
+    return stimulus_presentation_type
+
+
+def parse_behavior_context(session_type: str) -> str:
+    """parses the type of behavior for the session type
+
+    Parameters
+    ----------
+    session_type : str
+        _description_
+
+    Returns
+    -------
+    str
+        "passive_viewing" or "active_behavior"
     """
     passive_ophys_session_nums = ["2", "5", "7"]
 
@@ -146,7 +192,10 @@ def parse_behavior_context(session_type: str) -> str:
 
 
 def parse_session_sub_category(session_type: str) -> str:
-    """_summary_
+    """ parses the session sub-category into:
+    - habituation:
+    - gratings:
+    - images: 
 
     Parameters
     ----------
@@ -168,7 +217,10 @@ def parse_session_sub_category(session_type: str) -> str:
 
 
 def parse_session_primary_category(session_type: str) -> str:
-    """_summary_
+    """parses the type of session into:
+    - "ophys": a session that was run on an ophys rig
+    - "training": a session that was run in one of the training
+    boxes
 
     Parameters
     ----------
@@ -188,7 +240,8 @@ def parse_session_primary_category(session_type: str) -> str:
 
 
 def parse_session_category(session_type: str) -> str:
-    """_summary_
+    """combines the session primary category
+    and sub-categories. 
 
     Parameters
     ----------
@@ -198,7 +251,7 @@ def parse_session_category(session_type: str) -> str:
     Returns
     -------
     str
-        _description_
+        
     """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
     primary_category = parse_session_primary_category(session_type)
@@ -231,6 +284,18 @@ def parse_stimulus_set(session_type: str) -> str:
 
 
 def parse_stimulus_set_novelty(session_type: str) -> str:
+    """_summary_
+
+    Parameters
+    ----------
+    session_type : str
+        _description_
+
+    Returns
+    -------
+    str
+        _description_
+    """
     familiar_ophys_sessions = ["0", "1", "2", "3"]
 
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
