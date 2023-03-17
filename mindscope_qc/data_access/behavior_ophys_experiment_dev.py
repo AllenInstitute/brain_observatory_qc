@@ -7,8 +7,14 @@ from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
 
 from mindscope_qc.pipeline_dev import calculate_new_dff
 
-DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
-GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+from mindscope_qc.utilities import experiment_table_utils as etu
+
+DFF_PATH = Path(
+    "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
+GH_DFF_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+CELLXGENE_PATH = Path(
+    "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
 
 class BehaviorOphysExperimentDev:
@@ -44,12 +50,14 @@ class BehaviorOphysExperimentDev:
     expt = BehaviorOphysExperimentDev(expt_id, skip_eye_tracking=True)
 
     """
+
     def __init__(self, ophys_experiment_id, **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
+        self.cell_x_gene = self._get_cell_x_gene()
 
     def _get_new_dff(self):
         """Get new dff traces from pipeline_dev folder"""
@@ -94,21 +102,51 @@ class BehaviorOphysExperimentDev:
 
         return updated_dff
 
+    def _get_cell_x_gene(self):
+        """Get cellXgene dataframe, if available"""
+
+        # check if mouse_name = Copper
+        if self.metadata["mouse_name"] == "Copper":
+            fn = "copper_r1_total_experiment_id_table_m15.xlsx"
+            ddf = pd.read_excel(CELLXGENE_PATH / fn, sheet_name=None)
+
+            gene_df = ddf['Transcriptomic profiles']
+            cell_df = ddf['in']
+
+            cell_df = cell_df[(cell_df['IOU_between_fov_and_z_stack'] > 0) & (cell_df['IOU_between_2p_and_ls'] > 0)]
+  
+            cellxgene = cell_df.merge(gene_df, left_on='ls_cell_id', right_on='LS GCaMP Cell ID')
+            # return all ls_cell_id per cell_specimen_id
+            
+            # lscounts = cellxgene.groupby('cell_specimen_id')['ls_cell_id'].apply(list).reset_index()
+            return cellxgene
+
+        else:
+            return None
+
     def _update_metadata(self):
         """Update metadata, specifically correct ophsy_frame_rate"""
         metadata = self.inner.metadata.copy()
         dt = np.median(np.diff(self.ophys_timestamps))
         metadata["ophys_frame_rate"] = 1 / dt
+
+        # mouse_name
+        mouse_id = self.metadata["mouse_id"]
+        id_map = etu.MOUSE_NAMES
+        mouse_name = id_map[str(mouse_id)]
+        metadata["mouse_name"] = mouse_name
         return metadata
 
     def _create_new_dff(self):
         """Create new dff traces"""
 
         # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id)
+        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
+            self.ophys_experiment_id)
 
         # Save as h5 file, because of the timestamps
-        dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+        dff_file = calculate_new_dff.save_new_dff_h5(
+            DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
         print(f"Created new_dff file at: {dff_file}")
 
