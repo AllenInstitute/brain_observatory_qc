@@ -173,14 +173,19 @@ class BehaviorOphysExperimentDev:
                                 scale=filter_scale_seconds * frame_rate_hz,
                                 n_time_steps=filter_n_time_steps)
 
-        dl = [[d] for d in events]
-        fe = [fe for fe in filtered_events]
+        dl = [[d] for d in events]  # already numpy arrays
+        fe = [np.array(fe) for fe in filtered_events]
         df = pd.DataFrame(dl).rename(columns={0: 'events'})
         df['cell_roi_id'] = h5['cell_roi_id']
         df['filtered_events'] = fe
 
         # columns order
         df = df[['cell_roi_id', 'events', 'filtered_events']]
+
+        # get dff trace for cell_specimen_id mapping to cell_roi_id
+        dff = self.inner.dff_traces.copy().reset_index()
+        df = (pd.merge(df, dff[["cell_roi_id", "cell_specimen_id"]],
+                       on="cell_roi_id", how="inner").set_index("cell_specimen_id"))
 
         return df
 
