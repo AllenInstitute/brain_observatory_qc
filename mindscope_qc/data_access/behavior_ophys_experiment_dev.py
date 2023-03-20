@@ -12,7 +12,7 @@ from allensdk.brain_observatory.behavior.event_detection import \
 
 DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
-EVENTS_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
+EVENTS_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 
 
 class BehaviorOphysExperimentDev:
