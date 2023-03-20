@@ -7,12 +7,16 @@ from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
 
 from mindscope_qc.pipeline_dev import calculate_new_dff
 
+from allensdk.brain_observatory.behavior.event_detection import \
+    filter_events_array
+
 from mindscope_qc.utilities import experiment_table_utils as etu
 
 DFF_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+EVENTS_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
@@ -50,14 +54,26 @@ class BehaviorOphysExperimentDev:
     expt = BehaviorOphysExperimentDev(expt_id, skip_eye_tracking=True)
 
     """
-
-    def __init__(self, ophys_experiment_id, **kwargs):
+    def __init__(self,
+                 ophys_experiment_id,
+                 events_version: int = 1,
+                 filter_params: dict = None,
+                 **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
         self.cell_x_gene = self._get_cell_x_gene()
+
+
+        try:
+            self.events = self._get_new_events(events_version, filter_params)
+        except FileNotFoundError:
+            # warn new_events not loaded
+            # TODO: should we create one?
+            print(f"No new_events file for ophys_experiment_id: "
+                  f"{self.ophys_experiment_id}")
 
     def _get_new_dff(self):
         """Get new dff traces from pipeline_dev folder"""
@@ -101,6 +117,85 @@ class BehaviorOphysExperimentDev:
                        .set_index("cell_specimen_id"))
 
         return updated_dff
+
+    def _get_new_events(self, events_version: int = 1,
+                        filter_params: dict = None):
+        """Get new events from pipeline_dev folder"""
+
+        events_folder = f"oasis_v{events_version}"
+        version_folder = EVENTS_PATH / events_folder
+
+        # check version folder exists
+        if not version_folder.exists():
+            version_folder = EVENTS_PATH / "oasis_v1"
+            print(f"Events version folder not found: {events_folder}, "
+                  f"defaulting to {version_folder}")
+
+        events_file = version_folder / f"{self.ophys_experiment_id}.h5"
+
+        if not events_file.exists():
+            raise FileNotFoundError(f"Events file not found: {events_file}")
+
+        events_df = self._load_oasis_events_h5_to_df(events_file, filter_params)
+
+        return events_df
+
+    def _load_oasis_events_h5_to_df(self,
+                                    events_h5: str,
+                                    filter_params: dict = None) -> pd.DataFrame:
+        """Load h5 file from new_dff module
+
+        Parameters
+        ----------
+        events_h5 : Path
+            Path to h5 file
+        filter_params : dict
+            Keyword arguments to be passed to filter_events_array, if None
+            use default values. See filter_events_array for details.
+
+        Returns
+        -------
+        pd.DataFrame
+            Dataframe with columns "cell_roi_id" and "events" and filtered events
+        """
+        # default filter params
+        filter_scale_seconds = 2
+        frame_rate_hz = 10.7
+        filter_n_time_steps = 20
+
+        # check filter params for each key, if not present, use default
+        if filter_params is not None:
+            for key in ["filter_scale_seconds", "frame_rate_hz", "filter_n_time_steps"]:
+                if key in filter_params:
+                    locals()[key] = filter_params[key]
+
+        with h5py.File(events_h5, 'r') as f:
+            h5 = {}
+            for key in f.keys():
+                h5[key] = f[key][()]
+
+        events = h5['spikes']
+
+        filtered_events = \
+            filter_events_array(arr=events,
+                                scale=filter_scale_seconds * frame_rate_hz,
+                                n_time_steps=filter_n_time_steps)
+
+        dl = [[d] for d in events]  # already numpy arrays
+        fe = [np.array(fe) for fe in filtered_events]
+        df = pd.DataFrame(dl).rename(columns={0: 'events'})
+        df['cell_roi_id'] = h5['cell_roi_id']
+        df['filtered_events'] = fe
+
+        # columns order
+        df = df[['cell_roi_id', 'events', 'filtered_events']]
+
+        # get dff trace for cell_specimen_id mapping to cell_roi_id
+        dff = self.inner.dff_traces.copy().reset_index()
+        df = (pd.merge(df, dff[["cell_roi_id", "cell_specimen_id"]],
+                       on="cell_roi_id", how="inner").set_index("cell_specimen_id"))
+
+        return df
 
     def _get_cell_x_gene(self):
         """Get cellXgene dataframe, if available"""
