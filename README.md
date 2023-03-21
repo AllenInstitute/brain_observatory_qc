@@ -1,4 +1,4 @@
-# mindscope_qc
+# brain_observatory_qc
 brain_observatory_qc is inteded to be both a standalone repo of quality control metrics and plots for Allen Brain Observatory projects that utilitze 2-photon imaging, and a central location for for tracking data quality issues related to ongoing Allen Brain Observatory projects.The repo is internally facing only.
 
 
