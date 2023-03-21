@@ -6,8 +6,8 @@ from scipy.ndimage import percentile_filter
 import os
 
 from visual_behavior.data_access import from_lims, from_lims_utilities
-# from mindscope_qc.data_access import from_lims, from_lims_utilities
-# TODO: remove dependency from vba by using mindscope_qc.data_access
+# from brain_observatory_qc.data_access import from_lims, from_lims_utilities
+# TODO: remove dependency from vba by using brain_observatory_qc.data_access
 # Need to implement some functions to do so
 
 # from ophys_etl.utils.traces import noise_std
@@ -127,8 +127,8 @@ def get_correct_frame_rate(ophys_experiment_id):
         float: frame rate
         pd.DataFrame: timestamps
     """
-    # TODO: change from_lims_utilities from vba to that in mindscope_qc.
-    # mindscope_qc currently does not seem to have tools for getting timestamps.
+    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
+    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
     lims_data = from_lims_utilities.utils.get_lims_data(ophys_experiment_id)
     timestamps = from_lims_utilities.utils.get_timestamps(lims_data)
     frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
