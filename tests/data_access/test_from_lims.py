@@ -2,7 +2,7 @@
 from pathlib import PosixPath
 import pytest
 import pandas as pd
-import mindscope_qc.data_access.from_lims as from_lims
+import brain_observatory_qc.data_access.from_lims as from_lims
 
 @pytest.mark.onprem
 def test_get_mouse_ids_from_id():
