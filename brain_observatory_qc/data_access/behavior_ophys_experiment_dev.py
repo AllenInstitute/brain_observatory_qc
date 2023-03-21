@@ -5,7 +5,7 @@ import pandas as pd
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
     BehaviorOphysExperiment
 
-from mindscope_qc.pipeline_dev import calculate_new_dff
+from brain_observatory_qc.pipeline_dev import calculate_new_dff
 
 DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
