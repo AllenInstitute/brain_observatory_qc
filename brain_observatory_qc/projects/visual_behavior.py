@@ -1,4 +1,4 @@
-import mindscope_qc.utilities.pre_post_conditions as conditions
+import brain_observatory_qc.utilities.pre_post_conditions as conditions
 
 #####################################################################
 #
