@@ -138,7 +138,7 @@ def parse_stimulus_type(session_type: str) -> str:
 
 
 def parse_stimulus_presentation_type(session_type: str) -> str:
-    """ provides information on how the visual stimulus was 
+    """ provides information on how the visual stimulus was
     presented.
     - "static": the visual stimulus is shown continuously until the
     image or grating is changed to a different image or grating
@@ -155,7 +155,7 @@ def parse_stimulus_presentation_type(session_type: str) -> str:
     Returns
     -------
     str
-        an enumerated type, "static", "repeated_movie_clips", or "flashed 
+        an enumerated type, "static", "repeated_movie_clips", or "flashed
     """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
     if "0" in session_type or "1" in session_type and "TRAINING" in session_type:
@@ -195,7 +195,7 @@ def parse_session_sub_category(session_type: str) -> str:
     """ parses the session sub-category into:
     - habituation:
     - gratings:
-    - images: 
+    - images:
 
     Parameters
     ----------
@@ -241,7 +241,7 @@ def parse_session_primary_category(session_type: str) -> str:
 
 def parse_session_category(session_type: str) -> str:
     """combines the session primary category
-    and sub-categories. 
+    and sub-categories.
 
     Parameters
     ----------
@@ -251,7 +251,7 @@ def parse_session_category(session_type: str) -> str:
     Returns
     -------
     str
-        
+
     """
     conditions.validate_value_in_list(session_type, SESSION_TYPES, "SESSION_TYPES")
     primary_category = parse_session_primary_category(session_type)

@@ -15,7 +15,7 @@ if __name__ == '__main__':
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
     dry_run = args.dry_run
-    base_dir = Path('//home/matt.davis/code/mindscope_qc/mindscope_qc/pipeline_dev/scripts/example/') # might need to update to brain_observatory_qc
+    base_dir = Path('//home/matt.davis/code/mindscope_qc/mindscope_qc/pipeline_dev/scripts/example/')  # might need to update to brain_observatory_qc
     python_file = base_dir / 'new_dff_for_oeid.py'
     job_dir = Path('//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff')
     stdout_location = job_dir / 'job_records'
