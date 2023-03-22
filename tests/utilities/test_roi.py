@@ -1,6 +1,6 @@
 import pytest
 import pandas as pd
-import mindscope_qc.utilities.roi as roi
+import brain_observatory_qc.utilities.roi as roi
 @pytest.mark.onprem
 def test_load_legacy_rois():
     expected_data_filepath = '//allen/programs/mindscope/production/learning/prod0/specimen_1187454009/ophys_session_1197920532/ophys_experiment_1198067556/processed/ophys_cell_segmentation_run_1198081388/objectlist.txt'

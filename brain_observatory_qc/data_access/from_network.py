@@ -2,8 +2,8 @@ import os
 import numpy as np
 import matplotlib.image as mpimg
 from os.path import exists as file_exists
-import mindscope_qc.data_access.from_lims as lims
-import mindscope_qc.data_access.from_lims_utilities as lims_utils
+import brain_observatory_qc.data_access.from_lims as lims
+import brain_observatory_qc.data_access.from_lims_utilities as lims_utils
 
 
 ######################################################

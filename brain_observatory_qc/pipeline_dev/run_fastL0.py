@@ -12,7 +12,7 @@ from pathlib import Path
 
 import ophys_etl.modules.event_detection.__main__ as events_module
 from brain_observatory_analysis.ophys.experiment_loading import get_ophys_expt, start_lamf_analysis
-import mindscope_qc.data_access.from_lims as from_lims
+import brain_observatory_qc.data_access.from_lims as from_lims
 
 from tqdm import tqdm
 import h5py

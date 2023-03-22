@@ -6,7 +6,7 @@ import numpy as np
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache
 
 
-import mindscope_qc.data_access.data_loader as data_loader
+import brain_observatory_qc.data_access.data_loader as data_loader
 
 
 def roi_count_from_cell_table(expt_list: list) -> pd.DataFrame:

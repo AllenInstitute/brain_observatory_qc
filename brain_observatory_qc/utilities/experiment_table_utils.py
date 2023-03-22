@@ -29,11 +29,11 @@ MOUSE_NAMES = {"603892": "Gold",
 def import_project(project: str):
 
     if project == "LearningmFISHTask1A":
-        import mindscope_qc.projects.LearningmFISHTask1A as project_module
+        import brain_observatory_qc.projects.LearningmFISHTask1A as project_module
     elif project == "lamf_associative_pilots":
-        import mindscope_qc.projects.lamf_associative_pilots as project_module
+        import brain_observatory_qc.projects.lamf_associative_pilots as project_module
     elif project == "visual_behavior":
-        import mindscope_qc.projects.visual_behavior as project_module
+        import brain_observatory_qc.projects.visual_behavior as project_module
     else:
         raise ValueError(f"project {project} not recognized")
 

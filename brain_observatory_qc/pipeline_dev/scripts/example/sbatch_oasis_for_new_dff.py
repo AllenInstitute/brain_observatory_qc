@@ -21,7 +21,7 @@ if __name__ == '__main__':
     python_executable = f"{args.env_path}/bin/python"
 
     # py file
-    python_file = Path('//home/matt.davis/code/mindscope_qc/mindscope_qc/pipeline_dev/scripts/oasis_module.py')
+    python_file = Path('//home/matt.davis/code/mindscope_qc/mindscope_qc/pipeline_dev/scripts/oasis_module.py')  # update to brain_observatory_qc
 
     # job directory
     job_dir = ROOT_DIR / "events" / "oasis_v1"

@@ -9,8 +9,8 @@ from allensdk.internal.api import PostgresQueryMixin
 from allensdk.core.authentication import credential_injector
 from allensdk.core.auth_config import LIMS_DB_CREDENTIAL_MAP
 
-import mindscope_qc.data_access.utilities as utils
-import mindscope_qc.utilities.pre_post_conditions as conditions
+import brain_observatory_qc.data_access.utilities as utils
+import brain_observatory_qc.utilities.pre_post_conditions as conditions
 
 #####################################################################
 #

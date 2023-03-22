@@ -1,4 +1,4 @@
-import mindscope_qc.data_access.from_lims as from_lims
+import brain_observatory_qc.data_access.from_lims as from_lims
 import pandas as pd
 
 

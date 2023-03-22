@@ -12,8 +12,8 @@ from allensdk.core.authentication import credential_injector
 from allensdk.core.auth_config import LIMS_DB_CREDENTIAL_MAP
 
 
-import mindscope_qc.data_access.utilities as utils
-import mindscope_qc.data_access.from_lims_utilities as lims_utils
+import brain_observatory_qc.data_access.utilities as utils
+import brain_observatory_qc.data_access.from_lims_utilities as lims_utils
 
 
 ### ACCESSING LIMS DATABASE ###      # noqa: E266

@@ -14,7 +14,7 @@ from PIL import Image
 from pathlib import Path
 
 from visual_behavior.data_access import from_lims
-# Migrate dependency from visual_behavior to mindscope_qc when all necessary functions are implemented in the mindscope_qc
+# Migrate dependency from visual_behavior to brain_observatory_qc when all necessary functions are implemented in the brain_observatory_qc
 from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
 
@@ -239,12 +239,12 @@ def get_correct_frame_rate(ophys_experiment_id):
     Returns:
         float: frame rate
     """
-    # TODO: change from_lims_utilities from vba to that in mindscope_qc.
-    # mindscope_qc currently does not seem to have tools for getting timestamps.
+    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
+    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
     lims_data = from_lims_utilities.utils.get_lims_data(
-        ophys_experiment_id)  # not yet implemented in mindscope_qc
+        ophys_experiment_id)  # not yet implemented in brain_observatory_qc
     timestamps = from_lims_utilities.utils.get_timestamps(
-        lims_data)  # not yet implemented in mindscope_qc
+        lims_data)  # not yet implemented in brain_observatory_qc
     frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
     return frame_rate, timestamps
 

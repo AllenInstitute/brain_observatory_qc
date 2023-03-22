@@ -1,7 +1,3 @@
-import mindscope_qc.utilities.pre_post_conditions as conditions
-
-
-
 
 #####################################################################
 #
@@ -59,7 +55,7 @@ def parse_behavior_type(session_type: str) -> str:
         "passive_viewing" or "active_behavior"
     """
     if session_type in ACTIVE_BEHAVIOR_STIMULI:
-         behavior_type = "active_behavior"
-    else: 
+        behavior_type = "active_behavior"
+    else:
         behavior_type = "passive_viewing"
     return behavior_type
