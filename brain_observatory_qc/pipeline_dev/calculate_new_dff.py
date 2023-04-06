@@ -5,15 +5,9 @@ from matplotlib import pyplot as plt
 from scipy.ndimage import percentile_filter
 import os
 
-<<<<<<< HEAD:mindscope_qc/pipeline_dev/calculate_new_dff.py
-# from visual_behavior.data_access import from_lims, from_lims_utilities
-from mindscope_qc.data_access import from_lims, from_lims_utilities
-# TODO: remove dependency from vba by using mindscope_qc.data_access
-=======
 from visual_behavior.data_access import from_lims, from_lims_utilities
 # from brain_observatory_qc.data_access import from_lims, from_lims_utilities
 # TODO: remove dependency from vba by using brain_observatory_qc.data_access
->>>>>>> main:brain_observatory_qc/pipeline_dev/calculate_new_dff.py
 # Need to implement some functions to do so
 
 # from ophys_etl.utils.traces import noise_std
