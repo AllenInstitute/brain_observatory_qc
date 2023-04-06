@@ -1,7 +1,7 @@
 # import os
 import pandas as pd
 import numpy as np
-
+from warnings import warn
 # from allensdk.brain_observatory.behavior.behavior_session import BehaviorSession
 # from allensdk.brain_observatory.behavior.behavior_ophys_session import BehaviorOphysSession
 # from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
@@ -11,6 +11,7 @@ def dateformat(exp_date):
     """
     reformat date of acquisition for accurate sorting by date
     """
+    warn('This is deprecated. Dateformat was moved to BOA', DeprecationWarning, stacklevel=2)
     from datetime import datetime
     date = int(datetime.strptime(exp_date, '%Y-%m-%d  %H:%M:%S.%f').strftime('%Y%m%d'))
     return date
@@ -21,6 +22,7 @@ def add_date_string(df):
     Adds a new column called "date" that is a string version of the date_of_acquisition column,
     with the format year-month-date, such as 20210921
     """
+    warn('This is deprecated. add_date_string was moved to BOA', DeprecationWarning, stacklevel=2)
     df['date'] = df['date_of_acquisition'].apply(dateformat)
     return df
 
@@ -64,6 +66,7 @@ def get_n_relative_to_first_novel(group):
     returns a pandas Series with column 'n_relative_to_first_novel' indicating this value for all session in the container
     If the container does not have a truly novel session, all values are set to NaN
     """
+    warn('This is deprecated. get_n_relative_to_first_novel was moved to BOA', DeprecationWarning, stacklevel=2)
     group = group.sort_values(by='date')  # must sort for relative ordering to be accurate
     if 'Novel 1' in group.experience_level.values:
         novel_ind = np.where(group.experience_level == 'Novel 1')[0][0]
@@ -81,6 +84,8 @@ def add_n_relative_to_first_novel_column(df):
     Input df must have column 'experience_level' and 'date'
     Input df is typically ophys_experiment_table
     """
+    warn('This is deprecated. add_n_relative_to_first_novel_column was moved to BOA', DeprecationWarning, stacklevel=2)
+
     # add simplified string date column for accurate sorting
     df = add_date_string(df)  # should already be in the table, but adding again here just in case
     df = df.sort_values(by=['ophys_container_id', 'date'])  # must sort for ordering to be accurate
@@ -99,6 +104,8 @@ def add_last_familiar_column(df):
     If a container has no truly first novel session, all sessions are labeled as NaN
     input df must have 'experience_level' and 'n_relative_to_first_novel'
     """
+    warn('This is deprecated. add_last_familiar_column was moved to BOA', DeprecationWarning, stacklevel=2)
+
     df['last_familiar'] = False
     indices = df[(df.n_relative_to_first_novel == -1) & (df.experience_level == 'Familiar')].index.values
     df.loc[indices, 'last_familiar'] = True
@@ -111,10 +118,12 @@ def get_last_familiar_active(group):
     determines whether each session in the container was the last active familiar image session prior to the first novel session
     input df must have column 'n_relative_to_first_novel' and 'date'
     """
+    warn('This is deprecated. Use get_last_familiar_column function for mFish data in BOA.', DeprecationWarning, stacklevel=2)
+
     group = group.sort_values(by='date')
     last_familiar_active = np.empty(len(group))
     last_familiar_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0] # noqa : E712
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel < 0))[0]  # noqa : E712
     if len(indices) > 0:
         index = indices[-1]  # use last (most recent) index
         last_familiar_active[index] = True
@@ -128,6 +137,8 @@ def add_last_familiar_active_column(df):
     If a container has no truly first novel session, all sessions are labeled as NaN
     input df must have 'experience_level' and 'n_relative_to_first_novel' and 'date'
     """
+    warn('This is deprecated. Use add_last_familiar_column function for mFish data in BOA.', DeprecationWarning, stacklevel=2)
+
     df = df.sort_values(by=['ophys_container_id', 'date'])
     values = df.groupby('ophys_container_id').apply(get_last_familiar_active)
     df['last_familiar_active'] = False
@@ -147,6 +158,8 @@ def add_second_novel_column(df):
     If a container has no truly first novel session, all sessions are labeled as NaN
     input df must have 'experience_level' and 'n_relative_to_first_novel'
     """
+    warn('This is deprecated. add_second_novel_column was moved to BOA', DeprecationWarning, stacklevel=2)
+
     df['second_novel'] = False
     indices = df[(df.n_relative_to_first_novel == 1) & (df.experience_level == 'Novel >1')].index.values
     df.loc[indices, 'second_novel'] = True
@@ -160,10 +173,12 @@ def get_second_novel_active(group):
     after the first novel session, and was an active behavior session
     input df must have column 'n_relative_to_first_novel' and 'date'
     """
+    warn('This is deprecated. Use get_second_novel_column for mFish data in BOA', DeprecationWarning, stacklevel=2)
+
     group = group.sort_values(by='date')
     second_novel_active = np.empty(len(group))
     second_novel_active[:] = False
-    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0] # noqa : E712
+    indices = np.where((group.passive == False) & (group.n_relative_to_first_novel > 0))[0]  # noqa : E712
     if len(indices) > 0:
         index = indices[0]  # use first (most recent) index
         second_novel_active[index] = True
@@ -177,6 +192,8 @@ def add_second_novel_active_column(df):
     If a container has no truly first novel session, all sessions are labeled as NaN
     input df must have 'experience_level' and 'n_relative_to_first_novel' and 'date'
     """
+    warn('This is deprecated. Use add_second_novel_column for mFish data in BOA', DeprecationWarning, stacklevel=2)
+
     df = df.sort_values(by=['ophys_container_id', 'date'])
     values = df.groupby('ophys_container_id').apply(get_second_novel_active)
     df['second_novel_active'] = False
@@ -207,6 +224,8 @@ def build_tidy_cell_df(session):
     returns:
         pandas dataframe
     '''
+    warn('This is deprecated. build_tidy_cell_df funtion has been moved to BOA', DeprecationWarning, stacklevel=2)
+
     return pd.concat([pd.DataFrame(get_cell_timeseries_dict(session, cell_specimen_id)) for cell_specimen_id in session.dff_traces.reset_index()['cell_specimen_id']]).reset_index(drop=True)
 
 
@@ -214,12 +233,14 @@ def limit_to_last_familiar_second_novel_active(df):
     """
     Drops rows that are not the last familiar active session or the second novel active session
     """
+    warn('This is deprecated. Use limit_to_last_familiar_second_novel for mFish data in BOA', DeprecationWarning, stacklevel=2)
+
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values # noqa : E712
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel_active == False)].index.values  # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values # noqa : E712
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar_active == False)].index.values  # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -229,12 +250,14 @@ def limit_to_last_familiar_second_novel(df):
     """
     Drops rows that are not the last familiar session or the second novel session, regardless of active or passive
     """
+    warn('This is deprecated. limit_to_last_familiar_second_novel funtion has been moved to BOA', DeprecationWarning, stacklevel=2)
+
     # drop novel sessions that arent the second active one
-    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values # noqa : E712
+    indices = df[(df.experience_level == 'Novel >1') & (df.second_novel == False)].index.values  # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     # drop Familiar sessions that arent the last active one
-    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values # noqa : E712
+    indices = df[(df.experience_level == 'Familiar') & (df.last_familiar == False)].index.values  # noqa : E712
     df = df.drop(labels=indices, axis=0)
 
     return df
@@ -266,6 +289,7 @@ def limit_to_containers_with_all_experience_levels(experiments_table):
     returns experiment_table limited to containers with all 3 experience levels in ['Familiar', 'Novel 1', 'Novel >1']
     input dataframe is typically ophys_experiment_table but can be any df with columns 'ophys_container_id' and 'experience_level'
     """
+
     containers_with_all_experience_levels = get_containers_with_all_experience_levels(experiments_table)
     experiments_table = experiments_table[experiments_table.ophys_container_id.isin(containers_with_all_experience_levels)]
     return experiments_table
@@ -276,6 +300,8 @@ def get_cell_specimen_ids_with_all_experience_levels(cells_table):
     identifies cell_specimen_ids with all 3 experience levels in ['Familiar', 'Novel 1', 'Novel >1'] in the input dataframe
     input dataframe must have column 'cell_specimen_id', such as in ophys_cells_table
     """
+    warn('This is deprecated. get_cell_specimen_ids_with_all_experience_levels funtion has been moved to BOA', DeprecationWarning, stacklevel=2)
+
     experience_level_counts = cells_table.groupby(['cell_specimen_id', 'experience_level']).count().reset_index().groupby(['cell_specimen_id']).count()[['experience_level']]
     cell_specimen_ids_with_all_experience_levels = experience_level_counts[experience_level_counts.experience_level == 3].index.unique()
     return cell_specimen_ids_with_all_experience_levels
@@ -286,6 +312,8 @@ def limit_to_cell_specimen_ids_matched_in_all_experience_levels(cells_table):
     returns dataframe limited to cell_specimen_ids that are present in all 3 experience levels in ['Familiar', 'Novel 1', 'Novel >1']
     input dataframe is typically ophys_cells_table but can be any df with columns 'cell_specimen_id' and 'experience_level'
     """
+    warn('This is deprecated. limit_to_cell_specimen_ids_matched_in_all_experience_levels funtion has been moved to BOA', DeprecationWarning, stacklevel=2)
+
     cell_specimen_ids_with_all_experience_levels = get_cell_specimen_ids_with_all_experience_levels(cells_table)
     matched_cells_table = cells_table[cells_table.cell_specimen_id.isin(cell_specimen_ids_with_all_experience_levels)].copy()
     return matched_cells_table

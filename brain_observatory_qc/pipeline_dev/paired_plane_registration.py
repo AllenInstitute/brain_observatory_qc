@@ -1,5 +1,5 @@
 from typing import Union
-import mindscope_qc.data_access.from_lims as from_lims
+import brain_observatory_qc.data_access.from_lims as from_lims
 from pathlib import Path
 from scipy import stats
 import pandas as pd
@@ -431,7 +431,7 @@ def generate_all_pairings_shifted_frames(oeid, block_size: int = None,
 
     # TODO: Be explicit about cropping frames
     print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
-          "see: https://github.com/AllenInstitute/mindscope_qc/pull/134#discussion_r1090282607")
+          "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
     p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
     p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
 
