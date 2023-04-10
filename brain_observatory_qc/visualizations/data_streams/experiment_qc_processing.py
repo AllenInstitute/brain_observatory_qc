@@ -120,6 +120,17 @@ def build_mask_matrix(dataframe):
     )
     return segmentation_source
 
+def generate_greys_image_figure(figure, source):
+    return figure.image(
+        image='image',
+        x=0,
+        y=0,
+        dw=512,
+        dh=512,
+        palette=Greys256,
+        level="image",
+        source=source
+    )
 def generate_mask_plot(figure, color_palette, source): 
     return figure.image(
         image='image',
