@@ -1,14 +1,9 @@
 from bokeh.plotting import curdoc, ColumnDataSource, figure
-from bokeh.models import ColumnDataSource, RangeTool, Slider, Select, Plot, Rect
-from bokeh.layouts import column, layout
+from bokeh.models import ColumnDataSource, RangeTool, Slider, Select, Plot
 from bokeh.palettes import Greys256
 import brain_observatory_qc.data_access.from_lims as fl
-import imageio
 import glob
 
-import pandas as pd
-import h5py as h5
-from tifffile import tifffile as tiff
 from skimage.segmentation import find_boundaries
 import numpy as np
     
@@ -16,7 +11,7 @@ import numpy as np
 def get_events_filepath(oeid):
     return fl.get_observatory_events_filepath(oeid)
 
-def get_mean_motion_corrected_filepath(oeid):
+def get_mean_motion_corrected_fov_filepath(oeid):
     file_dir = "/allen/programs/mindscope/workgroups/learning/pipeline_validation/fov_tilt/tif"
     try:
         mean_mc_fp = glob.glob(f"{file_dir}/{oeid}_segment_fov.tif")[0]
@@ -24,7 +19,7 @@ def get_mean_motion_corrected_filepath(oeid):
         mean_mc_fp = None
     return mean_mc_fp
 
-def get_raw_filepath(oeid):
+def get_raw_mean_fov_filepath(oeid):
     file_dir = "/allen/programs/mindscope/workgroups/learning/pipeline_validation/fov_tilt/raw_tif"
     try:
         raw_mc_fp = glob.glob(f"{file_dir}/{oeid}_segment_fov.tif")[0]
@@ -32,6 +27,13 @@ def get_raw_filepath(oeid):
         raw_mc_fp = None
     return raw_mc_fp
 
+def get_dff_trace_filepath(oeid):
+    file_dir = "/allen/programs/mindscope/workgroups/learning/pipeline_validation/dff"
+    try:
+        events_fp = glob.glob(f"{file_dir}/{oeid}_new_dff.h5")[0]
+    except KeyError:
+        events_fp = None
+    return events_fp
 def get_max_projection_filepath(oeid):
     return fl.get_max_intensity_projection_filepath(oeid)
 
@@ -104,7 +106,7 @@ def generate_image_figure(title = ""):
     p.x_range.range_padding = p.y_range.range_padding = 0
     return p
 
-def build_mask_matrix(dataframe):
+def build_segmentation_mask_matrix(dataframe):
     cells_matrix = np.zeros((512, 512), dtype=np.uint8)
     for index, row in dataframe.iterrows():
         r = row['y']
@@ -113,7 +115,7 @@ def build_mask_matrix(dataframe):
             r:r+row['height'], 
             c:c+row['width']
             ] += np.asarray(row['mask_matrix'])
-    cells_matrix = find_boundaries(cells_matrix, mode='thick')
+    cells_matrix = find_boundaries(cells_matrix, mode='thin')
     segmentation_source = ColumnDataSource({
         'image': [cells_matrix]
         }
@@ -141,4 +143,19 @@ def generate_mask_plot(figure, color_palette, source):
         palette=color_palette,
         level="image",
         source=source
+    )
+
+def generate_slider(data):
+    return Slider(
+        start=0,
+        end=data.shape[0] - 1,
+        step=1,
+        value=0
+    )
+
+def generate_select_tool(title, data):
+    return Select(
+        title=title, 
+        options=data, 
+        value=data[0]
     )
