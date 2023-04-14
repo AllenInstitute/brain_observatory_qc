@@ -12,8 +12,7 @@ from allensdk.brain_observatory.behavior.event_detection import \
 
 DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
-# EVENTS_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
-EVENTS_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/oasis_nrsac_v1")
+EVENTS_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 
 
 class BehaviorOphysExperimentDev:
@@ -115,7 +114,7 @@ class BehaviorOphysExperimentDev:
                         filter_params: dict = None):
         """Get new events from pipeline_dev folder"""
 
-        events_folder = f"oasis_v{events_version}"
+        events_folder = "oasis_nrsac_v1" #f"oasis_v{events_version}"
         version_folder = EVENTS_PATH / events_folder
 
         # check version folder exists
