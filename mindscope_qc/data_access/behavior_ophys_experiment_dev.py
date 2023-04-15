@@ -202,18 +202,21 @@ class BehaviorOphysExperimentDev:
 
         # check if mouse_name = Copper
         if self.metadata["mouse_name"] == "Copper":
-            fn = "copper_r1_total_experiment_id_table_m15.xlsx"
-            ddf = pd.read_excel(CELLXGENE_PATH / fn, sheet_name=None)
-
-            gene_df = ddf['Transcriptomic profiles']
-            cell_df = ddf['in']
-
-            cell_df = cell_df[(cell_df['IOU_between_fov_and_z_stack'] > 0) & (cell_df['IOU_between_2p_and_ls'] > 0)]
-  
-            cellxgene = cell_df.merge(gene_df, left_on='ls_cell_id', right_on='LS GCaMP Cell ID')
-            # return all ls_cell_id per cell_specimen_id
             
+            
+            # fn = "copper_r1_total_experiment_id_table_m15.xlsx"
+            # ddf = pd.read_excel(CELLXGENE_PATH / fn, sheet_name=None)
+            # gene_df = ddf['Transcriptomic profiles']
+            # cell_df = ddf['in']
+            # cell_df = cell_df[(cell_df['IOU_between_fov_and_z_stack'] > 0) & (cell_df['IOU_between_2p_and_ls'] > 0)]
+            # cellxgene = cell_df.merge(gene_df, left_on='ls_cell_id', right_on='LS GCaMP Cell ID')
+
+            # return all ls_cell_id per cell_specimen_id
             # lscounts = cellxgene.groupby('cell_specimen_id')['ls_cell_id'].apply(list).reset_index()
+
+            fn = "copper_r1_total_experiment_id_table_m23_matt_removed_doublet_rois.xlsx"
+            cellxgene = pd.read_excel(CELLXGENE_PATH / fn)
+
             return cellxgene
 
         else:
