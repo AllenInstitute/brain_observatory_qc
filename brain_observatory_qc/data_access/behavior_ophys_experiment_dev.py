@@ -101,17 +101,16 @@ class BehaviorOphysExperimentDev:
             roi_names = np.asarray(f['cell_roi_id'])
             idx = pd.Index(roi_names, name='cell_roi_id').astype('int64')
             new_dff = pd.DataFrame({'dff': [x for x in traces]}, index=idx)
-        print('new dff loaded, Size: ', new_dff.shape)
         old_dff = self.inner.dff_traces.copy().reset_index()
          
         # check if rois are the same
         same_rois = np.intersect1d(old_dff.cell_roi_id.values, new_dff.index.values)
         if len(same_rois) != len(old_dff):
-            print('rois are different')
+            print('rois in dff traces df are different')
 
         # if there are nans in index, check if cell_specimen_id is in table
         if old_dff['cell_specimen_id'].isna().sum() > 0:
-            print('found nan cell specimen ids')
+            print('found nan cell specimen ids in dff traces df')
             cell_specimen_table = utilities.replace_cell_specimen_ids(old_dff.cell_roi_id.values)
             old_dff.drop(['cell_specimen_id'], axis=1, inplace=True)
             old_dff= pd.merge(old_dff, cell_specimen_table, on='cell_roi_id', how='inner')
@@ -121,7 +120,6 @@ class BehaviorOphysExperimentDev:
                                 old_dff.drop(columns=["dff"]),
                                 on="cell_roi_id", how="inner")
                        .set_index("cell_specimen_id"))
-        print('new dff merged, Size: ', updated_dff.shape)
         # if there are nans in index, check if cell_specimen_id is in table
         # if updated_dff.index.isna().sum() > 0:
         #     cell_specimen_table = utilities.replace_cell_specimen_ids(updated_dff.cell_roi_ids.values)
@@ -150,6 +148,15 @@ class BehaviorOphysExperimentDev:
             raise FileNotFoundError(f"Events file not found: {events_file}")
 
         events_df = self._load_oasis_events_h5_to_df(events_file, filter_params)
+
+        # if there are nans in index, check if cell_specimen_id is in table
+        if events_df.index.isna().sum() > 0:
+            print('found nan cell specimen ids in events df')
+            cell_specimen_table = utilities.replace_cell_specimen_ids(events_df.cell_roi_id.values)
+            events_df = events_df.reset_index()
+            events_df.drop(['cell_specimen_id'], axis=1, inplace=True)
+            events_df= pd.merge(events_df, cell_specimen_table, on='cell_roi_id', how='inner')
+            events_df = events_df.set_index('cell_specimen_id')
 
         return events_df
 
