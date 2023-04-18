@@ -71,16 +71,17 @@ def get_sync_path(lims_data):
     sync_path = os.path.join(ophys_session_dir, sync_file)
     return sync_path
 
+
 def replace_cell_specimen_ids(cell_roi_ids):
     # replace cell specimen ids in cell specimen table if they are None (copper mouse)
     filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
-            'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
+        'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
     with open(filename, 'rb') as f:
         good_cids = pickle.load(f)
         good_cids = good_cids.set_index('cell_roi_id')
         f.close()
 
-    cell_specimen_ids = [] # collect new cell specimen ids
+    cell_specimen_ids = []  # collect new cell specimen ids
     for roi in cell_roi_ids:
         try:
             cid = good_cids.loc[roi]['cell_specimen_id']
@@ -94,7 +95,6 @@ def replace_cell_specimen_ids(cell_roi_ids):
 
     return cell_specimen_table
 
-        
 
 # def get_sync_data(lims_data, use_acq_trigger):
 #     logger.info('getting sync data')
