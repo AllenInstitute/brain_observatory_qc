@@ -50,6 +50,7 @@ class BehaviorOphysExperimentDev:
     expt = BehaviorOphysExperimentDev(expt_id, skip_eye_tracking=True)
 
     """
+
     def __init__(self,
                  ophys_experiment_id,
                  events_version: int = 1,
@@ -60,6 +61,7 @@ class BehaviorOphysExperimentDev:
         self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
+        self.cell_specimen_table = self._update_cell_specimen_table()
 
         try:
             self.events = self._get_new_events(events_version, filter_params)
@@ -102,7 +104,7 @@ class BehaviorOphysExperimentDev:
             idx = pd.Index(roi_names, name='cell_roi_id').astype('int64')
             new_dff = pd.DataFrame({'dff': [x for x in traces]}, index=idx)
         old_dff = self.inner.dff_traces.copy().reset_index()
-         
+
         # check if rois are the same
         same_rois = np.intersect1d(old_dff.cell_roi_id.values, new_dff.index.values)
         if len(same_rois) != len(old_dff):
@@ -113,7 +115,7 @@ class BehaviorOphysExperimentDev:
             print('found nan cell specimen ids in dff traces df')
             cell_specimen_table = utilities.replace_cell_specimen_ids(old_dff.cell_roi_id.values)
             old_dff.drop(['cell_specimen_id'], axis=1, inplace=True)
-            old_dff= pd.merge(old_dff, cell_specimen_table, on='cell_roi_id', how='inner')
+            old_dff = pd.merge(old_dff, cell_specimen_table, on='cell_roi_id', how='inner')
 
         # merge on cell_roi_id
         updated_dff = (pd.merge(new_dff.reset_index(),
@@ -133,7 +135,7 @@ class BehaviorOphysExperimentDev:
                         filter_params: dict = None):
         """Get new events from pipeline_dev folder"""
 
-        events_folder = "oasis_nrsac_v1" #f"oasis_v{events_version}"
+        events_folder = "oasis_nrsac_v1"  # f"oasis_v{events_version}"
         version_folder = EVENTS_PATH / events_folder
 
         # check version folder exists
@@ -155,7 +157,7 @@ class BehaviorOphysExperimentDev:
             cell_specimen_table = utilities.replace_cell_specimen_ids(events_df.cell_roi_id.values)
             events_df = events_df.reset_index()
             events_df.drop(['cell_specimen_id'], axis=1, inplace=True)
-            events_df= pd.merge(events_df, cell_specimen_table, on='cell_roi_id', how='inner')
+            events_df = pd.merge(events_df, cell_specimen_table, on='cell_roi_id', how='inner')
             events_df = events_df.set_index('cell_specimen_id')
 
         return events_df
@@ -223,6 +225,16 @@ class BehaviorOphysExperimentDev:
         dt = np.median(np.diff(self.ophys_timestamps))
         metadata["ophys_frame_rate"] = 1 / dt
         return metadata
+
+    def _update_cell_specimen_table(self):
+        """Update cell_specimen_table with new cell_specimen_ids if they exist"""
+        cst = self.inner.cell_specimen_table.copy()
+        cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
+        cell_roi_ids = cst.cell_roi_id.values
+        cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
+        cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
+        cst = cst.set_index('cell_specimen_id')
+        return cst
 
     def _create_new_dff(self):
         """Create new dff traces"""
