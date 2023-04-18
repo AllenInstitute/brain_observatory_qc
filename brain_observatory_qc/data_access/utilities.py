@@ -38,7 +38,7 @@ def get_ssim(img0, img1):
 
 
 def get_lims_data(lims_id):
-    ld = LimsDatabase(int(lims_id))
+    ld = LimsDatabase(int(lims_id)) # noqa
     lims_data = ld.get_qc_param()
     lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
     lims_data.insert(loc=2, column='session_type',
@@ -52,7 +52,7 @@ def get_timestamps(lims_data):
         use_acq_trigger = True
     else:
         use_acq_trigger = False
-    sync_data = get_sync_data(lims_data, use_acq_trigger)
+    sync_data = get_sync_data(lims_data, use_acq_trigger) # noqa
     timestamps = pd.DataFrame(sync_data)
     return timestamps
 
@@ -85,7 +85,7 @@ def replace_cell_specimen_ids(cell_roi_ids):
     for roi in cell_roi_ids:
         try:
             cid = good_cids.loc[roi]['cell_specimen_id']
-        except:
+        except: # noqa
             cid = None
         cell_specimen_ids.append(cid)
 
