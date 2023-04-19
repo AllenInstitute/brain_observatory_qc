@@ -73,6 +73,8 @@ def get_sync_path(lims_data):
 
 
 def replace_cell_specimen_ids(cell_roi_ids):
+    # TODO: this will return cell_specimen_ids as None for cells tha are not in the pickle file. 
+    # Currenlty this function will only work if all cell specimen ids were None. If some of them were int, it will replace them with None.
     # replace cell specimen ids in cell specimen table if they are None (copper mouse)
     filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
         'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
