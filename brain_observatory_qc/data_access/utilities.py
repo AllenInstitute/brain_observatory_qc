@@ -76,8 +76,10 @@ def replace_cell_specimen_ids(cell_roi_ids):
     # TODO: this will return cell_specimen_ids as None for cells tha are not in the pickle file. 
     # Currenlty this function will only work if all cell specimen ids were None. If some of them were int, it will replace them with None.
     # replace cell specimen ids in cell specimen table if they are None (copper mouse)
+    # filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
+    #     'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
     filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
-        'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
+            'activity_correlation_lamf/nrsac/roi_match/copper_all_roi_table.pkl'
     with open(filename, 'rb') as f:
         good_cids = pickle.load(f)
         good_cids = good_cids.set_index('cell_roi_id')
