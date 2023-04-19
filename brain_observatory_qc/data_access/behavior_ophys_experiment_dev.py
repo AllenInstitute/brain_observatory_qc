@@ -110,7 +110,7 @@ class BehaviorOphysExperimentDev:
             print('rois in dff traces df are different')
 
         # if there are nans in index, check if cell_specimen_id is in table
-        if old_dff['cell_specimen_id'].isna().sum() > 0:
+        if old_dff['cell_specimen_id'].isna().sum() == len(old_dff):
             print('found nan cell specimen ids in dff traces df')
             cell_specimen_table = utilities.replace_cell_specimen_ids(old_dff.cell_roi_id.values)
             old_dff.drop(['cell_specimen_id'], axis=1, inplace=True)
@@ -151,7 +151,7 @@ class BehaviorOphysExperimentDev:
         events_df = self._load_oasis_events_h5_to_df(events_file, filter_params)
 
         # if there are nans in index, check if cell_specimen_id is in table
-        if events_df.index.isna().sum() > 0:
+        if events_df.index.isna().sum() == len(events_df):
             print('found nan cell specimen ids in events df')
             cell_specimen_table = utilities.replace_cell_specimen_ids(events_df.cell_roi_id.values)
             events_df = events_df.reset_index()
@@ -228,11 +228,13 @@ class BehaviorOphysExperimentDev:
     def _update_cell_specimen_table(self):
         """Update cell_specimen_table with new cell_specimen_ids if they exist"""
         cst = self.inner.cell_specimen_table.copy()
-        cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
-        cell_roi_ids = cst.cell_roi_id.values
-        cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
-        cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
-        cst = cst.set_index('cell_specimen_id')
+        if cst.index.isna().sum() == len(cst): # if all nans
+            cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
+            cell_roi_ids = cst.cell_roi_id.values
+            cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
+            cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
+            cst = cst.set_index('cell_specimen_id')
+        
         return cst
 
     def _create_new_dff(self):
