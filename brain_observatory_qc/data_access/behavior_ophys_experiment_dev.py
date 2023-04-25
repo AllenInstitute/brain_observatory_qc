@@ -55,7 +55,7 @@ class BehaviorOphysExperimentDev:
                  **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
-        self.dff_traces = self._get_new_dff()
+        # self.dff_traces = self._get_new_dff()
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
 
