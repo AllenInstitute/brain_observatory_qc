@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     expts = start_lamf_analysis()
 
-    mouse_names = ["Copper","Silicon", "Titanium","Bronze", "Gold", "Silver", "Mercury", "Aluminum", "Iron", "Cobalt"]
+    mouse_names = ["Copper", "Silicon", "Titanium", "Bronze", "Gold", "Silver", "Mercury", "Aluminum", "Iron", "Cobalt"]
     expts.mouse_name = pd.Categorical(expts.mouse_name, categories=mouse_names, ordered=True)
     expts = expts.sort_values(by="mouse_name")
 
