@@ -71,7 +71,7 @@ class BehaviorOphysExperimentDev:
     def __init__(self,
                  ophys_experiment_id,
                  events_path: Union[str, Path] = EVENTS_PATH,
-                 filtetered_events_params: dict = None,
+                 filtered_events_params: dict = None,
                  load_or_calc_new_dff: bool = False,
                  **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
@@ -86,7 +86,7 @@ class BehaviorOphysExperimentDev:
             self.dff_traces = self._get_new_dff()
 
         try:
-            self.events = self._get_new_events(events_path, filtetered_events_params)
+            self.events = self._get_new_events(events_path, filtered_events_params)
         except FileNotFoundError:
             # warn new_events not loaded
             # TODO: should we create one?
