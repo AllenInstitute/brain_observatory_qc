@@ -156,7 +156,7 @@ class BehaviorOphysExperimentDev:
             raise FileNotFoundError(f"Events file not found: {events_file}")
 
         events_df = self._load_oasis_events_h5_to_df(events_file, filtered_events_params)
-   
+
         return events_df
 
     def _load_oasis_events_h5_to_df(self,
