@@ -10,7 +10,7 @@ from brain_observatory_qc.pipeline_dev import calculate_new_dff
 from allensdk.brain_observatory.behavior.event_detection import \
     filter_events_array
 
-from mindscope_qc.utilities import experiment_table_utils as etu
+from brain_observatory_qc.utilities import experiment_table_utils as etu
 
 from typing import Union
 
