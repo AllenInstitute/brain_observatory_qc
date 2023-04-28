@@ -81,12 +81,14 @@ class BehaviorOphysExperimentDev:
         self.metadata = self._update_metadata()
         # self.cell_x_gene = self._get_cell_x_gene() # TODO: implement
         self.is_roi_filtered = False
+        self.filtered_events_params = filtered_events_params
+        self.events_path = Path(events_path)
 
-        if load_or_calc_new_dff:
+        if self.load_or_calc_new_dff:
             self.dff_traces = self._get_new_dff()
 
         try:
-            self.events = self._get_new_events(events_path, filtered_events_params)
+            self.events = self._get_new_events(self.events_path, self.filtered_events_params)
         except FileNotFoundError:
             # warn new_events not loaded
             # TODO: should we create one?
