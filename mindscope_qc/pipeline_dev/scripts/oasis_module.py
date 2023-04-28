@@ -10,34 +10,26 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import json
 
-# from mindscope_qc.data_access.behavior_ophys_experiment_dev \
-#     import BehaviorOphysExperimentDev
+from mindscope_qc.data_access.behavior_ophys_experiment_dev \
+    import BehaviorOphysExperimentDev
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment \
     import BehaviorOphysExperiment
 
 import logging
-import multiprocessing as mp
-from functools import partial
-
-from brain_observatory_analysis.ophys.experiment_loading import start_lamf_analysis
 
 # argparser
 import argparse
 parser = argparse.ArgumentParser(description='')
 
+# provide one of these required args, not both
 parser.add_argument('--h5_path', type=str, default=None,
                     metavar='h5 file path')
-# add hpc bool
-parser.add_argument('--hpc', action='store_true',
-                    default=False, help='run on hpc')
-
-# add multiprocessing bool
-parser.add_argument('--multiprocessing', action='store_true',
-                    default=False, help='use multiprocessing')
-
-# add oeid
 parser.add_argument('--oeid', type=int, default=None,
                     metavar='ophys_experiment_id')
+
+# multi only works for h5_path currently (not oeid)
+parser.add_argument('--multiprocessing', action='store_true',
+                    default=False, help='use multiprocessing')
 
 
 ########################
@@ -279,12 +271,12 @@ def load_new_dff_h5(h5_path: Path) -> dict:
 
 
 # TODO: make params as input
-def generate_oasis_events_for_trace_types(h5_path: Path,
-                                          out_path: Path,
-                                          trace_type: list = 'new_dff',
-                                          estimate_parameters: bool = True,
-                                          qc_plot: bool = True,
-                                          **kwargs) -> None:
+def generate_oasis_events_for_h5_path(h5_path: Path,
+                                      out_path: Path,
+                                      trace_type: list = 'new_dff',
+                                      estimate_parameters: bool = True,
+                                      qc_plot: bool = True,
+                                      **kwargs) -> None:
     """Generate oasis events for all traces in pipe_dev dff folder
 
     Parameters
@@ -331,7 +323,6 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
 
     # DEFAULT PARAMS
     # TODO: make these as inputs
-
     params = {}
     params['g'] = (None,)
     params['b'] = None
@@ -360,10 +351,6 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
         if oasis_h5.exists():
             print(f"{oasis_h5} already exists")
             return
-        
-        # TODO replace with from_network/direct
-        # OLD
-        # experiment = BehaviorOphysExperimentDev(expt_id)
 
         trace_dict = load_new_dff_h5(h5_path)
         traces = trace_dict[trace_type]
@@ -374,9 +361,7 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
         #     nan_expt_ids.append(expt_id)
         #     continue
 
-        
-
-        # NRSAC UPDATE
+        # just get expt for frame rate
         experiment = BehaviorOphysExperimentDev(expt_id)
 
         timestamps = trace_dict['timestamps']
@@ -411,9 +396,9 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
         with open(out_path / f"{expt_id}_params.json", 'w') as file:
             json.dump(params, file)
 
-        logging.info(f"Finished processing {expt_id}")
+        logging.info(f"SUCCESS: {expt_id}")
     except Exception as e:
-        logging.error(f"Error processing {expt_id}")
+        logging.error(f"FAILED: {expt_id}")
         raise e
 
 
@@ -499,7 +484,8 @@ def generate_oasis_events_for_oeid(oeid: int,
         # save to h5
         with h5py.File(oasis_h5, 'w') as file:
             file.create_dataset("cell_roi_id", data=roi_ids)
-            file.create_dataset("spikes", data=events)  # KEEP "spikes" to be consitent 
+            # KEEP "spikes" to be consitent
+            file.create_dataset("spikes", data=events)
 
         if qc_plot:
             plots_path = out_path / "plots"
@@ -517,9 +503,9 @@ def generate_oasis_events_for_oeid(oeid: int,
         with open(out_path / f"{expt_id}_params.json", 'w') as file:
             json.dump(params, file)
 
-        logging.info(f"SUCCESS {expt_id}")
+        logging.info(f"SUCCESS: {expt_id}")
     except Exception as e:
-        logging.error(f"FAILED {expt_id}")
+        logging.error(f"FAILED: {expt_id}")
         raise e
 
 
@@ -591,12 +577,14 @@ def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
 if __name__ == "__main__":
     args = args = parser.parse_args()
     h5_path = args.h5_path
-    hpc = args.hpc
     multiprocessing = args.multiprocessing
     oeid = args.oeid
 
-    root_dir = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation")
+    assert (h5_path is None) != (
+        oeid is None), "Must provide h5_path or oeid, but not both"
 
+    root_dir = Path(
+        "/allen/programs/mindscope/workgroups/learning/pipeline_validation")
     out_path = root_dir / "events" / "oasis_nrsac_v1"
 
     # make output dir
@@ -604,43 +592,41 @@ if __name__ == "__main__":
 
     # start logger
     log_path = out_path / "events_processing.log"
-    logging.basicConfig(filename=log_path, level=logging.ERROR)
-    logging.info("Starting run")
-    logging.info(f"Saving to {out_path}")
+    logging.basicConfig(filename=log_path, level=logging.INFO)
+    logging.info(f"SAVING: oasis events to: {out_path}")
 
     if multiprocessing:
-        expt_ids = start_lamf_analysis().index.values
+        # import multiprocessing as mp
+        # from functools import partial
+        # from brain_observatory_analysis.ophys.experiment_loading import start_lamf_analysis
 
-        h5_list = []
-        for expt_id in expt_ids:
-            h5_list.append(root_dir / "dff" / f"{expt_id}_new_dff.h5")
+        # expt_ids = start_lamf_analysis().index.values
 
-        func = partial(generate_oasis_events_for_trace_types,
-                       out_path=out_path,
-                       trace_type='new_dff',
-                       estimate_parameters=True,
-                       qc_plot=True)
+        # h5_list = []
+        # for expt_id in expt_ids:
+        #     h5_list.append(root_dir / "dff" / f"{expt_id}_new_dff.h5")
 
-        with mp.Pool(10) as p:
-            p.map(func, h5_list)
+        # func = partial(generate_oasis_events_for_trace_types,
+        #                out_path=out_path,
+        #                trace_type='new_dff',
+        #                estimate_parameters=True,
+        #                qc_plot=True)
 
-        for h5_path in h5_list:
+        # with mp.Pool(10) as p:
+        #     p.map(func, h5_list)
+        print('not implemented')
 
-            generate_oasis_events_for_trace_types(h5_path,
-                                                  out_path,
-                                                  trace_type='new_dff',
-                                                  estimate_parameters=True,
-                                                  qc_plot=True)
+    if h5_path is not None:
+        generate_oasis_events_for_h5_path(h5_path,
+                                          out_path,
+                                          trace_type='new_dff',
+                                          estimate_parameters=True,
+                                          qc_plot=True)
 
-    if hpc:
-        # generate_oasis_events_for_trace_types(h5_path,
-        #                                       out_path,
-        #                                       trace_type='new_dff',
-        #                                       estimate_parameters=True,
-        #                                       qc_plot=True)
-
+    if oeid is not None:
         generate_oasis_events_for_oeid(oeid,
                                        out_path,
-                                       trace_type='dff',  # OLD
+                                       # not implemented, uses dff_traces from expt object (dev or SDK)
+                                       trace_type='dff',
                                        estimate_parameters=True,
                                        qc_plot=False)
