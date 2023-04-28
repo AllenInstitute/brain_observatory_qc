@@ -10,7 +10,7 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import json
 
-from mindscope_qc.data_access.behavior_ophys_experiment_dev \
+from brain_observatory_qc.data_access.behavior_ophys_experiment_dev \
     import BehaviorOphysExperimentDev
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment \
     import BehaviorOphysExperiment

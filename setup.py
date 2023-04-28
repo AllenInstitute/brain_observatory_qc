@@ -1,13 +1,13 @@
 from setuptools import setup
 
-setup(name='mindscope_qc',
+setup(name='brain_observatory_qc',
     version='0.1.0',
-    packages=['mindscope_qc'],
+    packages=['brain_observatory_qc'],
     include_package_data = True,
-    description='Utilities for loading, and visualizing quality control data and metrics for the Allen Institute Mindscope program',
-    url='https://github.com/AllenInstitute/mindscope_qc',
+    description='Utilities for loading, and visualizing quality control data and metrics for Allen Brain Observatory projects',
+    url='https://github.com/AllenInstitute/brain_observatory_qc',
     author='Allen Institute',
-    author_email='kater@alleninstitute.org, sean.mcculloch@alleninstitute.org,',
+    author_email='clark.roll@alleninstitute.org, sean.mcculloch@alleninstitute.org,',
     license='Allen Institute',
     install_requires=[
         'flake8',

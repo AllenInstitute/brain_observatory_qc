@@ -5,7 +5,7 @@ import pandas as pd
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
     BehaviorOphysExperiment
 
-from mindscope_qc.pipeline_dev import calculate_new_dff
+from brain_observatory_qc.pipeline_dev import calculate_new_dff
 
 from allensdk.brain_observatory.behavior.event_detection import \
     filter_events_array

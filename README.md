@@ -1,5 +1,5 @@
 # brain_observatory_qc
-brain_observatory_qc is inteded to be both a standalone repo of quality control metrics and plots for Brain Observatory program projects that utilitze 2-photon imaging, electrophysiology, and a central location for for tracking data quality issues related to ongoing Mindscope projects.The repo is internally facing only.
+brain_observatory_qc is inteded to be both a standalone repo of quality control metrics and plots for Allen Brain Observatory projects that utilitze 2-photon imaging, and a central location for for tracking data quality issues related to ongoing Allen Brain Observatory projects.The repo is internally facing only.
 
 
 Anyone with data quality concerns should log issues here to ensure that they are tracked and followed up on. This repository should be a central place to log and track issues, along with any associated documents (Jupyter Notebooks, PDF writeups, slide decks, etc.) that were prepared in the process of tracking or following up on issues.
@@ -14,25 +14,25 @@ https://github.com/AllenInstitute/AllenSDK
 Set up a dedicated conda environment:
 
 ```
-conda create -n BOqc python=3.8 
+conda create -n boqc python=3.8 
 ```
 
 Activate the new environment:
 
 ```
-conda activate BOqc
+conda activate boqc
 ```
 
 Make the new environment visible in the Jupyter 
 ```
 pip install ipykernel
-python -m ipykernel install --user --name BOqc
+python -m ipykernel install --user --name boqc
 ```
 
 Install brain_observatory_qc
 ```
-git clone https://github.com/AllenInstitute/mindscope_qc.git
-cd mindscope_qc
+git clone https://github.com/AllenInstitute/brain_observatory_qc.git
+cd brain_observatory_qc
 pip install -e .
 ```
 
@@ -148,10 +148,10 @@ Pull requests are welcome!
 ## Contributors:
 
 - Sean McCulloch - sean.mcculloch@alleninstitute.org, @seanmcculloch
-- Clark Roll - kater@alleninstitute.org, @downtoncrabby
-- Doug Ollerenshaw - @dougollerenshaw
+- Clark Roll - clark.roll@alleninstitute.org, @downtoncrabby
+- Matt Davis - matt.davis@alleninstitute.org, @mattjdavis
 - Marina Garrett - marinag@alleninstitute.org, @matchings
-
+- Doug Ollerenshaw - @dougollerenshaw
 
 ## Additional Links
 
