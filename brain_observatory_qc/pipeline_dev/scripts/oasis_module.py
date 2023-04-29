@@ -241,7 +241,7 @@ def quick_fix_nans(traces: np.array,
         start = np.where(~np.isnan(t))[0][0]
         traces[i, :start] = 0
 
-        # linear olate nans
+        # linear interolate nans
         traces[i] = np.interp(np.arange(len(t)), np.where(
             ~np.isnan(t))[0], t[~np.isnan(t)])
 
@@ -370,6 +370,9 @@ def generate_oasis_events_for_h5_path(h5_path: Path,
         params['rate'] = rate
 
         traces, n_nan_list = quick_fix_nans(traces)
+        # warn that some traces have nans
+        if len(n_nan_list) > 0:
+            print(f"WARNING: {len(n_nan_list)} traces have nans")
 
         spikes, params = oasis_deconvolve(traces, params, estimate_parameters)
 
