@@ -91,9 +91,14 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         # Create trace using inactive frames only, by replacing signals in "active frames" with NaN
         active_frame = np.where(corrected_trace > (
             low_baseline + 3 * noise_sd))[0]
+        negative_frame = np.where(corrected_trace < (
+            low_baseline - 3 * noise_sd))[0]
         inactive_trace = corrected_trace.copy()
         for i in active_frame:
             inactive_trace[i] = np.nan
+        for i in negative_frame:
+            inactive_trace[i] = np.nan
+        
         # Calculate baseline using median filter
         baseline_new = nanmedian_filter(inactive_trace, short_filter_length)
         # Calculate DFF
