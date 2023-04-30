@@ -29,14 +29,13 @@ if __name__ == '__main__':
     print(f'Processing ophys_experiment_id {oeid}')
     t0 = time.time()
     save_dir = Path(args.save_dir)
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
     # save_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\pipeline_validation\dff'.replace('\\','/'))
     # Get new dff DataFrame
     new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(oeid)
     # Save as h5 file, because of the timestamps
     calculate_new_dff.save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid)
     # Draw figures and save them
-    calculate_new_dff.draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid)
+    # calculate_new_dff.draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid)
     t1 = time.time()
     print(f'Done in {(t1-t0)/60:.1f} min.')

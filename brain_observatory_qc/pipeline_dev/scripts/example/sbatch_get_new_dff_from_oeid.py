@@ -4,6 +4,7 @@ import time
 from simple_slurm import Slurm
 from pathlib import Path
 import pandas as pd
+from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 
 parser = argparse.ArgumentParser(
     description='running sbatch for get_new_dff_from_oeid.py')
@@ -42,13 +43,14 @@ if __name__ == '__main__':
 
     # #
     # job_dir = Path('//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff')
+    # job_dir = Path(
+    #     r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\dff'.replace('\\', '/'))
+    
     job_dir = Path(
-        r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\dff'.replace('\\', '/'))
+        r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\dff'.replace('\\', '/'))
 
     stdout_location = job_dir / 'job_records'
-    if not os.path.exists(stdout_location):
-        print('making folder {}'.format(stdout_location))
-        os.mkdir(stdout_location)
+    stdout_location.mkdir(parents=True, exist_ok=True)
 
     # # Get ophys_experiment_ids from the text file
     # oeid_list_txt_fn = f'oeid_to_run_221021.txt'
@@ -58,11 +60,19 @@ if __name__ == '__main__':
     # oeid_list_pkl_fn = f'three_mice_ids_df.pkl'
     # oeid_df = pd.read_pickle(job_dir.parent / oeid_list_pkl_fn)
     # oeid_list = oeid_df.ophys_experiment_id.values
-    load_dir = Path(
-        '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho')
-    load_fn = 'GH_experiment_table_directory_info.pkl'
-    GH_experiments_dir_info = pd.read_pickle(load_dir / f'{load_fn}')
-    oeid_list = GH_experiments_dir_info.ophys_experiment_id.values
+    # load_dir = Path(
+    #     '//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho')
+    # load_fn = 'GH_experiment_table_directory_info.pkl'
+    # GH_experiments_dir_info = pd.read_pickle(load_dir / f'{load_fn}')
+    # oeid_list = GH_experiments_dir_info.ophys_experiment_id.values
+
+    # Get ophys_experiment_ids from lims
+    cache = bpc.from_lims()
+    exp_table = cache.get_ophys_experiment_table(passed_only=True)
+    # target_project_code_list = ['VisualBehaviorMultiscope4areasx2d']
+    target_project_code_list = ['VisualBehaviorTask1B', 'VisualBehavior', 'VisualBehaviorMultiscope']
+    target_exp_table = exp_table[exp_table.project_code.isin(target_project_code_list)]
+    oeid_list = target_exp_table.index.values
 
     job_count = 0
     job_string = "{} {}"
