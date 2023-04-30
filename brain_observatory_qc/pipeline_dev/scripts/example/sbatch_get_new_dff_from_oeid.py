@@ -86,7 +86,7 @@ if __name__ == '__main__':
             print('starting cluster job for {}, job count = {}'.format(
                 oeid, job_count))
             job_title = 'ophys_experiment_id_{}'.format(oeid)
-            walltime = '1:30:00'
+            walltime = '2:00:00'
             mem = '200gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
