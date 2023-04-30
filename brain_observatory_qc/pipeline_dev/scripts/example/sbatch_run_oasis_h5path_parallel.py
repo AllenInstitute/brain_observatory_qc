@@ -14,6 +14,10 @@ if __name__ == '__main__':
     ###
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
+
+    ###
+    ### Change the paths
+    ###
     base_dir = Path('/home/jinho.kim/Github/mindscope_qc/brain_observatory_qc/pipeline_dev/script/example/')
     python_file = base_dir / 'run_oasis_h5path.py'
     job_dir = Path('//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/event_oasis/')
@@ -40,9 +44,9 @@ if __name__ == '__main__':
         partition="braintv"
     )
 
-    args_string = f'{cpus_per_task}'
+    args_string = f'--num_core {cpus_per_task}'
     slurm.sbatch('{} {} {}'.format(
-                    python_executable,
-                    python_file,
-                    args_string,))
+                 python_executable,
+                 python_file,
+                 args_string,))
     time.sleep(0.01)

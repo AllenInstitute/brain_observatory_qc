@@ -12,7 +12,7 @@ from functools import partial
 
 import argparse
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('num_core', type=int, default=None,
+parser.add_argument('--num_core', type=int, default=None,
                     metavar='number of cores for multiprocessing')
 
 if __name__ == "__main__":
@@ -22,13 +22,13 @@ if __name__ == "__main__":
     ### IMPORTANT
     # Change directory paths
     ###
-    h5_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\dff')
+    h5_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\dff')
     h5_files = glob(str(h5_dir / '*.h5'))
 
     ### IMPORTANT
     # Change directory paths
     ###
-    out_path = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\event_oasis')
+    out_path = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\event_oasis')
     out_files = glob(str(out_path / '*.h5'))
 
     # dff_oeids = [int(Path(f).stem.split('_')[0]) for f in h5_files]
