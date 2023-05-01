@@ -563,9 +563,8 @@ def plot_trace_and_events(traces, spikes, timestamps, roi_ids, params, expt_id, 
             ax2.legend()
             ax.set_title(f"cell_roi_id: {cell}")
             pdf.savefig(fig)
-        if show_fig is False:
+        if not show_fig:
             plt.close(fig)
-
 
 
 def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
