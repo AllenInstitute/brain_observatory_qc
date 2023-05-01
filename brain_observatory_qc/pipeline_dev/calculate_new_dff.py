@@ -4,6 +4,11 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from scipy.ndimage import percentile_filter
 import os
+import multiprocessing as mp
+from functools import partial
+
+from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
+# In case where timestamps from lims does not match with dff length
 
 from visual_behavior.data_access import from_lims, from_lims_utilities
 # from brain_observatory_qc.data_access import from_lims, from_lims_utilities
@@ -16,6 +21,24 @@ from visual_behavior.data_access import from_lims, from_lims_utilities
 
 
 def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
+    """ Save new_dff_df as h5 file
+
+    Parameters
+    ----------
+    save_dir : Path
+        Directory to save the file
+    new_dff_df : pd.DataFrame
+        DataFrame containing new_dff, old_dff, np_corrected, etc.
+    timestamps : np.ndarray
+        Timestamps of the experiment
+    oeid : int
+        ophys experiment id
+
+    Returns
+    -------
+    Path
+        Path to the saved file
+    """
     new_dff_array = np.zeros((len(new_dff_df), len(timestamps)))
     old_dff_array = np.zeros((len(new_dff_df), len(timestamps)))
     np_corrected_array = np.zeros((len(new_dff_df), len(timestamps)))
@@ -37,7 +60,7 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
     return save_fn
 
 
-def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10):
+def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, parallel=True, num_core=0):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -55,6 +78,10 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         kernel size for low_baseline calculation, by default 30
     inactive_percentile : int, optional
         percentile to calculate low_baseline, by default 10
+    parallel : bool, optional
+        Whether to use parallel processing, by default True
+    num_core : int, optional
+        Number of cores to use, by default 0 (use all available cores)
 
     Returns
     -------
@@ -77,44 +104,103 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     # "inactive frames" defined by those with signals less than 10th percentile + 3 x noise_sd)
     new_dff_all = []
     old_dff_all = []
+    crid_all = []
     dff_h = h5py.File(from_lims.get_dff_traces_filepath(
         ophys_experiment_id), 'r')
-    for _, row in np_corrected_df.iterrows():
-        corrected_trace = row.np_corrected
-        crid = row.cell_roi_id
-        # Calculate noise_sd
-        noise_sd = noise_std(corrected_trace, filter_length=int(
-            round(frame_rate * 3.33)))  # 3.33 s is fixed
-        # 10th percentile "low_baseline"
-        low_baseline = percentile_filter(
-            corrected_trace, size=long_filter_length, percentile=inactive_percentile, mode='reflect')
-        # Create trace using inactive frames only, by replacing signals in "active frames" with NaN
-        active_frame = np.where(corrected_trace > (
-            low_baseline + 3 * noise_sd))[0]
-        negative_frame = np.where(corrected_trace < (
-            low_baseline - 3 * noise_sd))[0]
-        inactive_trace = corrected_trace.copy()
-        for i in active_frame:
-            inactive_trace[i] = np.nan
-        for i in negative_frame:
-            inactive_trace[i] = np.nan
-        
-        # Calculate baseline using median filter
-        baseline_new = nanmedian_filter(inactive_trace, short_filter_length)
-        # Calculate DFF
-        new_dff = calculate_dff(corrected_trace, baseline_new, noise_sd)
-        # Load old dff
+    if parallel:
+        func = partial(new_dff_each_cell,
+                       long_filter_length=long_filter_length,
+                       inactive_percentile=inactive_percentile,
+                       short_filter_length=short_filter_length,
+                       frame_rate=frame_rate)
+        if num_core == 0:
+            num_core = mp.cpu_count()
+        with mp.Pool(num_core) as p:
+            results = p.starmap(func, 
+                                zip(np_corrected_df.np_corrected.values.tolist(), 
+                                    np_corrected_df.cell_roi_id.values.tolist()))
+            for item in results:
+                new_dff_all.append(item[0])
+                crid_all.append(item[1])
+    else:
+        for _, row in np_corrected_df.iterrows():
+            corrected_trace = row.np_corrected
+            crid = row.cell_roi_id
+            new_dff, crid = new_dff_each_cell(corrected_trace, crid, long_filter_length, inactive_percentile, short_filter_length, frame_rate)
+
+            # Gather data
+            new_dff_all.append(new_dff)
+            crid_all.append(row.cell_roi_id)
+    # Load old dff
+    for crid in crid_all:
         roi_ind = np.where(
             [int(rn) == crid for rn in dff_h['roi_names']])[0][0]
         old_dff = dff_h['data'][roi_ind]
-        # Gather data
-        new_dff_all.append(new_dff)
         old_dff_all.append(old_dff)
-    np_corrected_df['new_dff'] = new_dff_all
-    np_corrected_df['old_dff'] = old_dff_all
+    assert len(old_dff_all[0]) == len(new_dff_all[0])
+    # collect dffs
+    temp_df = pd.DataFrame()
+    temp_df['cell_roi_id'] = crid_all
+    temp_df['new_dff'] = new_dff_all
+    temp_df['old_dff'] = old_dff_all  
+    # merge with np_corrected_df, check one-to-one    
+    np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
     # Add timestamps
     ophys_timestamps = timestamps.ophys_frames.timestamps
+    if len(ophys_timestamps) != len(new_dff_all[0]):  # In some cases, the length is different
+        cache = bpc.from_lims()
+        exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+        ophys_timestamps = exp.ophys_timestamps
+    assert len(ophys_timestamps) == len(new_dff_all[0])
     return np_corrected_df, ophys_timestamps
+
+
+def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
+    """ Calculate new dff for each cell
+    Parameters
+    ----------
+    corrected_trace : np.ndarray
+        neuropil-corrected trace
+    cell_roi_id : int
+        cell_roi_id, this is to confirm the match with the trace
+    long_filter_length : int
+        kernel size for low_baseline calculation
+    inactive_percentile : int
+        percentile to calculate low_baseline
+    short_filter_length : int
+        kernel size for baseline calculation
+    frame_rate : float
+        frame rate
+
+    Returns
+    -------
+    np.ndarray
+        new dff
+    int
+        cell_roi_id
+    """
+
+    # Calculate noise_sd
+    noise_sd = noise_std(corrected_trace, filter_length=int(
+        round(frame_rate * 3.33)))  # 3.33 s is fixed
+    # 10th percentile "low_baseline"
+    low_baseline = percentile_filter(
+        corrected_trace, size=long_filter_length, percentile=inactive_percentile, mode='reflect')
+    # Create trace using inactive frames only, by replacing signals in "active frames" with NaN
+    active_frame = np.where(corrected_trace > (
+        low_baseline + 3 * noise_sd))[0]
+    negative_frame = np.where(corrected_trace < (
+        low_baseline - 3 * noise_sd))[0]
+    inactive_trace = corrected_trace.copy()
+    for i in active_frame:
+        inactive_trace[i] = np.nan
+    for i in negative_frame:
+        inactive_trace[i] = np.nan
+    # Calculate baseline using median filter
+    baseline_new = nanmedian_filter(inactive_trace, short_filter_length)
+    # Calculate DFF
+    new_dff = calculate_dff(corrected_trace, baseline_new, noise_sd)
+    return new_dff, cell_roi_id
 
 
 def get_correct_frame_rate(ophys_experiment_id):
