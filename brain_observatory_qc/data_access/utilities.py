@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
-
+import pickle
 
 # warning
 gen_depr_str = 'this function is deprecated and will be removed in a future version, ' \
@@ -37,24 +37,24 @@ def get_ssim(img0, img1):
     return ssim_pair
 
 
-# def get_lims_data(lims_id):
-#     ld = LimsDatabase(int(lims_id))
-#     lims_data = ld.get_qc_param()
-#     lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
-#     lims_data.insert(loc=2, column='session_type',
-#                      value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
-#     lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
-#     return lims_data
+def get_lims_data(lims_id):
+    ld = LimsDatabase(int(lims_id)) # noqa
+    lims_data = ld.get_qc_param()
+    lims_data.insert(loc=2, column='experiment_id', value=lims_data.lims_id.values[0])
+    lims_data.insert(loc=2, column='session_type',
+                     value='behavior_' + lims_data.experiment_name.values[0].split('_')[-1])
+    lims_data.insert(loc=2, column='ophys_session_dir', value=lims_data.datafolder.values[0][:-28])
+    return lims_data
 
 
-# def get_timestamps(lims_data):
-#     if '2P6' in lims_data.rig.values[0]:
-#         use_acq_trigger = True
-#     else:
-#         use_acq_trigger = False
-#     sync_data = get_sync_data(lims_data, use_acq_trigger)
-#     timestamps = pd.DataFrame(sync_data)
-#     return timestamps
+def get_timestamps(lims_data):
+    if '2P6' in lims_data.rig.values[0]:
+        use_acq_trigger = True
+    else:
+        use_acq_trigger = False
+    sync_data = get_sync_data(lims_data, use_acq_trigger) # noqa
+    timestamps = pd.DataFrame(sync_data)
+    return timestamps
 
 
 def get_sync_path(lims_data):
@@ -70,6 +70,34 @@ def get_sync_path(lims_data):
             sync_file = json_data['sync_file']
     sync_path = os.path.join(ophys_session_dir, sync_file)
     return sync_path
+
+
+def replace_cell_specimen_ids(cell_roi_ids):
+    # TODO: this will return cell_specimen_ids as None for cells tha are not in the pickle file. 
+    # Currenlty this function will only work if all cell specimen ids were None. If some of them were int, it will replace them with None.
+    # replace cell specimen ids in cell specimen table if they are None (copper mouse)
+    # filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
+    #     'activity_correlation_lamf/nrsac/roi_match/copper_missing_osid_roi_table_nan_replaced.pkl'
+    filename = '//allen/programs/mindscope/workgroups/learning/analysis_plots/ophys/' + \
+            'activity_correlation_lamf/nrsac/roi_match/copper_all_roi_table.pkl'
+    with open(filename, 'rb') as f:
+        good_cids = pickle.load(f)
+        good_cids = good_cids.set_index('cell_roi_id')
+        f.close()
+
+    cell_specimen_ids = []  # collect new cell specimen ids
+    for roi in cell_roi_ids:
+        try:
+            cid = good_cids.loc[roi]['cell_specimen_id']
+        except: # noqa
+            cid = None
+        cell_specimen_ids.append(cid)
+
+    # create a cell specimen table
+    cell_specimen_table = pd.DataFrame({'cell_roi_id': cell_roi_ids, 'cell_specimen_id': cell_specimen_ids})
+    cell_specimen_table = cell_specimen_table.set_index('cell_roi_id')
+
+    return cell_specimen_table
 
 
 # def get_sync_data(lims_data, use_acq_trigger):

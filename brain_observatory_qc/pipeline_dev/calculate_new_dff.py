@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from scipy.ndimage import percentile_filter
 import os
 
-from visual_behavior.data_access import from_lims, from_lims_utilities
+from brain_observatory_qc.data_access import from_lims, from_lims_utilities
 # from brain_observatory_qc.data_access import from_lims, from_lims_utilities
 # TODO: remove dependency from vba by using brain_observatory_qc.data_access
 # Need to implement some functions to do so
@@ -135,7 +135,7 @@ def get_correct_frame_rate(ophys_experiment_id):
     return frame_rate, timestamps
 
 
-def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10):
+def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, use_valid_rois=True):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -170,7 +170,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     short_filter_length = int(round(frame_rate * 60 * 10))  # 10 min
 
     # Get neuropil-corrected traces as DataFrame
-    np_corrected_df = get_np_corrected_df(ophys_experiment_id)
+    np_corrected_df = get_np_corrected_df(ophys_experiment_id, use_valid_rois=use_valid_rois)
     # Calculate dff using the new method (using "inactive frames" to calculate baseline;
     # "inactive frames" defined by those with signals less than 10th percentile + 3 x noise_sd)
     new_dff_all = []
@@ -207,6 +207,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     np_corrected_df['old_dff'] = old_dff_all
     # Add timestamps
     ophys_timestamps = timestamps.ophys_frames.timestamps
+    assert len(ophys_timestamps) == len(new_dff_all[0]), "dff traces and ophys_timestamps are different length. This is an issue."
     return np_corrected_df, ophys_timestamps
 
 
@@ -258,7 +259,7 @@ def get_fixed_r_values(ophys_experiment_id, crid_values, num_normal_r_thresh, r_
     return r_list, r_out_of_range
 
 
-def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7):
+def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7, use_valid_rois=True):
     """ Get neuropil-corrected traces DataFrame
     Fix r value problem (when r > 1, replace r with the mean of other r values < 1.
     If there are less than "num_normal_r_thresh" of those other r values, than replace with 0.7)
@@ -280,7 +281,13 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     """
     # Get valid cell ROI ID and cell specimen ID
     cell_rois_table = from_lims.get_cell_rois_table(ophys_experiment_id)
-    cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
+    if use_valid_rois:
+        cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
+
+        if cell_rois_table.shape[0] == 0:
+            raise Exception(
+                'No valid rois found but only valid rois requested. Set use_valid_rois to False if would like to use invalid rois.')
+
     csid_values = cell_rois_table.cell_specimen_id.values
     if csid_values[0] is None:
         csid_values = [0] * len(csid_values)
@@ -291,6 +298,7 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         ophys_experiment_id, crid_values, num_normal_r_thresh, r_replace)
 
     np_corrected_all = []
+    old_neuropil_all = []
     demixed_h = h5py.File(
         from_lims.get_demixed_traces_filepath(ophys_experiment_id), 'r')
     neuropil_h = h5py.File(
@@ -304,15 +312,18 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
         roi_ind = np.where(
             [int(rn) == crid for rn in neuropil_h['roi_names']])[0][0]
         neuropil = neuropil_h['data'][roi_ind]
-
+        if np.isnan(neuropil).all() is True:
+            print(f'neuropil trace for roi {crid} is NaN.')
         # Calculate neuropil-corrected trace
         corrected = demixed - neuropil * r
         # Gather traces
         np_corrected_all.append(corrected)
+        old_neuropil_all.append(neuropil)
     # Build the neuropil-corrected DataFrame
     np_corrected_df = pd.DataFrame({'cell_specimen_id': csid_values,
                                     'cell_roi_id': crid_values,
                                     'np_corrected': np_corrected_all,
+                                    'np_not_corrected': old_neuropil_all,
                                     'r': r_list,
                                     'r_out_of_range': r_out_of_range})
     return np_corrected_df

@@ -6,6 +6,7 @@ from allensdk.brain_observatory.behavior.behavior_ophys_experiment import \
     BehaviorOphysExperiment
 
 from brain_observatory_qc.pipeline_dev import calculate_new_dff
+from brain_observatory_qc.data_access import utilities
 
 from allensdk.brain_observatory.behavior.event_detection import \
     filter_events_array
@@ -18,10 +19,11 @@ DFF_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
-EVENTS_ROOT_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
+EVENTS_ROOT_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 EVENTS_PATH = EVENTS_ROOT_PATH / "oasis_nrsac_v1"
 CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
+
 
 
 class BehaviorOphysExperimentDev:
@@ -68,6 +70,7 @@ class BehaviorOphysExperimentDev:
     expt = BehaviorOphysExperimentDev(expt_id, skip_eye_tracking=True)
 
     """
+
     def __init__(self,
                  ophys_experiment_id,
                  events_path: Union[str, Path] = EVENTS_PATH,
@@ -127,14 +130,31 @@ class BehaviorOphysExperimentDev:
             roi_names = np.asarray(f['cell_roi_id'])
             idx = pd.Index(roi_names, name='cell_roi_id').astype('int64')
             new_dff = pd.DataFrame({'dff': [x for x in traces]}, index=idx)
-
         old_dff = self.inner.dff_traces.copy().reset_index()
+
+        # check if rois are the same
+        same_rois = np.intersect1d(old_dff.cell_roi_id.values, new_dff.index.values)
+        if len(same_rois) != len(old_dff):
+            print('rois in dff traces df are different')
+
+        # if there are nans in index, check if cell_specimen_id is in table
+        if old_dff['cell_specimen_id'].isna().sum() == len(old_dff):
+            print('found nan cell specimen ids in dff traces df')
+            cell_specimen_table = utilities.replace_cell_specimen_ids(old_dff.cell_roi_id.values)
+            old_dff.drop(['cell_specimen_id'], axis=1, inplace=True)
+            old_dff = pd.merge(old_dff, cell_specimen_table, on='cell_roi_id', how='inner')
 
         # merge on cell_roi_id
         updated_dff = (pd.merge(new_dff.reset_index(),
                                 old_dff.drop(columns=["dff"]),
                                 on="cell_roi_id", how="inner")
                        .set_index("cell_specimen_id"))
+        # if there are nans in index, check if cell_specimen_id is in table
+        # if updated_dff.index.isna().sum() > 0:
+        #     cell_specimen_table = utilities.replace_cell_specimen_ids(updated_dff.cell_roi_ids.values)
+        #     updated_dff = updated_dff.reset_index()
+        #     updated_dff.drop(['cell_specimen_id'], axis=1, inplace=True)
+        #     updated_dff = pd.merge(updated_dff, cell_specimen_table, on='cell_roi_id', how='inner')
 
         return updated_dff
 
@@ -145,6 +165,7 @@ class BehaviorOphysExperimentDev:
         # TODO: remimplement versioning?
         # events_folder = f"oasis_nrsac_v{events_version}"  # CHANGE NEW ------>>>>>>>>>>>>>
         # version_folder = EVENTS_PATH / events_folder
+
 
         # # check version folder exists
         # if not version_folder.exists():
@@ -158,6 +179,15 @@ class BehaviorOphysExperimentDev:
             raise FileNotFoundError(f"Events file not found: {events_file}")
 
         events_df = self._load_oasis_events_h5_to_df(events_file, filtered_events_params)
+
+        # if there are nans in index, check if cell_specimen_id is in table
+        if events_df.index.isna().sum() == len(events_df):
+            print('found nan cell specimen ids in events df')
+            cell_specimen_table = utilities.replace_cell_specimen_ids(events_df.cell_roi_id.values)
+            events_df = events_df.reset_index()
+            events_df.drop(['cell_specimen_id'], axis=1, inplace=True)
+            events_df = pd.merge(events_df, cell_specimen_table, on='cell_roi_id', how='inner')
+            events_df = events_df.set_index('cell_specimen_id')
 
         return events_df
 
@@ -255,8 +285,23 @@ class BehaviorOphysExperimentDev:
         metadata["mouse_name"] = mouse_name
         return metadata
 
+    def _update_cell_specimen_table(self):
+        """Update cell_specimen_table with new cell_specimen_ids if they exist"""
+        cst = self.inner.cell_specimen_table.copy()
+        if cst.index.isna().sum() == len(cst): # if all nans
+            cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
+            cell_roi_ids = cst.cell_roi_id.values
+            cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
+            cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
+            cst = cst.set_index('cell_specimen_id')
+        
+        return cst
+
     def _create_new_dff(self):
         """Create new dff traces"""
+        try:
+            # get new dff DataFrame
+            new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois=True)
 
         # get new dff DataFrame
         new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
@@ -266,9 +311,11 @@ class BehaviorOphysExperimentDev:
         dff_file = calculate_new_dff.save_new_dff_h5(
             DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
-        print(f"Created new_dff file at: {dff_file}")
+            print(f"Created new_dff file at: {dff_file}")
 
-        return dff_file
+            return dff_file
+        except AssertionError:
+            print('Could not save new dff file. Encountered Assertion Error.')
 
     # Delegate all else to the "inherited" BehaviorOphysExperiment object
     # Need attribute error to pickle/multiprocessing
