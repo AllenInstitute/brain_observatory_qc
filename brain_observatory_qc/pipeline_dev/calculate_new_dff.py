@@ -60,7 +60,7 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
     return save_fn
 
 
-def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, parallel=True, num_core=0):
+def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, parallel=True, num_core=0, tmp_dir=None):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -82,6 +82,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         Whether to use parallel processing, by default True
     num_core : int, optional
         Number of cores to use, by default 0 (use all available cores)
+    tmp_dir : Path, optional
+        Temporary directory to save the results, by default None
 
     Returns
     -------
@@ -107,30 +109,34 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     crid_all = []
     dff_h = h5py.File(from_lims.get_dff_traces_filepath(
         ophys_experiment_id), 'r')
-    if parallel:
-        func = partial(new_dff_each_cell,
+    if parallel and (tmp_dir is not None):
+        func = partial(tmp_save_new_dff_each_cell,
                        long_filter_length=long_filter_length,
                        inactive_percentile=inactive_percentile,
                        short_filter_length=short_filter_length,
-                       frame_rate=frame_rate)
+                       frame_rate=frame_rate,
+                       tmp_dir=tmp_dir)
         if num_core == 0:
             num_core = mp.cpu_count()
+        print(f'Running multiprocessing with {num_core} cores')
         with mp.Pool(num_core) as p:
-            results = p.starmap(func, 
-                                zip(np_corrected_df.np_corrected.values.tolist(), 
-                                    np_corrected_df.cell_roi_id.values.tolist()))
-            for item in results:
-                new_dff_all.append(item[0])
-                crid_all.append(item[1])
+            p.starmap(func, 
+                      zip(np_corrected_df.np_corrected.values.tolist(), 
+                      np_corrected_df.cell_roi_id.values.tolist()))
+        all_crids = np_corrected_df.cell_roi_id.values
+        new_dff_all, crid_all = gather_tmp_files_and_delte_dir(tmp_dir, all_crids)
     else:
+        print(f'Running without multiprocessing')
         for _, row in np_corrected_df.iterrows():
             corrected_trace = row.np_corrected
             crid = row.cell_roi_id
-            new_dff, crid = new_dff_each_cell(corrected_trace, crid, long_filter_length, inactive_percentile, short_filter_length, frame_rate)
+            new_dff, crid = new_dff_each_cell(corrected_trace, crid, long_filter_length, 
+                                              inactive_percentile, short_filter_length, frame_rate)
 
             # Gather data
             new_dff_all.append(new_dff)
             crid_all.append(row.cell_roi_id)
+    
     # Load old dff
     for crid in crid_all:
         roi_ind = np.where(
@@ -153,6 +159,15 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         ophys_timestamps = exp.ophys_timestamps
     assert len(ophys_timestamps) == len(new_dff_all[0])
     return np_corrected_df, ophys_timestamps
+
+
+def tmp_save_new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate, tmp_dir):
+    new_dff, cell_roi_id = new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_fn = tmp_dir / f'{cell_roi_id}.h5'
+    with h5py.File(tmp_fn, 'w') as f:
+        f.create_dataset('new_dff', data=new_dff)
+        f.create_dataset('cell_roi_id', data=cell_roi_id)
 
 
 def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
@@ -201,6 +216,29 @@ def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive
     # Calculate DFF
     new_dff = calculate_dff(corrected_trace, baseline_new, noise_sd)
     return new_dff, cell_roi_id
+
+
+def gather_tmp_files_and_delte_dir(tmp_dir, all_crids):
+    """ Gather tmp files and delete them
+    Parameters
+    ----------
+    tmp_dir : pathlib.Path
+        directory where tmp files are saved
+    all_crids : list
+        list of cell_roi_ids
+    """
+    new_dff_all = []
+    crid_all = []
+    for crid in all_crids:
+        tmp_fn = tmp_dir / f'{crid}.h5'
+        with h5py.File(tmp_fn, 'r') as f:
+            new_dff = f['new_dff'][:]
+            crid = f['cell_roi_id'][:]
+        new_dff_all.append(new_dff)
+        crid_all.append(crid)
+        tmp_fn.unlink()
+    tmp_dir.rmdir()
+    return new_dff_all, crid_all
 
 
 def get_correct_frame_rate(ophys_experiment_id):
