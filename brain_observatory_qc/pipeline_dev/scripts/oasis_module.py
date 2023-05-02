@@ -10,10 +10,9 @@ import seaborn as sns
 from matplotlib.backends.backend_pdf import PdfPages
 import json
 
-from brain_observatory_qc.data_access.behavior_ophys_experiment_dev \
-    import BehaviorOphysExperimentDev
 from allensdk.brain_observatory.behavior.behavior_ophys_experiment \
     import BehaviorOphysExperiment
+from brain_observatory_qc.pipeline_dev.calculate_new_dff import get_correct_frame_rate
 
 import logging
 
@@ -36,8 +35,13 @@ parser.add_argument('--multiprocessing', action='store_true',
 # CHANGE OASIS REPO PATH
 ########################
 # oasis needs to be imported manually (not sure why)
+<<<<<<< HEAD
 # oasis_repo_path = Path("/home/matt.davis/code/OASIS")
 oasis_repo_path = Path(r"C:\Users\jinho.kim\Github\OASIS")
+=======
+oasis_repo_path = Path("/home/matt.davis/code/OASIS")
+# oasis_repo_path = Path(r'C:\Users\jinho.kim\Github\OASIS')
+>>>>>>> oasis_from_dff
 if not oasis_repo_path.exists():
     raise UserWarning("OASIS repo not found. Please clone from"
                       "github.com/j-friedrich/OASIS, or change path"
@@ -363,17 +367,24 @@ def generate_oasis_events_for_h5_path(h5_path: Path,
         #     continue
 
         # just get expt for frame rate
-        experiment = BehaviorOphysExperimentDev(expt_id)
+        # experiment = BehaviorOphysExperimentDev(expt_id)
 
-        timestamps = trace_dict['timestamps']
-        rate = experiment.metadata['ophys_frame_rate']
+        # timestamps = trace_dict['timestamps']
+        # rate = experiment.metadata['ophys_frame_rate']
+
+        rate, timestamp_df = get_correct_frame_rate(expt_id)
+        timestamps = timestamp_df.ophys_frames.values[0]
 
         params['rate'] = rate
 
-        traces, n_nan_list = quick_fix_nans(traces)
-        # warn that some traces have nans
-        if len(n_nan_list) > 0:
-            print(f"WARNING: {len(n_nan_list)} traces have nans")
+        # traces, n_nan_list = quick_fix_nans(traces)
+        # # warn that some traces have nans
+        # if len(n_nan_list) > 0:
+        #     print(f"WARNING: {len(n_nan_list)} traces have nans")
+
+        nans = np.where(np.isnan(traces))[0]
+        if len(nans) > 0:
+            raise ValueError(f"Traces have nans: {len(nans)} in {expt_id}")
 
         spikes, params = oasis_deconvolve(traces, params, estimate_parameters)
 
@@ -394,7 +405,7 @@ def generate_oasis_events_for_h5_path(h5_path: Path,
 
         params['events_path'] = str(oasis_h5)
         params['trace_type'] = trace_type
-        params['n_nans'] = n_nan_list
+        # params['n_nans'] = n_nan_list
 
         # dump params to json
         with open(out_path / f"{expt_id}_params.json", 'w') as file:
@@ -535,30 +546,30 @@ def load_oasis_events_h5(h5_path: Path) -> pd.DataFrame:
     return df
 
 
-def plot_trace_and_events(traces, spikes, timestamps, roi_ids, params, expt_id, plots_path):
+def plot_trace_and_events(traces, spikes, timestamps, roi_ids, params, expt_id, plots_path, show_fig=False):
     sns.set_context('talk')
-    pdf = PdfPages(plots_path / f"{expt_id}_oasis.pdf")
-    for i, (spike, trace, cell) in enumerate(zip(spikes, traces, roi_ids)):
-        fig, ax = plt.subplots(1, 1, figsize=(20, 5))
-        ax.plot(timestamps, trace, color='g', label='new_dff')
+    with PdfPages(plots_path / f"{expt_id}_oasis.pdf") as pdf:
+        for i, (spike, trace, cell) in enumerate(zip(spikes, traces, roi_ids)):
+            fig, ax = plt.subplots(1, 1, figsize=(20, 5))
+            ax.plot(timestamps, trace, color='g', label='new_dff')
 
-        if params['estimate_parameters']:
-            g = params['g_hat'][i]
-        else:
-            g = params['g']
-        ax2 = ax.twinx()
-        ax2.plot(timestamps, spike * 1, color='orange',
-                 label=f"events, g={g}")
+            if params['estimate_parameters']:
+                g = params['g_hat'][i]
+            else:
+                g = params['g']
+            ax2 = ax.twinx()
+            ax2.plot(timestamps, spike * 1, color='orange',
+                     label=f"events, g={g}")
 
-        # xlim
-        ax.set_xlim(400, 580)
-        ax2.set_xlim(400, 580)  # arbitrary time period to check
-        ax.legend()
-        ax2.legend()
-        ax.set_title(f"cell_roi_id: {cell}")
-        pdf.savefig(fig)
-    pdf.close()
-    #
+            # xlim
+            ax.set_xlim(400, 580)
+            ax2.set_xlim(400, 580)  # arbitrary time period to check
+            ax.legend()
+            ax2.legend()
+            ax.set_title(f"cell_roi_id: {cell}")
+            pdf.savefig(fig)
+        if not show_fig:
+            plt.close(fig)
 
 
 def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
