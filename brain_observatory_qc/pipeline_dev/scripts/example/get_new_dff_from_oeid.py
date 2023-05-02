@@ -3,8 +3,7 @@ import argparse
 import time
 import os
 from pathlib import Path
-import calculate_new_dff
-
+from brain_observatory_qc.pipeline_dev import calculate_new_dff
 
 parser = argparse.ArgumentParser(
     description='dff calculation process across experiments')
@@ -29,11 +28,11 @@ if __name__ == '__main__':
     print(f'Processing ophys_experiment_id {oeid}')
     t0 = time.time()
     save_dir = Path(args.save_dir)
-    if not os.path.isdir(save_dir):
-        os.makedirs(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir = save_dir / f'tmp_{oeid}'
     # save_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\pipeline_validation\dff'.replace('\\','/'))
     # Get new dff DataFrame
-    new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(oeid)
+    new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(oeid, tmp_dir=tmp_dir)
     # Save as h5 file, because of the timestamps
     calculate_new_dff.save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid)
     # Draw figures and save them
