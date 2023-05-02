@@ -3,8 +3,7 @@ import argparse
 import time
 import os
 from pathlib import Path
-import calculate_new_dff
-
+from brain_observatory_qc.pipeline_dev import calculate_new_dff
 
 parser = argparse.ArgumentParser(
     description='dff calculation process across experiments')
@@ -36,6 +35,6 @@ if __name__ == '__main__':
     # Save as h5 file, because of the timestamps
     calculate_new_dff.save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid)
     # Draw figures and save them
-    # calculate_new_dff.draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid)
+    calculate_new_dff.draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid)
     t1 = time.time()
     print(f'Done in {(t1-t0)/60:.1f} min.')
