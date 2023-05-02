@@ -233,7 +233,7 @@ def gather_tmp_files_and_delte_dir(tmp_dir, all_crids):
         tmp_fn = tmp_dir / f'{crid}.h5'
         with h5py.File(tmp_fn, 'r') as f:
             new_dff = f['new_dff'][:]
-            crid = f['cell_roi_id'][:]
+            crid = f['cell_roi_id'][()]
         new_dff_all.append(new_dff)
         crid_all.append(crid)
         tmp_fn.unlink()
