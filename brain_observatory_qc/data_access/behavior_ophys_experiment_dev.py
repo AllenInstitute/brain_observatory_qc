@@ -19,7 +19,6 @@ DFF_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_NEW_DFF_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
-<<<<<<< HEAD
 GH_NEW_EVENT_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/event_oasis")
 VB_NEW_DFF_PATH = Path(
@@ -28,13 +27,9 @@ VB_NEW_EVENT_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/event_oasis")
 
 EVENTS_ROOT_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
-=======
-EVENTS_ROOT_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
->>>>>>> oasis_from_dff
 EVENTS_PATH = EVENTS_ROOT_PATH / "oasis_nrsac_v1"
 CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
-
 
 
 class BehaviorOphysExperimentDev:
@@ -84,7 +79,7 @@ class BehaviorOphysExperimentDev:
 
     def __init__(self,
                  ophys_experiment_id,
-                 events_path: Union[str, Path] = EVENTS_PATH,
+                 events_path: Union[str, Path] = None,
                  filtered_events_params: dict = None,
                  load_or_calc_new_dff: bool = False,
                  **kwargs):
@@ -101,13 +96,14 @@ class BehaviorOphysExperimentDev:
         if self.load_or_calc_new_dff:
             self.dff_traces = self._get_new_dff()
 
-        try:
-            self.events = self._get_new_events(self.events_path, self.filtered_events_params)
-        except FileNotFoundError:
-            # warn new_events not loaded
-            # TODO: should we create one?
-            print(f"No new_events file for ophys_experiment_id: "
-                  f"{self.ophys_experiment_id}")
+        if self.events_path is not None:
+            try:
+                self.events = self._get_new_events(self.events_path, self.filtered_events_params)
+            except FileNotFoundError:
+                # warn new_events not loaded
+                # TODO: should we create one?
+                print(f"No new_events file for ophys_experiment_id: "
+                    f"{self.ophys_experiment_id}")
 
     def _get_new_dff(self):
         """Get new dff traces from pipeline_dev folder"""
@@ -169,14 +165,13 @@ class BehaviorOphysExperimentDev:
 
         return updated_dff
 
-    def _get_new_events(self, events_path: int = 1,
+    def _get_new_events(self, events_path,
                         filtered_events_params: dict = None):
         """Get new events from pipeline_dev folder"""
 
         # TODO: remimplement versioning?
         # events_folder = f"oasis_nrsac_v{events_version}"  # CHANGE NEW ------>>>>>>>>>>>>>
         # version_folder = EVENTS_PATH / events_folder
-
 
         # # check version folder exists
         # if not version_folder.exists():
@@ -299,7 +294,7 @@ class BehaviorOphysExperimentDev:
     def _update_cell_specimen_table(self):
         """Update cell_specimen_table with new cell_specimen_ids if they exist"""
         cst = self.inner.cell_specimen_table.copy()
-        if cst.index.isna().sum() == len(cst): # if all nans
+        if cst.index.isna().sum() == len(cst):  # if all nans
             cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
             cell_roi_ids = cst.cell_roi_id.values
             cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
@@ -314,13 +309,13 @@ class BehaviorOphysExperimentDev:
             # get new dff DataFrame
             new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois=True)
 
-        # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
-            self.ophys_experiment_id)
+            # get new dff DataFrame
+            new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
+                self.ophys_experiment_id)
 
-        # Save as h5 file, because of the timestamps
-        dff_file = calculate_new_dff.save_new_dff_h5(
-            DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+            # Save as h5 file, because of the timestamps
+            dff_file = calculate_new_dff.save_new_dff_h5(
+                DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
             print(f"Created new_dff file at: {dff_file}")
 
