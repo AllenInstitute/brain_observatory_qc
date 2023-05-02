@@ -16,8 +16,15 @@ from typing import Union
 
 DFF_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
-GH_DFF_PATH = Path(
+GH_NEW_DFF_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+GH_NEW_EVENT_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/event_oasis")
+VB_NEW_DFF_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/dff")
+VB_NEW_EVENT_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/event_oasis")
+
 EVENTS_ROOT_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 EVENTS_PATH = EVENTS_ROOT_PATH / "oasis_nrsac_v1"
 CELLXGENE_PATH = Path(
@@ -99,7 +106,7 @@ class BehaviorOphysExperimentDev:
         """Get new dff traces from pipeline_dev folder"""
 
         # TODO: not hardcoded
-        pipeline_dev_paths = [DFF_PATH, GH_DFF_PATH]
+        pipeline_dev_paths = [DFF_PATH, GH_NEW_DFF_PATH, VB_NEW_DFF_PATH]
 
         # check if file exits, matching pattern "ophys_experiment_id_dff_*.h5"
         dff_fn = f"{self.ophys_experiment_id}_new_dff.h5"
