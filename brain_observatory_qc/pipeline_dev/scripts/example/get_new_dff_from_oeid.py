@@ -29,9 +29,10 @@ if __name__ == '__main__':
     t0 = time.time()
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
+    tmp_dir = save_dir / f'tmp_{oeid}'
     # save_dir = Path(r'\\allen\programs\mindscope\workgroups\learning\pipeline_validation\dff'.replace('\\','/'))
     # Get new dff DataFrame
-    new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(oeid)
+    new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(oeid, tmp_dir=tmp_dir)
     # Save as h5 file, because of the timestamps
     calculate_new_dff.save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid)
     # Draw figures and save them
