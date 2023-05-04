@@ -166,7 +166,7 @@ def generic_lims_query(query: str) -> pd.DataFrame:
         returns all rows and columns in the ophys_sessions table
             for specimen_id = 830901424
     """
-
+    import pdb;pdb.set_trace()
     df = pd.read_sql(query)
     if df.shape == (1, 1):
         # if the result is a single element, return only that element

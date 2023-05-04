@@ -38,12 +38,12 @@ parser.add_argument('--multiprocessing', action='store_true',
 # CHANGE OASIS REPO PATH
 ########################
 # oasis needs to be imported manually (not sure why)
-oasis_repo_path = Path("/home/matt.davis/code/OASIS")
-if not oasis_repo_path.exists():
-    raise UserWarning("OASIS repo not found. Please clone from"
-                      "github.com/j-friedrich/OASIS, or change path"
-                      "in this script")
-sys.path.insert(0, os.path.abspath(oasis_repo_path))
+# oasis_repo_path = Path(r"C:\Users\ariellel\repos\brain_observatory\OASIS")
+# if not oasis_repo_path.exists():
+#     raise UserWarning("OASIS repo not found. Please clone from"
+#                       "github.com/j-friedrich/OASIS, or change path"
+#                       "in this script")
+# sys.path.insert(0, os.path.abspath(oasis_repo_path))
 from oasis.functions import deconvolve  # noqa: E402
 from oasis.oasis_methods import oasisAR1  # noqa: E402
 
@@ -335,7 +335,6 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
     params['b_nonneg'] = True
     params['estimate_parameters'] = estimate_parameters
     params['method'] = 'constrained_oasisAR1' if estimate_parameters else 'unconstrained_oasisAR1'
-
     try:
         # create json file to see all files and params
 

@@ -282,10 +282,17 @@ def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.
     cell_rois_table = from_lims.get_cell_rois_table(ophys_experiment_id)
     cell_rois_table = cell_rois_table[cell_rois_table.valid_roi]
     csid_values = cell_rois_table.cell_specimen_id.values
-    if csid_values[0] is None:
-        csid_values = [0] * len(csid_values)
-    crid_values = cell_rois_table.id.values
-
+       
+    try: 
+        if csid_values[0] is None:
+            csid_values = [0] * len(csid_values)
+        crid_values = cell_rois_table.id.values
+    except IndexError:
+         return pd.DataFrame({'cell_specimen_id': [],
+                                    'cell_roi_id': [],
+                                    'np_corrected': [],
+                                    'r': [],
+                                    'r_out_of_range': []})
     # Collect r values and fix if r > 1
     r_list, r_out_of_range = get_fixed_r_values(
         ophys_experiment_id, crid_values, num_normal_r_thresh, r_replace)
