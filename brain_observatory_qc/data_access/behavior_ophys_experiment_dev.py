@@ -10,9 +10,18 @@ from brain_observatory_qc.pipeline_dev import calculate_new_dff
 from allensdk.brain_observatory.behavior.event_detection import \
     filter_events_array
 
-DFF_PATH = Path("//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
-GH_DFF_PATH = Path("//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
-EVENTS_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
+from brain_observatory_qc.utilities import experiment_table_utils as etu
+
+from typing import Union
+
+DFF_PATH = Path(
+    "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
+GH_DFF_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+EVENTS_ROOT_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
+EVENTS_PATH = EVENTS_ROOT_PATH / "oasis_nrsac_v1"
+CELLXGENE_PATH = Path(
+    "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
 
 class BehaviorOphysExperimentDev:
@@ -23,6 +32,17 @@ class BehaviorOphysExperimentDev:
     ----------
     ophys_experiment_id : int
         The ophys_experiment_id of the experiment to be loaded.
+    events_path: str or Path
+        Folder where events files are stored. Default is
+        "/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/oasis_nrsac_v1".
+        will not return events that oeid is not found in this folder.
+    filtered_events_params: dict
+        Parameters to be passed to filter_events_array
+    load_or_calc_new_dff: bool
+        If True, will look for new_dff in pipeline_dev folder.
+        If False, will use dff_traces from Dev or SDK experiment object.
+        Around mid 2023, ophsy_etl_pipeline was updated to use "new_dff", so we no longer need to
+        set this to True for experiments after that date, or reprocessed experiments.
     kwargs : dict
         Keyword arguments to be passed to the BehaviorOphysExperiment
 
@@ -50,17 +70,25 @@ class BehaviorOphysExperimentDev:
     """
     def __init__(self,
                  ophys_experiment_id,
-                 events_version: int = 1,
-                 filter_params: dict = None,
+                 events_path: Union[str, Path] = EVENTS_PATH,
+                 filtered_events_params: dict = None,
+                 load_or_calc_new_dff: bool = False,
                  **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
-        self.dff_traces = self._get_new_dff()
+        self.load_or_calc_new_dff = load_or_calc_new_dff
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
+        # self.cell_x_gene = self._get_cell_x_gene() # TODO: implement
+        self.is_roi_filtered = False
+        self.filtered_events_params = filtered_events_params
+        self.events_path = Path(events_path)
+
+        if self.load_or_calc_new_dff:
+            self.dff_traces = self._get_new_dff()
 
         try:
-            self.events = self._get_new_events(events_version, filter_params)
+            self.events = self._get_new_events(self.events_path, self.filtered_events_params)
         except FileNotFoundError:
             # warn new_events not loaded
             # TODO: should we create one?
@@ -110,25 +138,26 @@ class BehaviorOphysExperimentDev:
 
         return updated_dff
 
-    def _get_new_events(self, events_version: int = 1,
-                        filter_params: dict = None):
+    def _get_new_events(self, events_path: int = 1,
+                        filtered_events_params: dict = None):
         """Get new events from pipeline_dev folder"""
 
-        events_folder = f"oasis_v{events_version}"
-        version_folder = EVENTS_PATH / events_folder
+        # TODO: remimplement versioning?
+        # events_folder = f"oasis_nrsac_v{events_version}"  # CHANGE NEW ------>>>>>>>>>>>>>
+        # version_folder = EVENTS_PATH / events_folder
 
-        # check version folder exists
-        if not version_folder.exists():
-            version_folder = EVENTS_PATH / "oasis_v1"
-            print(f"Events version folder not found: {events_folder}, "
-                  f"defaulting to {version_folder}")
+        # # check version folder exists
+        # if not version_folder.exists():
+        #     version_folder = EVENTS_PATH / "oasis_nrsac_v1"
+        #     print(f"Events version folder not found: {events_folder}, "
+        #           f"defaulting to {version_folder}")
 
-        events_file = version_folder / f"{self.ophys_experiment_id}.h5"
+        events_file = events_path / f"{self.ophys_experiment_id}.h5"
 
         if not events_file.exists():
             raise FileNotFoundError(f"Events file not found: {events_file}")
 
-        events_df = self._load_oasis_events_h5_to_df(events_file, filter_params)
+        events_df = self._load_oasis_events_h5_to_df(events_file, filtered_events_params)
 
         return events_df
 
@@ -189,21 +218,53 @@ class BehaviorOphysExperimentDev:
 
         return df
 
+    def _get_cell_x_gene(self):
+        """Get cellXgene dataframe, if available"""
+
+        # check if mouse_name = Copper
+        if self.metadata["mouse_name"] == "Copper":
+
+            # fn = "copper_r1_total_experiment_id_table_m15.xlsx"
+            # ddf = pd.read_excel(CELLXGENE_PATH / fn, sheet_name=None)
+            # gene_df = ddf['Transcriptomic profiles']
+            # cell_df = ddf['in']
+            # cell_df = cell_df[(cell_df['IOU_between_fov_and_z_stack'] > 0) & (cell_df['IOU_between_2p_and_ls'] > 0)]
+            # cellxgene = cell_df.merge(gene_df, left_on='ls_cell_id', right_on='LS GCaMP Cell ID')
+
+            # return all ls_cell_id per cell_specimen_id
+            # lscounts = cellxgene.groupby('cell_specimen_id')['ls_cell_id'].apply(list).reset_index()
+
+            fn = "copper_r1_total_experiment_id_table_m23_matt_removed_doublet_rois.xlsx"
+            cellxgene = pd.read_excel(CELLXGENE_PATH / fn)
+
+            return cellxgene
+
+        else:
+            return None
+
     def _update_metadata(self):
         """Update metadata, specifically correct ophsy_frame_rate"""
         metadata = self.inner.metadata.copy()
         dt = np.median(np.diff(self.ophys_timestamps))
         metadata["ophys_frame_rate"] = 1 / dt
+
+        # mouse_name
+        mouse_id = self.metadata["mouse_id"]
+        id_map = etu.MOUSE_NAMES
+        mouse_name = id_map[str(mouse_id)]
+        metadata["mouse_name"] = mouse_name
         return metadata
 
     def _create_new_dff(self):
         """Create new dff traces"""
 
         # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id)
+        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
+            self.ophys_experiment_id)
 
         # Save as h5 file, because of the timestamps
-        dff_file = calculate_new_dff.save_new_dff_h5(DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+        dff_file = calculate_new_dff.save_new_dff_h5(
+            DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
         print(f"Created new_dff file at: {dff_file}")
 

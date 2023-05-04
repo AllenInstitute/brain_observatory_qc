@@ -12,24 +12,22 @@ import json
 
 from brain_observatory_qc.data_access.behavior_ophys_experiment_dev \
     import BehaviorOphysExperimentDev
+from allensdk.brain_observatory.behavior.behavior_ophys_experiment \
+    import BehaviorOphysExperiment
 
 import logging
-import multiprocessing as mp
-from functools import partial
-
-from brain_observatory_analysis.ophys.experiment_loading import start_lamf_analysis
 
 # argparser
 import argparse
 parser = argparse.ArgumentParser(description='')
 
+# provide one of these required args, not both
 parser.add_argument('--h5_path', type=str, default=None,
                     metavar='h5 file path')
-# add hpc bool
-parser.add_argument('--hpc', action='store_true',
-                    default=False, help='run on hpc')
+parser.add_argument('--oeid', type=int, default=None,
+                    metavar='ophys_experiment_id')
 
-# add multiprocessing bool
+# multi only works for h5_path currently (not oeid)
 parser.add_argument('--multiprocessing', action='store_true',
                     default=False, help='use multiprocessing')
 
@@ -243,7 +241,7 @@ def quick_fix_nans(traces: np.array,
         start = np.where(~np.isnan(t))[0][0]
         traces[i, :start] = 0
 
-        # linear interpolate nans
+        # linear interolate nans
         traces[i] = np.interp(np.arange(len(t)), np.where(
             ~np.isnan(t))[0], t[~np.isnan(t)])
 
@@ -273,12 +271,12 @@ def load_new_dff_h5(h5_path: Path) -> dict:
 
 
 # TODO: make params as input
-def generate_oasis_events_for_trace_types(h5_path: Path,
-                                          out_path: Path,
-                                          trace_type: list = 'new_dff',
-                                          estimate_parameters: bool = True,
-                                          qc_plot: bool = True,
-                                          **kwargs) -> None:
+def generate_oasis_events_for_h5_path(h5_path: Path,
+                                      out_path: Path,
+                                      trace_type: list = 'new_dff',
+                                      estimate_parameters: bool = True,
+                                      qc_plot: bool = True,
+                                      **kwargs) -> None:
     """Generate oasis events for all traces in pipe_dev dff folder
 
     Parameters
@@ -325,7 +323,6 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
 
     # DEFAULT PARAMS
     # TODO: make these as inputs
-
     params = {}
     params['g'] = (None,)
     params['b'] = None
@@ -363,14 +360,18 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
         #     nan_expt_ids.append(expt_id)
         #     continue
 
-        # TODO replace with from_network/direct
+        # just get expt for frame rate
         experiment = BehaviorOphysExperimentDev(expt_id)
+
         timestamps = trace_dict['timestamps']
         rate = experiment.metadata['ophys_frame_rate']
 
         params['rate'] = rate
 
         traces, n_nan_list = quick_fix_nans(traces)
+        # warn that some traces have nans
+        if len(n_nan_list) > 0:
+            print(f"WARNING: {len(n_nan_list)} traces have nans")
 
         spikes, params = oasis_deconvolve(traces, params, estimate_parameters)
 
@@ -397,9 +398,116 @@ def generate_oasis_events_for_trace_types(h5_path: Path,
         with open(out_path / f"{expt_id}_params.json", 'w') as file:
             json.dump(params, file)
 
-        logging.info(f"Finished processing {expt_id}")
+        logging.info(f"SUCCESS: {expt_id}")
     except Exception as e:
-        logging.error(f"Error processing {expt_id}")
+        logging.error(f"FAILED: {expt_id}")
+        raise e
+
+
+def generate_oasis_events_for_oeid(oeid: int,
+                                   out_path: Path,
+                                   trace_type: list = 'dff',
+                                   estimate_parameters: bool = True,
+                                   qc_plot: bool = False,
+                                   **kwargs) -> None:
+    """Generate oasis events for all traces in pipe_dev dff folder
+
+    Parameters
+    ----------
+    oeid : int
+        ophys experiment id
+    out_path : Path
+        Path to save oasis events
+    trace_type : list, optional
+        (not implemented, defalt is dff)
+    estimate_parameters : bool, optional
+        Whether to estimate parameters (CONSTRAINED AR1)
+        or use provided parameters (UNCONSTRAINED AR1)
+    trace_type : str
+        Trace type to use for deconvolution
+        can be 'new_dff', 'old_dff', or'np_corrected', as these are outputs
+        of the pipeline_dev new_dff module
+    **kwargs : dict
+        UNCONSTRAINED AR1 kwargs
+        + tau
+        + rate
+        + s_min
+
+        CONSTRAINED AR1 kwargs
+        + optimize_g
+        + penalty
+        + g (optimized)
+        + sn (optimized)
+        + b (optimized)
+
+    Returns
+    -------
+    None
+
+    """
+
+    # DEFAULT PARAMS
+    # TODO: make these as inputs
+
+    params = {}
+    params['g'] = (None,)
+    params['b'] = None
+    params['sn'] = None
+    params['optimize_g'] = 0
+    params['penalty'] = 1
+    params['b_nonneg'] = True
+    params['estimate_parameters'] = estimate_parameters
+    params['method'] = 'constrained_oasisAR1' if estimate_parameters else 'unconstrained_oasisAR1'
+
+    try:
+        expt_id = oeid
+        oasis_h5 = out_path / f"{expt_id}.h5"
+
+        # check if oasis h5 exists
+        if oasis_h5.exists():
+            logging.info(f"SKIPPED {expt_id} already exists")
+            return
+
+        experiment = BehaviorOphysExperiment.from_lims(expt_id)
+        dff = experiment.dff_traces
+        traces = np.array([np.array(d) for d in dff.dff])
+        roi_ids = experiment.dff_traces.cell_roi_id.values
+        timestamps = experiment.ophys_timestamps
+        rate = experiment.metadata['ophys_frame_rate']
+
+        traces, n_nan_list = quick_fix_nans(traces)
+
+        events, params = oasis_deconvolve(traces, params, estimate_parameters)
+
+        # # get index with nan traces
+        # nan_traces = np.isnan(spikes).all(axis=1)
+        # nan_trace_ids = roi_ids[nan_traces]
+
+        # save to h5
+        with h5py.File(oasis_h5, 'w') as file:
+            file.create_dataset("cell_roi_id", data=roi_ids)
+            # KEEP "spikes" to be consitent
+            file.create_dataset("spikes", data=events)
+
+        if qc_plot:
+            plots_path = out_path / "plots"
+            plots_path.mkdir(exist_ok=True, parents=True)
+            plot_trace_and_events(traces, events, timestamps,
+                                  roi_ids, params, expt_id, plots_path)
+
+        # output params
+        params['rate'] = rate
+        params['events_path'] = str(oasis_h5)
+        params['trace_type'] = trace_type
+        params['n_nans'] = n_nan_list
+
+        # dump params to json
+        with open(out_path / f"{expt_id}_params.json", 'w') as file:
+            json.dump(params, file)
+
+        logging.info(f"SUCCESS: {expt_id}")
+    except Exception as e:
+        logging.error(f"FAILED: {expt_id}")
         raise e
 
 
@@ -471,49 +579,56 @@ def oasis_deconvolve_per_cell(y, tau, rate, s_min, opt_g):
 if __name__ == "__main__":
     args = args = parser.parse_args()
     h5_path = args.h5_path
-    hpc = args.hpc
     multiprocessing = args.multiprocessing
+    oeid = args.oeid
 
-    root_dir = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation")
+    assert (h5_path is None) != (
+        oeid is None), "Must provide h5_path or oeid, but not both"
 
-    out_path = root_dir / "events" / "oasis_v1"
+    root_dir = Path(
+        "/allen/programs/mindscope/workgroups/learning/pipeline_validation")
+    out_path = root_dir / "events" / "oasis_nrsac_v1"
 
     # make output dir
     out_path.mkdir(exist_ok=True, parents=True)
 
     # start logger
-    log_path = out_path / "run.log"
+    log_path = out_path / "events_processing.log"
     logging.basicConfig(filename=log_path, level=logging.INFO)
-    logging.info("Starting run")
-    logging.info(f"Saving to {out_path}")
+    logging.info(f"SAVING: oasis events to: {out_path}")
 
     if multiprocessing:
-        expt_ids = start_lamf_analysis().index.values
+        # import multiprocessing as mp
+        # from functools import partial
+        # from brain_observatory_analysis.ophys.experiment_loading import start_lamf_analysis
 
-        h5_list = []
-        for expt_id in expt_ids:
-            h5_list.append(root_dir / "dff" / f"{expt_id}_new_dff.h5")
+        # expt_ids = start_lamf_analysis().index.values
 
-        func = partial(generate_oasis_events_for_trace_types,
-                       out_path=out_path,
-                       trace_type='new_dff',
-                       estimate_parameters=True,
-                       qc_plot=True)
+        # h5_list = []
+        # for expt_id in expt_ids:
+        #     h5_list.append(root_dir / "dff" / f"{expt_id}_new_dff.h5")
 
-        with mp.Pool(10) as p:
-            p.map(func, h5_list)
+        # func = partial(generate_oasis_events_for_trace_types,
+        #                out_path=out_path,
+        #                trace_type='new_dff',
+        #                estimate_parameters=True,
+        #                qc_plot=True)
 
-        for h5_path in h5_list:
+        # with mp.Pool(10) as p:
+        #     p.map(func, h5_list)
+        print('not implemented')
 
-            generate_oasis_events_for_trace_types(h5_path,
-                                                  out_path,
-                                                  trace_type='new_dff',
-                                                  estimate_parameters=True,
-                                                  qc_plot=True)
+    if h5_path is not None:
+        generate_oasis_events_for_h5_path(h5_path,
+                                          out_path,
+                                          trace_type='new_dff',
+                                          estimate_parameters=True,
+                                          qc_plot=True)
 
-    if hpc:
-        generate_oasis_events_for_trace_types(h5_path,
-                                              out_path,
-                                              trace_type='new_dff',
-                                              estimate_parameters=True,
-                                              qc_plot=True)
+    if oeid is not None:
+        generate_oasis_events_for_oeid(oeid,
+                                       out_path,
+                                       # not implemented, uses dff_traces from expt object (dev or SDK)
+                                       trace_type='dff',
+                                       estimate_parameters=True,
+                                       qc_plot=False)
