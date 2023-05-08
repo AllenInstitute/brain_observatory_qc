@@ -82,7 +82,6 @@ if __name__ == '__main__':
     oeid_list = [oeid for oeid in oeid_list if oeid not in processed_oedid_list]
 
     job_count = 0
-    job_string = "{} {}"
 
     rerun = True
     for oeid in oeid_list:
@@ -94,7 +93,7 @@ if __name__ == '__main__':
                 oeid, job_count))
             job_title = 'ophys_experiment_id_{}'.format(oeid)
             walltime = '3:00:00'
-            cpus_per_task = 50
+            cpus_per_task = 20
             mem = '300gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
@@ -110,7 +109,7 @@ if __name__ == '__main__':
                 partition="braintv"
             )
 
-            args_string = job_string.format(oeid, str(job_dir))
+            args_string = f'{oeid}  {str(job_dir)} --num_core {cpus_per_task}'
             slurm.sbatch('{} {} {}'.format(
                 python_executable,
                 python_file,

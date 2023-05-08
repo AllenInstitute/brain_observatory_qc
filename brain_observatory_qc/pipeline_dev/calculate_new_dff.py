@@ -124,7 +124,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
                       zip(np_corrected_df.np_corrected.values.tolist(), 
                       np_corrected_df.cell_roi_id.values.tolist()))
         all_crids = np_corrected_df.cell_roi_id.values
-        new_dff_all, crid_all = gather_tmp_files_and_delte_dir(tmp_dir, all_crids)
+        new_dff_all, crid_all = gather_tmp_files_and_delete_dir(tmp_dir, all_crids)
     else:
         print(f'Running without multiprocessing')
         for _, row in np_corrected_df.iterrows():
@@ -162,12 +162,14 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
 
 
 def tmp_save_new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate, tmp_dir):
+    print(f'Processing cell_roi_id {cell_roi_id}')
     new_dff, cell_roi_id = new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate)
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_fn = tmp_dir / f'{cell_roi_id}.h5'
     with h5py.File(tmp_fn, 'w') as f:
         f.create_dataset('new_dff', data=new_dff)
         f.create_dataset('cell_roi_id', data=cell_roi_id)
+        print(f'Saved cell_roi_id {cell_roi_id} to {tmp_fn}')
 
 
 def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
@@ -218,7 +220,7 @@ def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive
     return new_dff, cell_roi_id
 
 
-def gather_tmp_files_and_delte_dir(tmp_dir, all_crids):
+def gather_tmp_files_and_delete_dir(tmp_dir, all_crids):
     """ Gather tmp files and delete them
     Parameters
     ----------
