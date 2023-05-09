@@ -94,7 +94,7 @@ if __name__ == '__main__':
             job_title = 'ophys_experiment_id_{}'.format(oeid)
             walltime = '3:00:00'
             cpus_per_task = 20
-            mem = '300gb'
+            mem = '600gb'
             job_id = Slurm.JOB_ARRAY_ID
             job_array_id = Slurm.JOB_ARRAY_MASTER_ID
             output = stdout_location / f'{job_array_id}_{job_id}_{oeid}.out'
