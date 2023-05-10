@@ -3,7 +3,6 @@ import argparse
 import time
 from simple_slurm import Slurm
 from pathlib import Path
-import pandas as pd
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 
 parser = argparse.ArgumentParser(

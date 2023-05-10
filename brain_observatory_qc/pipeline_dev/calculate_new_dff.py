@@ -122,11 +122,11 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         with mp.Pool(num_core) as p:
             p.starmap(func, 
                       zip(np_corrected_df.np_corrected.values.tolist(), 
-                      np_corrected_df.cell_roi_id.values.tolist()))
+                          np_corrected_df.cell_roi_id.values.tolist()))
         all_crids = np_corrected_df.cell_roi_id.values
         new_dff_all, crid_all = gather_tmp_files_and_delete_dir(tmp_dir, all_crids)
     else:
-        print(f'Running without multiprocessing')
+        print('Running without multiprocessing')
         for _, row in np_corrected_df.iterrows():
             corrected_trace = row.np_corrected
             crid = row.cell_roi_id

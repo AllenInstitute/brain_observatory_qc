@@ -1,7 +1,6 @@
 
 import argparse
 import time
-import os
 from pathlib import Path
 from brain_observatory_qc.pipeline_dev import calculate_new_dff
 
