@@ -18,8 +18,19 @@ DFF_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff")
 GH_DFF_PATH = Path(
     "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/dff")
+VB_DFF_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/dff")
+
+
 EVENTS_ROOT_PATH = Path("/allen/programs/mindscope/workgroups/learning/pipeline_validation/events/")
 EVENTS_PATH = EVENTS_ROOT_PATH / "oasis_nrsac_v1"
+
+GH_EVENTS_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/GH_data/event_oasis")
+VB_EVENTS_PATH = Path(
+    "//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/event_oasis")
+
+
 CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
@@ -70,25 +81,26 @@ class BehaviorOphysExperimentDev:
     """
     def __init__(self,
                  ophys_experiment_id,
-                 events_path: Union[str, Path] = EVENTS_PATH,
+                 dev_dff_path: Union[str, Path] = DFF_PATH,
+                 dev_events_path: Union[str, Path] = EVENTS_PATH,
                  filtered_events_params: dict = None,
-                 load_or_calc_new_dff: bool = False,
+                 calc_new_dff_if_not_exist: bool = False,
                  **kwargs):
         self.inner = BehaviorOphysExperiment.from_lims(ophys_experiment_id,
                                                        **kwargs)
-        self.load_or_calc_new_dff = load_or_calc_new_dff
+        self.calc_new_dff_if_not_exist = calc_new_dff_if_not_exist
         self.ophys_experiment_id = ophys_experiment_id
         self.metadata = self._update_metadata()
         # self.cell_x_gene = self._get_cell_x_gene() # TODO: implement
         self.is_roi_filtered = False
         self.filtered_events_params = filtered_events_params
-        self.events_path = Path(events_path)
+        self.dff_path = Path(dev_dff_path)
+        self.events_path = Path(dev_events_path)
 
-        if self.load_or_calc_new_dff:
-            self.dff_traces = self._get_new_dff()
+        self.dff_traces = self._get_new_dff()
 
         try:
-            self.events = self._get_new_events(self.events_path, self.filtered_events_params)
+            self.events = self._get_new_events()
         except FileNotFoundError:
             # warn new_events not loaded
             # TODO: should we create one?
@@ -98,20 +110,21 @@ class BehaviorOphysExperimentDev:
     def _get_new_dff(self):
         """Get new dff traces from pipeline_dev folder"""
 
-        # TODO: not hardcoded
-        pipeline_dev_paths = [DFF_PATH, GH_DFF_PATH]
-
+        dff_path = self.dff_path
         # check if file exits, matching pattern "ophys_experiment_id_dff_*.h5"
         dff_fn = f"{self.ophys_experiment_id}_new_dff.h5"
         dff_file = []
-        for path in pipeline_dev_paths:
-            dff_file += list(path.glob(dff_fn))
+        dff_file = list(dff_path.glob(dff_fn))
         if len(dff_file) == 0:
             # warn and create new dff
             print(f"No dff file for ophys_experiment_id: "
                   f"{self.ophys_experiment_id}, creating new one")
 
-            dff_file = self._create_new_dff()
+            if self.calc_new_dff_if_not_exist:
+                dff_file = self._create_new_dff()
+            else:
+                raise FileNotFoundError(f"No dff file for ophys_experiment_id: "
+                                        f"{self.ophys_experiment_id}")
 
         elif len(dff_file) > 1:
             raise FileNotFoundError((f">1 dff files for ophys_experiment_id"
@@ -138,8 +151,7 @@ class BehaviorOphysExperimentDev:
 
         return updated_dff
 
-    def _get_new_events(self, events_path: int = 1,
-                        filtered_events_params: dict = None):
+    def _get_new_events(self):
         """Get new events from pipeline_dev folder"""
 
         # TODO: remimplement versioning?
@@ -152,12 +164,12 @@ class BehaviorOphysExperimentDev:
         #     print(f"Events version folder not found: {events_folder}, "
         #           f"defaulting to {version_folder}")
 
-        events_file = events_path / f"{self.ophys_experiment_id}.h5"
+        events_file = self.events_path / f"{self.ophys_experiment_id}.h5"
 
         if not events_file.exists():
             raise FileNotFoundError(f"Events file not found: {events_file}")
 
-        events_df = self._load_oasis_events_h5_to_df(events_file, filtered_events_params)
+        events_df = self._load_oasis_events_h5_to_df(events_file, self.filtered_events_params)
 
         return events_df
 
@@ -180,8 +192,8 @@ class BehaviorOphysExperimentDev:
             Dataframe with columns "cell_roi_id" and "events" and filtered events
         """
         # default filter params
-        filter_scale_seconds = 2
-        frame_rate_hz = 10.7
+        filter_scale_seconds = 0.065
+        frame_rate_hz, _ = calculate_new_dff.get_correct_frame_rate(self.ophys_experiment_id)
         filter_n_time_steps = 20
 
         # check filter params for each key, if not present, use default
@@ -251,7 +263,10 @@ class BehaviorOphysExperimentDev:
         # mouse_name
         mouse_id = self.metadata["mouse_id"]
         id_map = etu.MOUSE_NAMES
-        mouse_name = id_map[str(mouse_id)]
+        if str(mouse_id) in id_map.keys():
+            mouse_name = id_map[str(mouse_id)]
+        else:
+            mouse_name = "Unknown"
         metadata["mouse_name"] = mouse_name
         return metadata
 
@@ -264,7 +279,7 @@ class BehaviorOphysExperimentDev:
 
         # Save as h5 file, because of the timestamps
         dff_file = calculate_new_dff.save_new_dff_h5(
-            DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+            self.dev_dff_path, new_dff_df, timestamps, self.ophys_experiment_id)
 
         print(f"Created new_dff file at: {dff_file}")
 
