@@ -19,6 +19,11 @@ from visual_behavior.data_access import from_lims
 from visual_behavior.data_access import from_lims_utilities
 from visual_behavior import database as db
 
+try:
+    from skimage.registration import phase_cross_correlation
+except ImportError:
+    from skimage.feature import register_translation as phase_cross_correlation
+
 if os.name == 'nt':
     global_base_dir = Path(
         r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\', '/'))
@@ -575,8 +580,8 @@ def average_reg_plane(images):
     mean_img = np.mean(images, axis=0)
     reg = np.zeros_like(images)
     for i in range(images.shape[0]):
-        shift, _, _ = skimage.registration.phase_cross_correlation(
-            mean_img, images[i, :, :], normalization=None)
+        shift, _, _ = phase_cross_correlation(
+            mean_img, images[i, :, :])
         reg[i, :, :] = scipy.ndimage.shift(images[i, :, :], shift)
     return np.mean(reg, axis=0)
 
@@ -604,8 +609,8 @@ def reg_between_planes(stack_imgs):
     reg_medfilt_imgs = np.zeros_like(stack_imgs)
     reg_medfilt_imgs[0, :, :] = medfilt_stack_imgs[0, :, :]
     for i in range(1, num_planes):
-        shift, _, _ = skimage.registration.phase_cross_correlation(
-            reg_medfilt_imgs[i - 1, :, :], medfilt_stack_imgs[i, :, :], normalization=None)
+        shift, _, _ = phase_cross_correlation(
+            reg_medfilt_imgs[i - 1, :, :], medfilt_stack_imgs[i, :, :])
         reg_medfilt_imgs[i, :, :] = scipy.ndimage.shift(
             medfilt_stack_imgs[i, :, :], shift)
         reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
@@ -1062,8 +1067,8 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     corrcoef = np.zeros(stack.shape[0])
     shift_list = []
     for pi in range(stack.shape[0]):
-        shift, _, _ = skimage.registration.phase_cross_correlation(
-            stack_for_reg[pi, :, :], fov_for_reg, normalization=None)
+        shift, _, _ = phase_cross_correlation(
+            stack_for_reg[pi, :, :], fov_for_reg)
         fov_reg = scipy.ndimage.shift(fov, shift)
         fov_reg_stack[pi, :, :] = fov_reg
         if use_valid_pix:
@@ -1490,8 +1495,8 @@ def register_between_mean_fovs(mean_fovs):
     reg_fovs[0] = mean_fovs[0]
     shift_prev = np.array([0, 0]).astype(np.float64)
     for i in range(1, mean_fovs.shape[0]):
-        shift_temp, _, _ = skimage.registration.phase_cross_correlation(
-            mean_fovs[i - 1, :, :], mean_fovs[i, :, :], normalization=None)
+        shift_temp, _, _ = phase_cross_correlation(
+            mean_fovs[i - 1, :, :], mean_fovs[i, :, :])
         shift_prev += shift_temp
         reg_fovs[i, :, :] = scipy.ndimage.shift(mean_fovs[i, :, :], shift_prev)
     return reg_fovs
@@ -1542,11 +1547,13 @@ def save_segment_fov_motion_crop(ophys_experiment_id, save_dir, segment_minute=1
 
 
 def save_segment_fov(ophys_experiment_id, save_dir, segment_minute=10):
+    tif_image = save_dir / 'tif' / f'{ophys_experiment_id}_segment_fov.tif'
+    gif = save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif'
     save_dir_bases = ['tif', 'gif']
     for dir_base in save_dir_bases:
         if not os.path.isdir(save_dir / dir_base):
             os.makedirs(save_dir / dir_base)
-    if os.path.isfile(save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif'):
+    if os.path.isfile(gif):
         print(f'{ophys_experiment_id} already saved.')
     else:
         segment_fovs = get_segment_mean_images(
@@ -1556,9 +1563,10 @@ def save_segment_fov(ophys_experiment_id, save_dir, segment_minute=10):
         norm_uint16_segment_fovs = image_normalization_uint16(
             np.array(segment_fovs), im_thresh=0)  # for tiff stack
         tifffile.imwrite(
-            save_dir / 'tif' / f'{ophys_experiment_id}_segment_fov.tif', norm_uint16_segment_fovs)
+            tif_image, norm_uint16_segment_fovs)
         imageio.mimsave(
-            save_dir / 'gif' / f'{ophys_experiment_id}_segment_fov.gif', norm_uint8_segment_fovs, fps=2)
+            gif, norm_uint8_segment_fovs, fps=2)
+    return tif_image, gif
 
 
 def save_raw_segment_fov(ophys_experiment_id, save_dir):
@@ -1570,7 +1578,10 @@ def save_raw_segment_fov(ophys_experiment_id, save_dir):
         np.array(raw_segment_fovs_registered), im_thresh=0)  # for tiff stack
     with h5py.File(save_dir / 'raw_segment_fov.h5', 'w') as h:
         h.create_dataset('data', data=np.array(raw_segment_fovs_registered))
-    tifffile.imwrite(save_dir / 'raw_segment_fov.tif', norm_uint16_segment_fovs)
+    tif_image = save_dir / 'raw_segment_fov.tif'
+    gif = save_dir / 'raw_segment_fov.gif'
+    tifffile.imwrite(tif_image, norm_uint16_segment_fovs)
     save_stack_to_video(norm_uint8_segment_fovs, save_dir / 'raw_segment_fov.mp4', frame_rate=2)
-    imageio.mimsave(save_dir / 'raw_segment_fov.gif',
+    imageio.mimsave(gif,
                     norm_uint8_segment_fovs, fps=2)
+    return tif_image, gif
