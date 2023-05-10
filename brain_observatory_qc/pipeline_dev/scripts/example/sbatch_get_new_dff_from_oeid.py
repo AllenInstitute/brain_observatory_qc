@@ -43,7 +43,6 @@ if __name__ == '__main__':
     # #
     # job_dir = Path('//allen/programs/mindscope/workgroups/learning/pipeline_validation/dff')
     # job_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\dff'.replace('\\', '/'))
-    
     job_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\dff'.replace('\\', '/'))
 
     stdout_location = job_dir / 'job_records'
@@ -76,7 +75,7 @@ if __name__ == '__main__':
     for fn in os.listdir(job_dir):
         if fn.endswith('new_dff.h5'):
             processed_oedid_list.append(int(fn.split('_')[0]))
-    
+
     # Remove already processed oeids
     oeid_list = [oeid for oeid in oeid_list if oeid not in processed_oedid_list]
 

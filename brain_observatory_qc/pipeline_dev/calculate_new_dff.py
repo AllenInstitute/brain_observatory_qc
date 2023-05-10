@@ -120,8 +120,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
             num_core = mp.cpu_count()
         print(f'Running multiprocessing with {num_core} cores')
         with mp.Pool(num_core) as p:
-            p.starmap(func, 
-                      zip(np_corrected_df.np_corrected.values.tolist(), 
+            p.starmap(func,
+                      zip(np_corrected_df.np_corrected.values.tolist(),
                           np_corrected_df.cell_roi_id.values.tolist()))
         all_crids = np_corrected_df.cell_roi_id.values
         new_dff_all, crid_all = gather_tmp_files_and_delete_dir(tmp_dir, all_crids)
@@ -130,13 +130,13 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         for _, row in np_corrected_df.iterrows():
             corrected_trace = row.np_corrected
             crid = row.cell_roi_id
-            new_dff, crid = new_dff_each_cell(corrected_trace, crid, long_filter_length, 
+            new_dff, crid = new_dff_each_cell(corrected_trace, crid, long_filter_length,
                                               inactive_percentile, short_filter_length, frame_rate)
 
             # Gather data
             new_dff_all.append(new_dff)
             crid_all.append(row.cell_roi_id)
-    
+
     # Load old dff
     for crid in crid_all:
         roi_ind = np.where(
@@ -148,8 +148,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     temp_df = pd.DataFrame()
     temp_df['cell_roi_id'] = crid_all
     temp_df['new_dff'] = new_dff_all
-    temp_df['old_dff'] = old_dff_all  
-    # merge with np_corrected_df, check one-to-one    
+    temp_df['old_dff'] = old_dff_all
+    # merge with np_corrected_df, check one-to-one
     np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
     # Add timestamps
     ophys_timestamps = timestamps.ophys_frames.timestamps
