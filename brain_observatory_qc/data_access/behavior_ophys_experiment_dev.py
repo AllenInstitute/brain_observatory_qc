@@ -292,7 +292,7 @@ class BehaviorOphysExperimentDev:
             cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
             cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
             cst = cst.set_index('cell_specimen_id')
-        
+
         return cst
 
     def _create_new_dff(self):

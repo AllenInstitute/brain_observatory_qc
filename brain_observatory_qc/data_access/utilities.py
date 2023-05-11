@@ -404,8 +404,8 @@ def add_last_familiar_column(df):
     input df must have 'experience_level' and 'n_relative_to_first_novel'
     """
     df['last_familiar'] = False
-    indices = df[(df.n_relative_to_first_novel == -1) &
-                 (df.experience_level == 'Familiar')].index.values
+    indices = df[(df.n_relative_to_first_novel == -1) & (
+                 df.experience_level == 'Familiar')].index.values
     df.loc[indices, 'last_familiar'] = True
     return df
 
