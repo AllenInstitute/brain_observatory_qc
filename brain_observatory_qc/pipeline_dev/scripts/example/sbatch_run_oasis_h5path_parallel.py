@@ -9,14 +9,14 @@ parser.add_argument('--env-path', type=str, default='/home/jinho.kim/anaconda3/e
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    ### IMPORTANT
+    ### IMPORTANT  # noqa: E266
     # Check OASIS path in oasis_module.py (brain_observatory_qc/pipeline_dev/script)
     ###
     python_executable = "{}/bin/python".format(args.env_path)
     print('python executable = {}'.format(python_executable))
 
     ###
-    ### Change the paths
+    ### Change the paths  # noqa: E266
     ###
     base_dir = Path('/home/jinho.kim/Github/mindscope_qc/brain_observatory_qc/pipeline_dev/script/example/')
     python_file = base_dir / 'run_oasis_h5path.py'
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
         os.mkdir(stdout_location)
-    
+
     job_title = 'event_oasis'
     walltime = '3:00:00'
     mem = '200gb'

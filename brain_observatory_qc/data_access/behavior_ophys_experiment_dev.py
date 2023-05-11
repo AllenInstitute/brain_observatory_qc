@@ -25,7 +25,6 @@ CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
 
-
 class BehaviorOphysExperimentDev:
     """Wrapper class for BehaviorOphysExperiment that adds custom
      methods, loads from_lims() only
@@ -166,7 +165,6 @@ class BehaviorOphysExperimentDev:
         # events_folder = f"oasis_nrsac_v{events_version}"  # CHANGE NEW ------>>>>>>>>>>>>>
         # version_folder = EVENTS_PATH / events_folder
 
-
         # # check version folder exists
         # if not version_folder.exists():
         #     version_folder = EVENTS_PATH / "oasis_nrsac_v1"
@@ -288,7 +286,7 @@ class BehaviorOphysExperimentDev:
     def _update_cell_specimen_table(self):
         """Update cell_specimen_table with new cell_specimen_ids if they exist"""
         cst = self.inner.cell_specimen_table.copy()
-        if cst.index.isna().sum() == len(cst): # if all nans
+        if cst.index.isna().sum() == len(cst):  # if all nans
             cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
             cell_roi_ids = cst.cell_roi_id.values
             cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
@@ -303,13 +301,13 @@ class BehaviorOphysExperimentDev:
             # get new dff DataFrame
             new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(self.ophys_experiment_id, use_valid_rois=True)
 
-        # get new dff DataFrame
-        new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
-            self.ophys_experiment_id)
+            # get new dff DataFrame
+            new_dff_df, timestamps = calculate_new_dff.get_new_dff_df(
+                self.ophys_experiment_id)
 
-        # Save as h5 file, because of the timestamps
-        dff_file = calculate_new_dff.save_new_dff_h5(
-            DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
+            # Save as h5 file, because of the timestamps
+            dff_file = calculate_new_dff.save_new_dff_h5(
+                DFF_PATH, new_dff_df, timestamps, self.ophys_experiment_id)
 
             print(f"Created new_dff file at: {dff_file}")
 
