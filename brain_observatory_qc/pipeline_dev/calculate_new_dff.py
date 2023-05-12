@@ -60,7 +60,8 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
     return save_fn
 
 
-def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10, use_valid_rois=True):
+def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10,
+                   use_valid_rois=True, parallel=True, num_core=0, tmp_dir=None):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -78,6 +79,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         kernel size for low_baseline calculation, by default 30
     inactive_percentile : int, optional
         percentile to calculate low_baseline, by default 10
+    use_valid_rois : bool, optional
+        Whether to use only valid rois, by default True
     parallel : bool, optional
         Whether to use parallel processing, by default True
     num_core : int, optional
