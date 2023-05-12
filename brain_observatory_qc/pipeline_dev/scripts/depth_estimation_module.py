@@ -6,12 +6,13 @@ from pystackreg import StackReg
 import os
 import h5py
 import scipy
-import skimage
 import cv2
 import imageio
 import tifffile
 from PIL import Image
 from pathlib import Path
+import skimage.registration
+import skimage.exposure
 
 from visual_behavior.data_access import from_lims
 # Migrate dependency from visual_behavior to brain_observatory_qc when all necessary functions are implemented in the brain_observatory_qc
