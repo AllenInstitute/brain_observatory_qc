@@ -18,13 +18,13 @@ if __name__ == '__main__':
     ###
     ### Change the paths  # noqa: E266
     ###
-    base_dir = Path('/home/jinho.kim/Github/mindscope_qc/brain_observatory_qc/pipeline_dev/script/example/')
+    base_dir = Path('/home/jinho.kim/Github/mindscope_qc/brain_observatory_qc/pipeline_dev/scripts/example/')
     python_file = base_dir / 'run_oasis_h5path.py'
     job_dir = Path('//allen/programs/braintv/workgroups/nc-ophys/visual_behavior/Jinho/data/VB_data/event_oasis/')
     stdout_location = job_dir / 'job_records'
     if not os.path.exists(stdout_location):
         print('making folder {}'.format(stdout_location))
-        os.mkdir(stdout_location)
+        stdout_location.mkdir(parents=True, exist_ok=True)
 
     job_title = 'event_oasis'
     walltime = '3:00:00'

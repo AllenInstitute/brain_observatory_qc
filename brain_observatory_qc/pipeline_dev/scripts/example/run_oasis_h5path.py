@@ -21,13 +21,13 @@ if __name__ == "__main__":
     ### IMPORTANT  # noqa: E266
     # Change directory paths
     ###
-    h5_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\dff')
+    h5_dir = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\dff'.replace('\\', '/'))
     h5_files = glob(str(h5_dir / '*.h5'))
 
     ### IMPORTANT  # noqa: E266
     # Change directory paths
     ###
-    out_path = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\GH_data\event_oasis')
+    out_path = Path(r'\\allen\programs\braintv\workgroups\nc-ophys\visual_behavior\Jinho\data\VB_data\event_oasis'.replace('\\', '/'))
     out_files = glob(str(out_path / '*.h5'))
 
     # dff_oeids = [int(Path(f).stem.split('_')[0]) for f in h5_files]
