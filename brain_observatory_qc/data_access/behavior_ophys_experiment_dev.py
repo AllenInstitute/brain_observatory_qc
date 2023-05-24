@@ -25,7 +25,6 @@ CELLXGENE_PATH = Path(
     "//allen/programs/mindscope/workgroups/learning/analysis_data_cache/cellXgene/dev")
 
 
-
 class BehaviorOphysExperimentDev:
     """Wrapper class for BehaviorOphysExperiment that adds custom
      methods, loads from_lims() only
@@ -166,7 +165,6 @@ class BehaviorOphysExperimentDev:
         # events_folder = f"oasis_nrsac_v{events_version}"  # CHANGE NEW ------>>>>>>>>>>>>>
         # version_folder = EVENTS_PATH / events_folder
 
-
         # # check version folder exists
         # if not version_folder.exists():
         #     version_folder = EVENTS_PATH / "oasis_nrsac_v1"
@@ -288,13 +286,13 @@ class BehaviorOphysExperimentDev:
     def _update_cell_specimen_table(self):
         """Update cell_specimen_table with new cell_specimen_ids if they exist"""
         cst = self.inner.cell_specimen_table.copy()
-        if cst.index.isna().sum() == len(cst): # if all nans
+        if cst.index.isna().sum() == len(cst):  # if all nans
             cst = cst.reset_index().drop(['cell_specimen_id'], axis=1)
             cell_roi_ids = cst.cell_roi_id.values
             cell_specimen_table = utilities.replace_cell_specimen_ids(cell_roi_ids)
             cst = cst.join(cell_specimen_table, on='cell_roi_id', how='inner')
             cst = cst.set_index('cell_specimen_id')
-        
+
         return cst
 
     def _create_new_dff(self):
@@ -313,6 +311,7 @@ class BehaviorOphysExperimentDev:
     # Delegate all else to the "inherited" BehaviorOphysExperiment object
     # Need attribute error to pickle/multiprocessing
     # see: https://stackoverflow.com/a/49380669
+
     def __getattr__(self, attr):
         if 'inner' not in vars(self):
             raise AttributeError
