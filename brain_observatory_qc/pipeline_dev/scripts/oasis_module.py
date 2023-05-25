@@ -341,7 +341,7 @@ def generate_oasis_events_for_h5_path(h5_path: Path,
         out_path.mkdir(exist_ok=True, parents=True)
 
         # h5s = get_h5s_from_pipe_dev(root_dir)
-
+        import pdb;pdb.set_trace()
         expt_id = int(Path(h5_path).name.split("_")[0])
         oasis_h5 = out_path / f"{expt_id}.h5"
         print(f"Processing {expt_id}")
