@@ -36,7 +36,7 @@ parser.add_argument('--multiprocessing', action='store_true',
 ########################
 # oasis needs to be imported manually (not sure why)
 
-oasis_repo_path = Path("/home/matt.davis/code/OASIS")
+oasis_repo_path = Path("/OASIS")
 # oasis_repo_path = Path(r'C:\Users\jinho.kim\Github\OASIS')
 if not oasis_repo_path.exists():
     raise UserWarning("OASIS repo not found. Please clone from"
