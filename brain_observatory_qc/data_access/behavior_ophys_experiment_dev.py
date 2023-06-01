@@ -11,7 +11,7 @@ from brain_observatory_qc.data_access import utilities
 from allensdk.brain_observatory.behavior.event_detection import \
     filter_events_array
 
-from brain_observatory_qc.utilities import experiment_table_utils as etu
+from brain_observatory_analysis.utilities import experiment_table_utils as etu
 
 from typing import Union
 
