@@ -10,7 +10,7 @@ from functools import partial
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 # In case where timestamps from lims does not match with dff length
 
-from visual_behavior.data_access import from_lims, from_lims_utilities
+from brain_observatory_qc.data_access import from_lims, from_lims_utilities
 # from brain_observatory_qc.data_access import from_lims, from_lims_utilities
 # TODO: remove dependency from vba by using brain_observatory_qc.data_access
 # Need to implement some functions to do so
@@ -245,24 +245,6 @@ def gather_tmp_files_and_delete_dir(tmp_dir, all_crids):
         tmp_fn.unlink()
     tmp_dir.rmdir()
     return new_dff_all, crid_all
-
-
-def get_correct_frame_rate(ophys_experiment_id):
-    """ Getting the correct frame rate, rather than fixed 11.0 from the metadata
-
-    Args:
-        ophys_experiment_id (int): ophys experiment ID
-
-    Returns:
-        float: frame rate
-        pd.DataFrame: timestamps
-    """
-    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
-    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
-    lims_data = from_lims_utilities.utils.get_lims_data(ophys_experiment_id)
-    timestamps = from_lims_utilities.utils.get_timestamps(lims_data)
-    frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
-    return frame_rate, timestamps
 
 
 def get_np_corrected_df(ophys_experiment_id, num_normal_r_thresh=5, r_replace=0.7, use_valid_rois=True):
@@ -506,6 +488,24 @@ def calculate_dff(corrected_trace, baseline, noise_sd):
     """
     dff = ((corrected_trace - baseline) / np.maximum(baseline, noise_sd))
     return dff
+
+
+def get_correct_frame_rate(ophys_experiment_id):
+    """ Getting the correct frame rate, rather than fixed 11.0 from the metadata
+
+    Args:
+        ophys_experiment_id (int): ophys experiment ID
+
+    Returns:
+        float: frame rate
+        pd.DataFrame: timestamps
+    """
+    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
+    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
+    lims_data = from_lims_utilities.utils.get_lims_data(ophys_experiment_id)
+    timestamps = from_lims_utilities.utils.get_timestamps(lims_data)
+    frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
+    return frame_rate, timestamps
 
 
 def draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid):
