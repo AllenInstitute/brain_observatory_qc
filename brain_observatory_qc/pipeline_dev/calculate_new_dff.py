@@ -10,8 +10,8 @@ from functools import partial
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
 # In case where timestamps from lims does not match with dff length
 
-import brain_observatory_qc.data_access.utilities as utils
-
+from brain_observatory_qc.data_access import from_lims
+from brain_observatory_qc.data_access import utilities as utils
 # from ophys_etl.utils.traces import noise_std
 # Copied noise_std (and robust_std)
 # from ophys_etl.utils.traces to remove the dependency
