@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import pickle
-
+from brain_observatory_analysis.dev.lims_database import LimsDatabase
 # warning
 gen_depr_str = 'this function is deprecated and will be removed in a future version, ' \
                + 'please use {}.{} instead'
