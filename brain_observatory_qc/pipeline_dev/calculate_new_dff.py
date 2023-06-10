@@ -11,7 +11,7 @@ from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBeh
 # In case where timestamps from lims does not match with dff length
 
 from brain_observatory_qc.data_access import from_lims
-from brain_observatory_qc.data_access import utilities as utils
+
 # from ophys_etl.utils.traces import noise_std
 # Copied noise_std (and robust_std)
 # from ophys_etl.utils.traces to remove the dependency
@@ -497,11 +497,10 @@ def get_correct_frame_rate(ophys_experiment_id):
         float: frame rate
         pd.DataFrame: timestamps
     """
-    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
-    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
-    lims_data = utils.get_lims_data(ophys_experiment_id)
-    timestamps = utils.get_timestamps(lims_data)
-    frame_rate = 1 / np.mean(np.diff(timestamps.ophys_frames.timestamps))
+    cache = bpc.from_lims()
+    exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+    timestamps = exp.ophys_timestamps
+    frame_rate = 1 / np.mean(np.diff(timestamps))
     return frame_rate, timestamps
 
 
