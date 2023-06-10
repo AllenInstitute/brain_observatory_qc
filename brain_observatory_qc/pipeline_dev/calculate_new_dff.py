@@ -497,8 +497,6 @@ def get_correct_frame_rate(ophys_experiment_id):
         float: frame rate
         pd.DataFrame: timestamps
     """
-    # TODO: change from_lims_utilities from vba to that in brain_observatory_qc.
-    # brain_observatory_qc currently does not seem to have tools for getting timestamps.
     cache = bpc.from_lims()
     exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
     timestamps = exp.ophys_timestamps
