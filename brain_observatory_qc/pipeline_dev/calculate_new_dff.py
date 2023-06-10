@@ -495,7 +495,7 @@ def get_correct_frame_rate(ophys_experiment_id):
 
     Returns:
         float: frame rate
-        pd.DataFrame: timestamps
+        np.array: timestamps
     """
     cache = bpc.from_lims()
     exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
