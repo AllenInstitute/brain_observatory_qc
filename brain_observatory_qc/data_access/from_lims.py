@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from array import array
 from psycopg2 import extras
+import json
 
 
 from allensdk.internal.api import PostgresQueryMixin
@@ -2241,3 +2242,49 @@ def get_dff_traces_for_roi(cell_roi_id):
         dff = dff_data[roi_index]
 
     return dff
+
+
+#####################################################################
+#
+#           2p Imaging Info
+#
+#####################################################################
+
+
+def get_platform_frame_rate_for_oeid(oeid):
+    """get the frame rate for a given oeid
+    Parameters
+    ----------
+    oeid : int
+        unique ophys experiment id
+
+    Returns
+    -------
+    float
+        frame rate for the oeid
+    """
+    osid = get_ophys_session_id_for_ophys_experiment_id(oeid)
+    return get_platform_frame_rate_for_osid(osid)
+
+
+def get_platform_frame_rate_for_osid(osid):
+    """get the frame rate for a given osid
+    Parameters
+    ----------
+    osid : int
+        unique ophys session id
+
+    Returns
+    -------
+    float
+        frame rate for the osid
+    """
+    json_fn = get_session_h5_filepath(osid).parent / f'{osid}_platform.json'
+    with open(json_fn, 'r') as f:
+        platform = json.load(f)
+    frame_rates = []
+    for plane in platform['imaging_plane_groups']:
+        frame_rates.append(plane['acquisition_framerate_Hz'])
+    assert (np.array(frame_rates) - frame_rates[0]).any() == 0
+    frame_rate = frame_rates[0]
+    return frame_rate
