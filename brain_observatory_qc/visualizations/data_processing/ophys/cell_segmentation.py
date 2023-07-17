@@ -134,6 +134,9 @@ def draw_roi_outlines(oeid, ax=None, max_or_mean_img='mean', valid='valid', figs
     """
 
     roi_table = from_lims.get_cell_rois_table(oeid)
+    if len(roi_table) == 0:
+        print(f'No ROIs found for ophys_experiment {oeid}')
+        return
     roi_table = add_full_frame_roi(roi_table, oeid)
     if valid == 'valid':
         roi_table = roi_table[roi_table.valid_roi]
