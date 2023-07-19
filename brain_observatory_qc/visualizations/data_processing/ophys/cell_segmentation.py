@@ -160,3 +160,49 @@ def draw_roi_outlines(oeid, ax=None, max_or_mean_img='mean', valid='valid', figs
         return fig, ax
     else:
         return ax
+
+
+def draw_s2p_rois(s2p_dir, ax=None, color='r', linewidth=0.5):
+    """ Draw Suite2p ROIs on mean image
+    If axis is not provided, a new figure and axis will be created and returned    
+
+    Parameters
+    ----------
+    s2p_dir : str or pathlib.Path
+        path to Suite2p output directory
+    ax : matplotlib.axes.Axes
+        axes to plot on
+    color : str, optional
+        color to use for ROI outlines, default 'r'
+    linewidth : float, optional
+        linewidth for contour, default 0.5
+
+    Returns
+    -------
+    if ax is not provided:
+    fig, ax: matplotlib.figure.Figure, matplotlib.axes.Axes
+        figure and axes with ROI outlines drawn
+    else:
+    ax: matplotlib.axes.Axes
+        axes with ROI outlines drawn
+    """
+    ops = np.load(s2p_dir / 'ops.npy', allow_pickle=True).item()
+    stat = np.load(s2p_dir / 'stat.npy', allow_pickle=True)
+    iscell = np.load(s2p_dir / 'iscell.npy', allow_pickle=True)
+    mean_img = ops['meanImg']
+    cell_inds = np.where(iscell[:,0])[0]
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig = None
+    ax.imshow(mean_img, cmap='gray')
+    for cell_ind in cell_inds:
+        cell = stat[cell_ind]
+        template = np.zeros(mean_img.shape, dtype=bool)
+        template[cell['ypix'], cell['xpix']] = True
+        ax.contour(template, colors=color, linewidths=linewidth)
+    if fig is not None:
+        return fig, ax
+    else:
+        return ax
+    
