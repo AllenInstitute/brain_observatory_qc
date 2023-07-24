@@ -2291,6 +2291,17 @@ def get_platform_frame_rate_for_osid(osid):
 
 
 def get_paired_planes_list(session_path):
+    """get list of paired planes for a given session_path
+    Parameters
+    ----------
+    session_path : str
+        path to session folder
+
+    Returns
+    -------
+    list
+        list of lists of paired planes
+    """    
     split_str = 'MESOSCOPE_FILE_SPLITTING_QUEUE*input.json'
 
     # get splt_str file in session path
@@ -2299,16 +2310,13 @@ def get_paired_planes_list(session_path):
     assert len(split_file) == 1
     split_file = split_file[0]
 
-    # load json file
-    
+    # load json file    
     with open(split_file, 'r') as f:
         split_json = json.load(f)
 
-
     # get all experiment_ids from split_json
     all_paired = []
-    for pg in split_json['plane_groups']:
-        
+    for pg in split_json['plane_groups']:        
         paired = []
         for expt in pg["ophys_experiments"]:
             paired.append(expt['experiment_id'])
@@ -2319,6 +2327,17 @@ def get_paired_planes_list(session_path):
 
 
 def get_paired_plane_id(ophys_experiment_id):
+    """get the paired plane id for a given ophys_experiment_id
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        unique ophys experiment id
+
+    Returns
+    -------
+    int
+        paired ophys experiment id
+    """    
     info = get_general_info_for_ophys_experiment_id(ophys_experiment_id)
     session_path = info.session_storage_directory.loc[0]
     all_paired = get_paired_planes_list(session_path)
