@@ -2288,3 +2288,46 @@ def get_platform_frame_rate_for_osid(osid):
     assert (np.array(frame_rates) - frame_rates[0]).any() == 0
     frame_rate = frame_rates[0]
     return frame_rate
+
+
+def get_paired_planes_list(session_path):
+    split_str = 'MESOSCOPE_FILE_SPLITTING_QUEUE*input.json'
+
+    # get splt_str file in session path
+
+    split_file = list(session_path.glob(f'{split_str}'))
+    assert len(split_file) == 1
+    split_file = split_file[0]
+
+    # load json file
+    
+    with open(split_file, 'r') as f:
+        split_json = json.load(f)
+
+
+    # get all experiment_ids from split_json
+    all_paired = []
+    for pg in split_json['plane_groups']:
+        
+        paired = []
+        for expt in pg["ophys_experiments"]:
+            paired.append(expt['experiment_id'])
+
+        all_paired.append(paired)
+
+    return all_paired
+
+
+def get_paired_plane_id(ophys_experiment_id):
+    info = get_general_info_for_ophys_experiment_id(ophys_experiment_id)
+    session_path = info.session_storage_directory.loc[0]
+    all_paired = get_paired_planes_list(session_path)
+
+    # find eid pair in all_paired
+    for pair in all_paired:
+        if ophys_experiment_id in pair:
+            pair.remove(ophys_experiment_id)
+            other_id = pair[0]
+            break
+
+    return other_id
