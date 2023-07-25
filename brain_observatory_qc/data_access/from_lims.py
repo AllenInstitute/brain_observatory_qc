@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from array import array
 from psycopg2 import extras
+import json
 
 
 from allensdk.internal.api import PostgresQueryMixin
@@ -2241,3 +2242,111 @@ def get_dff_traces_for_roi(cell_roi_id):
         dff = dff_data[roi_index]
 
     return dff
+
+
+#####################################################################
+#
+#           2p Imaging Info
+#
+#####################################################################
+
+
+def get_platform_frame_rate_for_oeid(oeid):
+    """get the frame rate for a given oeid
+    Parameters
+    ----------
+    oeid : int
+        unique ophys experiment id
+
+    Returns
+    -------
+    float
+        frame rate for the oeid
+    """
+    osid = get_ophys_session_id_for_ophys_experiment_id(oeid)
+    return get_platform_frame_rate_for_osid(osid)
+
+
+def get_platform_frame_rate_for_osid(osid):
+    """get the frame rate for a given osid
+    Parameters
+    ----------
+    osid : int
+        unique ophys session id
+
+    Returns
+    -------
+    float
+        frame rate for the osid
+    """
+    json_fn = get_session_h5_filepath(osid).parent / f'{osid}_platform.json'
+    with open(json_fn, 'r') as f:
+        platform = json.load(f)
+    frame_rates = []
+    for plane in platform['imaging_plane_groups']:
+        frame_rates.append(plane['acquisition_framerate_Hz'])
+    assert (np.array(frame_rates) - frame_rates[0]).any() == 0
+    frame_rate = frame_rates[0]
+    return frame_rate
+
+
+def get_paired_planes_list(session_path):
+    """get list of paired planes for a given session_path
+    Parameters
+    ----------
+    session_path : str
+        path to session folder
+
+    Returns
+    -------
+    list
+        list of lists of paired planes
+    """    
+    split_str = 'MESOSCOPE_FILE_SPLITTING_QUEUE*input.json'
+
+    # get splt_str file in session path
+
+    split_file = list(session_path.glob(f'{split_str}'))
+    assert len(split_file) == 1
+    split_file = split_file[0]
+
+    # load json file    
+    with open(split_file, 'r') as f:
+        split_json = json.load(f)
+
+    # get all experiment_ids from split_json
+    all_paired = []
+    for pg in split_json['plane_groups']:        
+        paired = []
+        for expt in pg["ophys_experiments"]:
+            paired.append(expt['experiment_id'])
+
+        all_paired.append(paired)
+
+    return all_paired
+
+
+def get_paired_plane_id(ophys_experiment_id):
+    """get the paired plane id for a given ophys_experiment_id
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        unique ophys experiment id
+
+    Returns
+    -------
+    int
+        paired ophys experiment id
+    """    
+    info = get_general_info_for_ophys_experiment_id(ophys_experiment_id)
+    session_path = info.session_storage_directory.loc[0]
+    all_paired = get_paired_planes_list(session_path)
+
+    # find eid pair in all_paired
+    for pair in all_paired:
+        if ophys_experiment_id in pair:
+            pair.remove(ophys_experiment_id)
+            other_id = pair[0]
+            break
+
+    return other_id
