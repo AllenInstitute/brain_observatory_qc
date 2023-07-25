@@ -69,11 +69,9 @@ def session_path_from_oeid(oeid: int) -> Path:
         Path to session directory
 
     """
-    try:
-        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-        session_path = info.session_storage_directory.loc[0]
-    except:
-        session_path = from_lims.get_motion_xy_offset_filepath(1219594255).parent.parent.parent
+    # Not all experiments have general_info_for_ophys_experiment_id (e.g., pilot data)
+    # But since this is about paired plane registration, they all must have motion_xy_offset_file
+    session_path = from_lims.get_motion_xy_offset_filepath(oeid).parent.parent.parent
 
     return Path(session_path)
 
@@ -123,19 +121,7 @@ def get_s2p_motion_transform(oeid: int) -> pd.DataFrame:
         # TODO LOW: add more context about DF
 
     """
-    try:
-        mc_file = from_lims.get_motion_xy_offset_filepath(oeid)
-    except:
-        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-        expt_path = info.experiment_storage_directory.loc[0]
-        proc_path = expt_path / 'processed'
-
-        mc_str = '*suite2p_rigid_motion_transform.csv'
-
-        mc_file = list(proc_path.glob(f'{mc_str}'))
-
-        assert len(mc_file) == 1, f'Found {len(mc_file)} motion correction files, expected 1'
-        mc_file = mc_file[0]
+    mc_file = from_lims.get_motion_xy_offset_filepath(oeid)
 
     reg_df = pd.read_csv(mc_file)
     if 'nonrigid_x' in reg_df.columns:
@@ -213,8 +199,7 @@ def paired_shifts_regression_for_session_oeids(expts_ids: list):
     # get all paired slope for all experiments
     all_pairs = []
     for oeid in expts_ids:
-        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-        session_path = info.session_storage_directory.loc[0]
+        session_path = from_lims.get_motion_xy_offset_filepath(oeid).parent.parent.parent
         all_pairs.append(get_paired_slope_for_session(session_path))
 
     try:
@@ -242,8 +227,7 @@ def paired_shifts_regression(sessions_ids: list):
     all_pairs = []
     for sid in sessions_ids:
         try:
-            info = from_lims.get_general_info_for_ophys_session_id(sid)
-            session_path = info.session_storage_directory.loc[0]
+            session_path = from_lims.get_session_h5_filepath(sid).parent
             all_pairs.append(get_paired_slope_for_session(session_path))
         except Exception:
             print(f'failed for {sid}')
@@ -269,19 +253,19 @@ def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
         dask array of registered projections
     """
     oeid1 = oeid
-    expt1_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid1).experiment_storage_directory.iloc[0]
+    expt1_path = from_lims.get_motion_xy_offset_filepath(oeid1).parent.parent
     raw1_h5 = expt1_path / (str(oeid1) + '.h5')
-    frames1 = load_h5_dask(raw1_h5)
+    with h5py.File(raw1_h5, 'r') as f:
+        frames1 = f['data'][:]
 
     expt1_shifts = get_s2p_motion_transform(oeid1)
     expt1_nonrigid = True if 'nonrigid_x' in expt1_shifts.columns else False
 
     oeid2 = get_paired_plane_id(oeid1)
-    expt2_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid2).experiment_storage_directory.iloc[0]
+    expt2_path = from_lims.get_motion_xy_offset_filepath(oeid2).parent.parent
     raw2_h5 = expt2_path / (str(oeid2) + '.h5')
-    frames2 = load_h5_dask(raw2_h5)
+    with h5py.File(raw2_h5, 'r') as f:
+        frames2 = f['data'][:]
     expt2_shifts = get_s2p_motion_transform(oeid2)
     expt2_nonrigid = True if 'nonrigid_x' in expt2_shifts.columns else False
 
@@ -394,8 +378,8 @@ def transform_and_save_frames(frames,
         if return_sframes:
             print("Returning saved frames")
             with h5py.File(save_path, 'r') as f:
-                sframes = f['data'][:]
-            return sframes
+                frames = f['data'][:]
+            return frames
         return
 
     # assert that frames and shifts are the same length
@@ -415,27 +399,32 @@ def transform_and_save_frames(frames,
     assert len(frames) == len(y_shifts) == len(x_shifts)
     if run_nonrigid:
         assert len(frames) == ymax1.shape[0] == xmax1.shape[0]
-    # make copy of frames
-    sframes = frames.compute()
-    for frame, dy, dx in zip(sframes, y_shifts, x_shifts):
+
+    for frame, dy, dx in zip(frames, y_shifts, x_shifts):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
     if run_nonrigid:
-        sframes = nonrigid.transform_data(sframes, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
+        frames = nonrigid.transform_data(frames, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
                                           ymax1=ymax1, xmax1=xmax1, bilinear=True)
+        # uint16 is preferrable, but suite2p default seems like int16, and other files are in int16
+        # Suite2p codes also need to be changed to work with uint16 (e.g., using nonrigid_uint16 branch)
+        # njit pre-defined data type
+        # TODO: change all processing into uint16 in the future
+        frames = frames.astype(np.int16)
 
     # save frames
     if save_path is not None:
-        print(f"Saving h5 (shape: {sframes.shape}) file: {save_path}")
+        print(f"Saving h5 (shape: {frames.shape}) file: {save_path}")
         with h5py.File(save_path, 'w') as f:
-            f.create_dataset('data', data=sframes)
+            f.create_dataset('data', data=frames)
     if return_sframes:
-        return sframes
+        return frames
 
 
 def generate_all_pairings_registered_frames(oeid,
                                             save_path: Path = None,
                                             return_frames: bool = False,
-                                            shift_original: bool = False):
+                                            reg_original: bool = False,
+                                            rerun: bool = False):
     """Generate registered frames for an experiment
 
     Parameters
@@ -446,8 +435,8 @@ def generate_all_pairings_registered_frames(oeid,
         path to save registered frames, by default None
     return_frames : bool, optional
         return registered frames, by default False, currently return frames are cropped.
-    shift_original : bool, optional
-        shift the h5 using the orignal motion correction shifts, by default False
+    reg_original : bool, optional
+        register the h5 using the orignal motion correction registration results, by default False
 
     Returns
     -------
@@ -460,19 +449,22 @@ def generate_all_pairings_registered_frames(oeid,
     if save_path is None and return_frames is False:
         raise ValueError("Must save frames or return frames")
 
-    expt_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid).experiment_storage_directory.iloc[0]
+    # Not all the experiments have general_info_for_ophys_experiment_id (e.g., pilot data)
+    # But since this is about paired plane registration, they all must have motion_corrected_movie_filepath
+    expt_path = from_lims.get_motion_corrected_movie_filepath(oeid).parent.parent
     raw_h5 = expt_path / (str(oeid) + '.h5')
-    plane1_frames = load_h5_dask(raw_h5)
-    plane1_shifts = get_s2p_motion_transform(oeid)
+    with h5py.File(raw_h5, 'r') as f:
+        plane1_frames = f['data'][:]
+    plane1_reg_df = get_s2p_motion_transform(oeid)
 
-    # get shifts for paired
+    # get reg_df for paired
     paired_id = get_paired_plane_id(oeid)
-    paired_shifts = get_s2p_motion_transform(paired_id)
-    expt_path_paired = from_lims.get_general_info_for_ophys_experiment_id(
-        paired_id).experiment_storage_directory.iloc[0]
+    paired_reg_df = get_s2p_motion_transform(paired_id)
+    expt_path_paired = from_lims.get_motion_corrected_movie_filepath(
+        paired_id).parent.parent
     raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
-    plane2_frames = load_h5_dask(raw_h5_paired)
+    with h5py.File(raw_h5_paired, 'r') as f:
+        plane2_frames = f['data'][:]
 
     # if save path, make all 4 filenames
     if save_path is not None:
@@ -484,25 +476,29 @@ def generate_all_pairings_registered_frames(oeid,
         p2_og_fn = save_path / f'{paired_id}_original_registered.h5'
 
     p2_paired_frames = transform_and_save_frames(frames=plane2_frames,
-                                                 reg_df=plane1_shifts,
+                                                 reg_df=plane1_reg_df,
                                                  save_path=p2_paired_fn,
-                                                 return_sframes=return_frames)
+                                                 return_sframes=return_frames,
+                                                 rerun=rerun)
 
     p1_paired_frames = transform_and_save_frames(frames=plane1_frames,
-                                                 reg_df=paired_shifts,
+                                                 reg_df=paired_reg_df,
                                                  save_path=p1_paired_fn,
-                                                 return_sframes=return_frames)
+                                                 return_sframes=return_frames,
+                                                 rerun=rerun)
 
-    if shift_original:
+    if reg_original:
         p1_original_frames = transform_and_save_frames(frames=plane1_frames,
-                                                       reg_df=plane1_shifts,
+                                                       reg_df=plane1_reg_df,
                                                        save_path=p1_og_fn,
-                                                       return_sframes=return_frames)
+                                                       return_sframes=return_frames,
+                                                       rerun=rerun)
 
         p2_original_frames = transform_and_save_frames(frames=plane2_frames,
-                                                       reg_df=paired_shifts,
+                                                       reg_df=paired_reg_df,
                                                        save_path=p2_og_fn,
-                                                       return_sframes=return_frames)
+                                                       return_sframes=return_frames,
+                                                       rerun=rerun)
 
     if return_frames:
          # TODO: Be explicit about cropping frames
@@ -516,7 +512,7 @@ def generate_all_pairings_registered_frames(oeid,
 
         registered_frames = {'plane2_paired': p2_paired_frames,
                             'plane1_paired': p1_paired_frames}
-        if shift_original:
+        if reg_original:
             p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
             p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
 
