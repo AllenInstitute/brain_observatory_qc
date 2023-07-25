@@ -69,8 +69,11 @@ def session_path_from_oeid(oeid: int) -> Path:
         Path to session directory
 
     """
-    info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-    session_path = info.session_storage_directory.loc[0]
+    try:
+        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
+        session_path = info.session_storage_directory.loc[0]
+    except:
+        session_path = from_lims.get_motion_xy_offset_filepath(1219594255).parent.parent.parent
 
     return Path(session_path)
 
@@ -120,16 +123,19 @@ def get_s2p_motion_transform(oeid: int) -> pd.DataFrame:
         # TODO LOW: add more context about DF
 
     """
-    info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-    expt_path = info.experiment_storage_directory.loc[0]
-    proc_path = expt_path / 'processed'
+    try:
+        mc_file = from_lims.get_motion_xy_offset_filepath(oeid)
+    except:
+        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
+        expt_path = info.experiment_storage_directory.loc[0]
+        proc_path = expt_path / 'processed'
 
-    mc_str = '*suite2p_rigid_motion_transform.csv'
+        mc_str = '*suite2p_rigid_motion_transform.csv'
 
-    mc_file = list(proc_path.glob(f'{mc_str}'))
+        mc_file = list(proc_path.glob(f'{mc_str}'))
 
-    assert len(mc_file) == 1, f'Found {len(mc_file)} motion correction files, expected 1'
-    mc_file = mc_file[0]
+        assert len(mc_file) == 1, f'Found {len(mc_file)} motion correction files, expected 1'
+        mc_file = mc_file[0]
 
     reg_df = pd.read_csv(mc_file)
     if 'nonrigid_x' in reg_df.columns:
