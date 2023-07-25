@@ -361,7 +361,8 @@ def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
 def transform_and_save_frames(frames,
                               reg_df,
                               save_path: Path = None,
-                              return_sframes: bool = False):
+                              return_sframes: bool = False,
+                              rerun: bool = False):
     """Transform frames and save to h5 file
 
     Parameters
@@ -374,11 +375,22 @@ def transform_and_save_frames(frames,
         path to save transformed h5 file, by default None
     return_sframes : bool, optional
         return transformed frames, by default False
+    rerun : bool, optional
+        rerun registration when the file already exists, by default False
 
     Returns
     -------
     np.ndarray or dask.array (optional)
     """
+
+    if save_path.exists() and not rerun:
+        print(f"File already exists: {save_path}")
+        if return_sframes:
+            print("Returning saved frames")
+            with h5py.File(save_path, 'r') as f:
+                sframes = f['data'][:]
+            return sframes
+        return
 
     # assert that frames and shifts are the same length
     y_shifts = reg_df['y'].values
@@ -465,43 +477,46 @@ def generate_all_pairings_registered_frames(oeid,
         p1_paired_fn = save_path / f'{oeid}_paired_registered.h5'
         p2_og_fn = save_path / f'{paired_id}_original_registered.h5'
 
-    # for cropping rolling effect
-    p1y, p1x = get_motion_correction_crop_xy_range(oeid)
-    p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
-
     p2_paired_frames = transform_and_save_frames(frames=plane2_frames,
                                                  reg_df=plane1_shifts,
-                                                 save_path=p2_paired_fn)
+                                                 save_path=p2_paired_fn,
+                                                 return_sframes=return_frames)
 
     p1_paired_frames = transform_and_save_frames(frames=plane1_frames,
                                                  reg_df=paired_shifts,
-                                                 save_path=p1_paired_fn)
-
-    # TODO: Be explicit about cropping frames
-    print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
-          "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
-    p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-    p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-
-    registered_frames = {'plane2_paired': p2_paired_frames,
-                         'plane1_paired': p1_paired_frames}
+                                                 save_path=p1_paired_fn,
+                                                 return_sframes=return_frames)
 
     if shift_original:
         p1_original_frames = transform_and_save_frames(frames=plane1_frames,
                                                        reg_df=plane1_shifts,
-                                                       save_path=p1_og_fn)
+                                                       save_path=p1_og_fn,
+                                                       return_sframes=return_frames)
 
         p2_original_frames = transform_and_save_frames(frames=plane2_frames,
                                                        reg_df=paired_shifts,
-                                                       save_path=p2_og_fn)
+                                                       save_path=p2_og_fn,
+                                                       return_sframes=return_frames)
 
-        p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-        p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-
-        # add to transformed frames dict
-        registered_frames.update({'plane1_original': p1_original_frames,
-                                  'plane2_original': p2_original_frames})
     if return_frames:
+         # TODO: Be explicit about cropping frames
+        print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
+            "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
+        # for cropping rolling effect
+        p1y, p1x = get_motion_correction_crop_xy_range(oeid)
+        p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
+        p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+        p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+
+        registered_frames = {'plane2_paired': p2_paired_frames,
+                            'plane1_paired': p1_paired_frames}
+        if shift_original:
+            p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+            p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+
+            # add to transformed frames dict
+            registered_frames.update({'plane1_original': p1_original_frames,
+                                      'plane2_original': p2_original_frames})
 
         return registered_frames
 
