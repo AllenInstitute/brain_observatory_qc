@@ -2337,9 +2337,9 @@ def get_paired_plane_id(ophys_experiment_id):
     -------
     int
         paired ophys experiment id
-    """    
-    info = get_general_info_for_ophys_experiment_id(ophys_experiment_id)
-    session_path = info.session_storage_directory.loc[0]
+    """
+    ophys_session_id = get_ophys_session_id_for_ophys_experiment_id(ophys_experiment_id)
+    session_path = get_session_h5_filepath(ophys_session_id).parent
     all_paired = get_paired_planes_list(session_path)
 
     # find eid pair in all_paired
