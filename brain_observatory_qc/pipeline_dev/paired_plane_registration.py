@@ -245,12 +245,12 @@ def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
     oeid : int
         ophys_experiment_id
     num_frames : int, optional
-        number of frames for dask, by default 10000
+        number of frames, by default 10000
 
     Returns
     -------
-    dask.array.core.Array
-        dask array of registered projections
+    dict
+        dict of registered projections for paired planes    
     """
     oeid1 = oeid
     expt1_path = from_lims.get_motion_xy_offset_filepath(oeid1).parent.parent
@@ -351,31 +351,31 @@ def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
 def transform_and_save_frames(frames,
                               reg_df,
                               save_path: Path = None,
-                              return_sframes: bool = False,
+                              return_rframes: bool = False,
                               rerun: bool = False):
     """Transform frames and save to h5 file
 
     Parameters
     ----------
-    frames : np.ndarray or dask.array
+    frames : np.ndarray
         frames to transform
     reg_df : pandas.DataFrame
         registration DataFrame (from the csv file)
     save_path : Path, optional
         path to save transformed h5 file, by default None
-    return_sframes : bool, optional
-        return transformed frames, by default False
+    return_rframes : bool, optional
+        return registered frames, by default False
     rerun : bool, optional
         rerun registration when the file already exists, by default False
 
     Returns
     -------
-    np.ndarray or dask.array (optional)
+    np.ndarray
     """
 
     if save_path.exists() and not rerun:
         print(f"File already exists: {save_path}")
-        if return_sframes:
+        if return_rframes:
             print("Returning saved frames")
             with h5py.File(save_path, 'r') as f:
                 frames = f['data'][:]
@@ -395,29 +395,30 @@ def transform_and_save_frames(frames,
         block_size = (128, 128)
         blocks = nonrigid.make_blocks(Ly=Ly, Lx=Lx, block_size=block_size)
         ymax1 = np.vstack(reg_df.nonrigid_y.values)
-        xmax1 = np.vstack(reg_df.nonrigid_y.values)
+        xmax1 = np.vstack(reg_df.nonrigid_x.values)
     assert len(frames) == len(y_shifts) == len(x_shifts)
     if run_nonrigid:
         assert len(frames) == ymax1.shape[0] == xmax1.shape[0]
 
-    for frame, dy, dx in zip(frames, y_shifts, x_shifts):
-        frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
+    r_frames = np.zeros_like(frames)
+    for i, (frame, dy, dx) in enumerate(zip(frames, y_shifts, x_shifts)):
+        r_frames[i] = shift_frame(frame=frame, dy=dy, dx=dx)
     if run_nonrigid:
-        frames = nonrigid.transform_data(frames, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
-                                          ymax1=ymax1, xmax1=xmax1, bilinear=True)
+        r_frames = nonrigid.transform_data(r_frames, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
+                                           ymax1=ymax1, xmax1=xmax1, bilinear=True)
         # uint16 is preferrable, but suite2p default seems like int16, and other files are in int16
         # Suite2p codes also need to be changed to work with uint16 (e.g., using nonrigid_uint16 branch)
         # njit pre-defined data type
         # TODO: change all processing into uint16 in the future
-        frames = frames.astype(np.int16)
+        r_frames = r_frames.astype(np.int16)
 
-    # save frames
+    # save r_frames
     if save_path is not None:
-        print(f"Saving h5 (shape: {frames.shape}) file: {save_path}")
+        print(f"Saving h5 (shape: {r_frames.shape}) file: {save_path}")
         with h5py.File(save_path, 'w') as f:
-            f.create_dataset('data', data=frames)
-    if return_sframes:
-        return frames
+            f.create_dataset('data', data=r_frames)
+    if return_rframes:
+        return r_frames
 
 
 def generate_all_pairings_registered_frames(oeid,
@@ -478,30 +479,30 @@ def generate_all_pairings_registered_frames(oeid,
     p2_paired_frames = transform_and_save_frames(frames=plane2_frames,
                                                  reg_df=plane1_reg_df,
                                                  save_path=p2_paired_fn,
-                                                 return_sframes=return_frames,
+                                                 return_rframes=return_frames,
                                                  rerun=rerun)
 
     p1_paired_frames = transform_and_save_frames(frames=plane1_frames,
                                                  reg_df=paired_reg_df,
                                                  save_path=p1_paired_fn,
-                                                 return_sframes=return_frames,
+                                                 return_rframes=return_frames,
                                                  rerun=rerun)
 
     if reg_original:
         p1_original_frames = transform_and_save_frames(frames=plane1_frames,
                                                        reg_df=plane1_reg_df,
                                                        save_path=p1_og_fn,
-                                                       return_sframes=return_frames,
+                                                       return_rframes=return_frames,
                                                        rerun=rerun)
 
         p2_original_frames = transform_and_save_frames(frames=plane2_frames,
                                                        reg_df=paired_reg_df,
                                                        save_path=p2_og_fn,
-                                                       return_sframes=return_frames,
+                                                       return_rframes=return_frames,
                                                        rerun=rerun)
 
     if return_frames:
-         # TODO: Be explicit about cropping frames
+        # TODO: Be explicit about cropping frames
         print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
             "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
         # for cropping rolling effect
