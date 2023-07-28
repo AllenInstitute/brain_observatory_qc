@@ -395,7 +395,7 @@ def transform_and_save_frames(frames,
         block_size = (128, 128)
         blocks = nonrigid.make_blocks(Ly=Ly, Lx=Lx, block_size=block_size)
         ymax1 = np.vstack(reg_df.nonrigid_y.values)
-        xmax1 = np.vstack(reg_df.nonrigid_y.values)
+        xmax1 = np.vstack(reg_df.nonrigid_x.values)
     assert len(frames) == len(y_shifts) == len(x_shifts)
     if run_nonrigid:
         assert len(frames) == ymax1.shape[0] == xmax1.shape[0]
