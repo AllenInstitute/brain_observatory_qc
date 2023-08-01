@@ -1741,6 +1741,12 @@ def get_max_intensity_projection_filepath(ophys_experiment_id: int) -> str:
     filepath = get_well_known_file_path("'OphysMaxIntImage'", current_seg_id)
     return filepath
 
+def get_max_intensity_projection_filepath_from_oeid(ophys_experiment_id: int) -> str:
+    lims_utils.validate_LIMS_id_type("ophys_experiment_id", ophys_experiment_id)
+    filepath = get_well_known_file_path("'OphysMaxIntImage'", ophys_experiment_id)
+    return filepath
+
+
 
 ############################
 #     for ophys_session_id
