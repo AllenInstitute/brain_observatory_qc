@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import h5py
 import dask.array as da
+from suite2p.registration import nonrigid
 
 # NOTE: currently this module works in the Session level, someone may want to calculat per experiment
 # TODO: implement per experiment level
@@ -68,8 +69,9 @@ def session_path_from_oeid(oeid: int) -> Path:
         Path to session directory
 
     """
-    info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-    session_path = info.session_storage_directory.loc[0]
+    # Not all experiments have general_info_for_ophys_experiment_id (e.g., pilot data)
+    # But since this is about paired plane registration, they all must have motion_xy_offset_file
+    session_path = from_lims.get_motion_xy_offset_filepath(oeid).parent.parent.parent
 
     return Path(session_path)
 
@@ -104,8 +106,9 @@ def get_paired_plane_id(ophys_experiment_id: int) -> int:
     return other_id
 
 
-def get_s2p_rigid_motion_transform(oeid: int) -> pd.DataFrame:
-    """Get suite2p rigid motion transform for experiment
+def get_s2p_motion_transform(oeid: int) -> pd.DataFrame:
+    """Get suite2p motion transform for experiment
+    Also correct for data type in nonrigid columns (from str to np.array)
 
     Parameters
     ----------
@@ -118,18 +121,15 @@ def get_s2p_rigid_motion_transform(oeid: int) -> pd.DataFrame:
         # TODO LOW: add more context about DF
 
     """
-    info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-    expt_path = info.experiment_storage_directory.loc[0]
-    proc_path = expt_path / 'processed'
+    mc_file = from_lims.get_motion_xy_offset_filepath(oeid)
 
-    mc_str = '*suite2p_rigid_motion_transform.csv'
+    reg_df = pd.read_csv(mc_file)
+    if 'nonrigid_x' in reg_df.columns:
+        if isinstance(reg_df.nonrigid_x[0], str):
+            reg_df.nonrigid_x = reg_df.nonrigid_x.apply(lambda x: np.array([np.float32(xx) for xx in x.split('[')[1].split(']')[0].split(',')]))
+            reg_df.nonrigid_y = reg_df.nonrigid_y.apply(lambda y: np.array([np.float32(yy) for yy in y.split('[')[1].split(']')[0].split(',')]))
 
-    mc_file = list(proc_path.glob(f'{mc_str}'))
-
-    assert len(mc_file) == 1, f'Found {len(mc_file)} motion correction files, expected 1'
-    mc_file = mc_file[0]
-
-    return pd.read_csv(mc_file)
+    return reg_df
 
 
 def get_paired_slope_for_session(session_path: Union[str, Path]) -> pd.DataFrame:
@@ -155,18 +155,19 @@ def get_paired_slope_for_session(session_path: Union[str, Path]) -> pd.DataFrame
     dfs = []
     for pair in paired_list:
         try:
-            p1 = get_s2p_rigid_motion_transform(pair[0])
-            p2 = get_s2p_rigid_motion_transform(pair[1])
+            p1 = get_s2p_motion_transform(pair[0])
+            p2 = get_s2p_motion_transform(pair[1])
             slope_x, intercept_x, r_value_x, p_valu_x, std_err = stats.linregress(
                 p1.x, p2.x)
             slope_y, intercept_y, r_value_x, p_value_x, std_err = stats.linregress(
                 p1.y, p2.y)
 
-            dfs.append(pd.DataFrame({'slope_x': slope_x,
+            dfs.append(pd.DataFrame({'ophys_experiment_id': pair[0],
+                                     'paired_id': pair[1],
+                                     'slope_x': slope_x,
                                      'slope_y': slope_y,
                                      'intercept_x': intercept_x,
-                                     'intercept_y': intercept_y,
-                                     'oeid_pairs': pair}))
+                                     'intercept_y': intercept_y}))
         except AssertionError:
             print(f'No motion correction file found for oeid pair: {pair}')
             # TODO LOW: make error more informative as to why it could fail
@@ -178,8 +179,6 @@ def get_paired_slope_for_session(session_path: Union[str, Path]) -> pd.DataFrame
 
     p1 = df_linear.loc[0].reset_index(drop=True)
     p2 = df_linear.loc[1].reset_index(drop=True)
-
-    p1["paired_id"] = p2["ophys_experiment_id"]
 
     return p1
 
@@ -200,8 +199,7 @@ def paired_shifts_regression_for_session_oeids(expts_ids: list):
     # get all paired slope for all experiments
     all_pairs = []
     for oeid in expts_ids:
-        info = from_lims.get_general_info_for_ophys_experiment_id(oeid)
-        session_path = info.session_storage_directory.loc[0]
+        session_path = from_lims.get_motion_xy_offset_filepath(oeid).parent.parent.parent
         all_pairs.append(get_paired_slope_for_session(session_path))
 
     try:
@@ -229,8 +227,7 @@ def paired_shifts_regression(sessions_ids: list):
     all_pairs = []
     for sid in sessions_ids:
         try:
-            info = from_lims.get_general_info_for_ophys_session_id(sid)
-            session_path = info.session_storage_directory.loc[0]
+            session_path = from_lims.get_session_h5_filepath(sid).parent
             all_pairs.append(get_paired_slope_for_session(session_path))
         except Exception:
             print(f'failed for {sid}')
@@ -240,149 +237,212 @@ def paired_shifts_regression(sessions_ids: list):
     return all_pairs.reset_index(drop=True)
 
 
-def paired_planes_shifted_projections(oeid: int, block_size: int = 10000):
-    """Get shifted projections for paired planes
+def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
+    """Get registered projections for paired planes
 
     Parameters
     ----------
     oeid : int
         ophys_experiment_id
-    block_size : int, optional
-        block size for dask, by default 10000
+    num_frames : int, optional
+        number of frames, by default 10000
 
     Returns
     -------
-    dask.array.core.Array
-        dask array of shifted projections
+    dict
+        dict of registered projections for paired planes    
     """
     oeid1 = oeid
-    expt1_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid1).experiment_storage_directory.iloc[0]
+    expt1_path = from_lims.get_motion_xy_offset_filepath(oeid1).parent.parent
     raw1_h5 = expt1_path / (str(oeid1) + '.h5')
-    frames1 = load_h5_dask(raw1_h5)
+    with h5py.File(raw1_h5, 'r') as f:
+        frames1 = f['data'][:]
 
-    expt1_shifts = get_s2p_rigid_motion_transform(oeid1)
+    expt1_shifts = get_s2p_motion_transform(oeid1)
+    expt1_nonrigid = True if 'nonrigid_x' in expt1_shifts.columns else False
 
     oeid2 = get_paired_plane_id(oeid1)
-    expt2_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid2).experiment_storage_directory.iloc[0]
+    expt2_path = from_lims.get_motion_xy_offset_filepath(oeid2).parent.parent
     raw2_h5 = expt2_path / (str(oeid2) + '.h5')
-    frames2 = load_h5_dask(raw2_h5)
-    expt2_shifts = get_s2p_rigid_motion_transform(oeid2)
+    with h5py.File(raw2_h5, 'r') as f:
+        frames2 = f['data'][:]
+    expt2_shifts = get_s2p_motion_transform(oeid2)
+    expt2_nonrigid = True if 'nonrigid_x' in expt2_shifts.columns else False
 
-    block1 = frames1[:block_size].compute()
-    expt1_img_raw = block1.mean(axis=0)
+    if num_frames > len(frames1):
+        num_frames = len(frames1)
+    frames1 = frames1[:num_frames].compute()
+    expt1_img_raw = frames1.mean(axis=0)
 
-    e1y, e1x = expt1_shifts.y, expt1_shifts.x
-    e2y, e2x = expt2_shifts.y, expt2_shifts.x
+    e1y, e1x = expt1_shifts.y.values[:num_frames], expt1_shifts.x.values[:num_frames]
+    e2y, e2x = expt2_shifts.y.values[:num_frames], expt2_shifts.x.values[:num_frames]
+    if expt1_nonrigid:
+        e1y_nr, e1x_nr = np.vstack(expt1_shifts.nonrigid_y.values), np.vstack(expt1_shifts.nonrigid_x.values)
+        e1y_nr = e1y_nr[:num_frames,:]
+        e1x_nr = e1x_nr[:num_frames,:]
+        # from default parameters:
+        # TODO: read from a file
+        Ly1 = 512
+        Lx1 = 512
+        block_size1 = (128, 128)
+        blocks1 = nonrigid.make_blocks(Ly=Ly1, Lx=Lx1, block_size=block_size1)
+    if expt2_nonrigid:
+        e2y_nr, e2x_nr = np.vstack(expt2_shifts.nonrigid_y.values), np.vstack(expt2_shifts.nonrigid_x.values)
+        e2y_nr = e2y_nr[:num_frames,:]
+        e2x_nr = e2x_nr[:num_frames,:]
+        # from default parameters:
+        # TODO: read from a file
+        Ly2 = 512
+        Lx2 = 512
+        block_size2 = (128, 128)
+        blocks2 = nonrigid.make_blocks(Ly=Ly2, Lx=Lx2, block_size=block_size2)
+
     # TODO: JK rightly suggests to read the motion_correction file,
     # instead of recaculating the shifts
     # Line 396 has the same issue
-    block1_shift = block1.copy()
-    for frame, dy, dx in zip(block1_shift, e1y, e1x):
+    frames1_registered = frames1.copy()
+    for frame, dy, dx in zip(frames1_registered, e1y, e1x):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
-    expt1_img_og_shifted = block1_shift.mean(axis=0)
+    if expt1_nonrigid:
+        frames1_registered = nonrigid.transform_data(frames1_registered, yblock=blocks1[0], xblock=blocks1[1], nblocks=blocks1[2],
+                                                     ymax1=e1y_nr, xmax1=e1x_nr, bilinear=True)
+    expt1_img_og_registered = frames1_registered.mean(axis=0)
 
-    block1_pshift = block1.copy()
-    for frame, dy, dx in zip(block1_pshift, e2y, e2x):
+    frames1_pregistered = frames1.copy()
+    for frame, dy, dx in zip(frames1_pregistered, e2y, e2x):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
-    expt1_img_p2_shifted = block1_pshift.mean(axis=0)
+    if expt2_nonrigid:
+        frames1_pregistered = nonrigid.transform_data(frames1_pregistered, yblock=blocks2[0], xblock=blocks2[1], nblocks=blocks2[2],
+                                                      ymax1=e2y_nr, xmax1=e2x_nr, bilinear=True)
+    expt1_img_p2_registered = frames1_pregistered.mean(axis=0)
 
     # plane 2
-    block2 = frames2[:block_size].compute()
-    expt2_img_raw = block2.mean(axis=0)
+    # num_frames limit is taken care of, under the assumption and frames 1 and frames 2 have the same length
+    frames2 = frames2[:num_frames].compute()
+    expt2_img_raw = frames2.mean(axis=0)
 
-    block2_shift = block2.copy()
-    for frame, dy, dx in zip(block2_shift, e2y, e2x):
+    frames2_registered = frames2.copy()
+    for frame, dy, dx in zip(frames2_registered, e2y, e2x):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
-    expt2_img_og_shifted = block2_shift.mean(axis=0)
+    if expt2_nonrigid:
+        frames2_registered = nonrigid.transform_data(frames2_registered, yblock=blocks2[0], xblock=blocks2[1], nblocks=blocks2[2],
+                                                     ymax1=e2y_nr, xmax1=e2x_nr, bilinear=True)
+    expt2_img_og_registered = frames2_registered.mean(axis=0)
 
-    block2_pshift = block2.copy()
-    for frame, dy, dx in zip(block2_pshift, e1y, e1x):
+    frames2_pregistered = frames2.copy()
+    for frame, dy, dx in zip(frames2_pregistered, e1y, e1x):
         frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
-    expt2_img_p1_shifted = block2_pshift.mean(axis=0)
+    if expt1_nonrigid:
+        frames2_pregistered = nonrigid.transform_data(frames2_pregistered, yblock=blocks1[0], xblock=blocks1[1], nblocks=blocks1[2],
+                                                      ymax1=e1y_nr, xmax1=e1x_nr, bilinear=True)
+    expt2_img_p1_registered = frames2_pregistered.mean(axis=0)
 
     # make dict of all images
     images = {'plane1_raw': expt1_img_raw,
-              'plane1_original_shifted': expt1_img_og_shifted,
-              'plane1_paired_shifted': expt1_img_p2_shifted,
+              'plane1_original_registered': expt1_img_og_registered,
+              'plane1_paired_registered': expt1_img_p2_registered,
               'plane2_raw': expt2_img_raw,
-              'plane2_original_shifted': expt2_img_og_shifted,
-              'plane2_paired_shifted': expt2_img_p1_shifted}
+              'plane2_original_registered': expt2_img_og_registered,
+              'plane2_paired_registered': expt2_img_p1_registered}
 
     return images
 
 
-def shift_and_save_frames(frames,
-                          y_shifts: Union[np.ndarray, pd.Series],
-                          x_shifts: Union[np.ndarray, pd.Series],
-                          block_size: int = None,
-                          save_path: Path = None,
-                          return_sframes: bool = False):
-    """Shift frames and save to h5 file
+def transform_and_save_frames(frames,
+                              reg_df,
+                              save_path: Path = None,
+                              return_rframes: bool = False,
+                              rerun: bool = False):
+    """Transform frames and save to h5 file
 
     Parameters
     ----------
-    frames : np.ndarray or dask.array
-        frames to shift
-    block_size : int, optional
-        number of frames to shift, by default None
-    y_shifts : np.ndarray or pd.Series
-        y shifts to apply to frames
-    x_shifts : np.ndarray or pd.Series
-        x shifts to apply to frames
+    frames : np.ndarray
+        frames to transform
+    reg_df : pandas.DataFrame
+        registration DataFrame (from the csv file)
     save_path : Path, optional
-        path to save shifted h5 file, by default None
-    return_sframes : bool, optional
-        return shifted frames, by default False
+        path to save transformed h5 file, by default None
+    return_rframes : bool, optional
+        return registered frames, by default False
+    rerun : bool, optional
+        rerun registration when the file already exists, by default False
 
     Returns
     -------
-    np.ndarray or dask.array (optional)
+    np.ndarray
     """
 
+    if save_path.exists() and not rerun:
+        print(f"File already exists: {save_path}")
+        if return_rframes:
+            print("Returning saved frames")
+            with h5py.File(save_path, 'r') as f:
+                frames = f['data'][:]
+            return frames
+        return
+
     # assert that frames and shifts are the same length
+    y_shifts = reg_df['y'].values
+    x_shifts = reg_df['x'].values
+    run_nonrigid = False
+    if 'nonrigid_x' in reg_df.columns:
+        run_nonrigid = True
+        # from default parameters:
+        # TODO: read this from the log file
+        Ly = 512
+        Lx = 512
+        block_size = (128, 128)
+        blocks = nonrigid.make_blocks(Ly=Ly, Lx=Lx, block_size=block_size)
+        ymax1 = np.vstack(reg_df.nonrigid_y.values)
+        xmax1 = np.vstack(reg_df.nonrigid_x.values)
     assert len(frames) == len(y_shifts) == len(x_shifts)
-    # make copy of frames
-    if block_size is not None:
-        sframes = frames[:block_size].compute()
-    else:
-        sframes = frames.compute()
-    for frame, dy, dx in zip(sframes, y_shifts, x_shifts):
-        frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
+    if run_nonrigid:
+        assert len(frames) == ymax1.shape[0] == xmax1.shape[0]
 
-    # save frames
+    r_frames = np.zeros_like(frames)
+    for i, (frame, dy, dx) in enumerate(zip(frames, y_shifts, x_shifts)):
+        r_frames[i] = shift_frame(frame=frame, dy=dy, dx=dx)
+    if run_nonrigid:
+        r_frames = nonrigid.transform_data(r_frames, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
+                                           ymax1=ymax1, xmax1=xmax1, bilinear=True)
+        # uint16 is preferrable, but suite2p default seems like int16, and other files are in int16
+        # Suite2p codes also need to be changed to work with uint16 (e.g., using nonrigid_uint16 branch)
+        # njit pre-defined data type
+        # TODO: change all processing into uint16 in the future
+        r_frames = r_frames.astype(np.int16)
+
+    # save r_frames
     if save_path is not None:
-        print(f"Saving h5 (shape: {sframes.shape}) file: {save_path}")
+        print(f"Saving h5 (shape: {r_frames.shape}) file: {save_path}")
         with h5py.File(save_path, 'w') as f:
-            f.create_dataset('data', data=sframes)
-    if return_sframes:
-        return sframes
+            f.create_dataset('data', data=r_frames)
+    if return_rframes:
+        return r_frames
 
 
-def generate_all_pairings_shifted_frames(oeid, block_size: int = None,
-                                         save_path: Path = None,
-                                         return_frames: bool = False,
-                                         shift_original: bool = False):
-    """Generate shifted frames for an experiment
+def generate_all_pairings_registered_frames(oeid,
+                                            save_path: Path = None,
+                                            return_frames: bool = False,
+                                            reg_original: bool = False,
+                                            rerun: bool = False):
+    """Generate registered frames for an experiment
 
     Parameters
     ----------
     oeid : int
         experiment id
-    block_size : int, optional
-        number of frames to shift, if None, shift all frames
     save_path : Path, optional
-        path to save shifted frames, by default None
+        path to save registered frames, by default None
     return_frames : bool, optional
-        return shifted frames, by default False, currently return frames are cropped.
-    shift_original : bool, optional
-        shift the h5 using the orignal motion correction shifts, by default False
+        return registered frames, by default False, currently return frames are cropped.
+    reg_original : bool, optional
+        register the h5 using the orignal motion correction registration results, by default False
 
     Returns
     -------
     np.ndarray
-        shifted frames
+        registered frames
     """
     if save_path is not None:
         save_path = Path(save_path)
@@ -390,76 +450,78 @@ def generate_all_pairings_shifted_frames(oeid, block_size: int = None,
     if save_path is None and return_frames is False:
         raise ValueError("Must save frames or return frames")
 
-    expt_path = from_lims.get_general_info_for_ophys_experiment_id(
-        oeid).experiment_storage_directory.iloc[0]
+    # Not all the experiments have general_info_for_ophys_experiment_id (e.g., pilot data)
+    # But since this is about paired plane registration, they all must have motion_corrected_movie_filepath
+    expt_path = from_lims.get_motion_corrected_movie_filepath(oeid).parent.parent
     raw_h5 = expt_path / (str(oeid) + '.h5')
-    plane1_frames = load_h5_dask(raw_h5)
-    plane1_shifts = get_s2p_rigid_motion_transform(oeid)
+    with h5py.File(raw_h5, 'r') as f:
+        plane1_frames = f['data'][:]
+    plane1_reg_df = get_s2p_motion_transform(oeid)
 
-    # get shifts for paired
+    # get reg_df for paired
     paired_id = get_paired_plane_id(oeid)
-    paired_shifts = get_s2p_rigid_motion_transform(paired_id)
-    expt_path_paired = from_lims.get_general_info_for_ophys_experiment_id(
-        paired_id).experiment_storage_directory.iloc[0]
+    paired_reg_df = get_s2p_motion_transform(paired_id)
+    expt_path_paired = from_lims.get_motion_corrected_movie_filepath(
+        paired_id).parent.parent
     raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
-    plane2_frames = load_h5_dask(raw_h5_paired)
+    with h5py.File(raw_h5_paired, 'r') as f:
+        plane2_frames = f['data'][:]
 
     # if save path, make all 4 filenames
     if save_path is not None:
         save_path.mkdir(exist_ok=True)
 
-        p1_og_fn = save_path / f'{oeid}_original_shift.h5'
-        p2_paired_fn = save_path / f'{paired_id}_paired_shift.h5'
-        p1_paired_fn = save_path / f'{oeid}_paired_shift.h5'
-        p2_og_fn = save_path / f'{paired_id}_original_shift.h5'
+        p1_og_fn = save_path / f'{oeid}_original_registered.h5'
+        p2_paired_fn = save_path / f'{paired_id}_paired_registered.h5'
+        p1_paired_fn = save_path / f'{oeid}_paired_registered.h5'
+        p2_og_fn = save_path / f'{paired_id}_original_registered.h5'
 
-    # for cropping rolling effect
-    p1y, p1x = get_motion_correction_crop_xy_range(oeid)
-    p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
+    p2_paired_frames = transform_and_save_frames(frames=plane2_frames,
+                                                 reg_df=plane1_reg_df,
+                                                 save_path=p2_paired_fn,
+                                                 return_rframes=return_frames,
+                                                 rerun=rerun)
 
-    p2_paired_frames = shift_and_save_frames(frames=plane2_frames,
-                                             y_shifts=plane1_shifts.y,
-                                             x_shifts=plane1_shifts.x,
-                                             block_size=block_size,
-                                             save_path=p2_paired_fn)
+    p1_paired_frames = transform_and_save_frames(frames=plane1_frames,
+                                                 reg_df=paired_reg_df,
+                                                 save_path=p1_paired_fn,
+                                                 return_rframes=return_frames,
+                                                 rerun=rerun)
 
-    p1_paired_frames = shift_and_save_frames(frames=plane1_frames,
-                                             y_shifts=paired_shifts.y,
-                                             x_shifts=paired_shifts.x,
-                                             block_size=block_size,
-                                             save_path=p1_paired_fn)
+    if reg_original:
+        p1_original_frames = transform_and_save_frames(frames=plane1_frames,
+                                                       reg_df=plane1_reg_df,
+                                                       save_path=p1_og_fn,
+                                                       return_rframes=return_frames,
+                                                       rerun=rerun)
 
-    # TODO: Be explicit about cropping frames
-    print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
-          "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
-    p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-    p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+        p2_original_frames = transform_and_save_frames(frames=plane2_frames,
+                                                       reg_df=paired_reg_df,
+                                                       save_path=p2_og_fn,
+                                                       return_rframes=return_frames,
+                                                       rerun=rerun)
 
-    shifted_frames = {'plane2_paired': p2_paired_frames,
-                      'plane1_paired': p1_paired_frames}
-
-    if shift_original:
-        p1_original_frames = shift_and_save_frames(frames=plane1_frames,
-                                                   y_shifts=plane1_shifts.y,
-                                                   x_shifts=plane1_shifts.x,
-                                                   block_size=block_size,
-                                                   save_path=p1_og_fn)
-
-        p2_original_frames = shift_and_save_frames(frames=plane2_frames,
-                                                   y_shifts=paired_shifts.y,
-                                                   x_shifts=paired_shifts.x,
-                                                   block_size=block_size,
-                                                   save_path=p2_og_fn)
-
-        p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
-        p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
-
-        # add to shifted frames dict
-        shifted_frames.update({'plane1_original': p1_original_frames,
-                               'plane2_original': p2_original_frames})
     if return_frames:
+        # TODO: Be explicit about cropping frames
+        print("WARNING: cropping frames to remove rolling effect, may have ill intended effects."
+            "see: https://github.com/AllenInstitute/brain_observatory_qc/pull/134#discussion_r1090282607")
+        # for cropping rolling effect
+        p1y, p1x = get_motion_correction_crop_xy_range(oeid)
+        p2y, p2x = get_motion_correction_crop_xy_range(paired_id)
+        p2_paired_frames = p2_paired_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+        p1_paired_frames = p1_paired_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
 
-        return shifted_frames
+        registered_frames = {'plane2_paired': p2_paired_frames,
+                            'plane1_paired': p1_paired_frames}
+        if reg_original:
+            p1_original_frames = p1_original_frames[:, p1y[0]:p1y[1], p1x[0]:p1x[1]]
+            p2_original_frames = p2_original_frames[:, p2y[0]:p2y[1], p2x[0]:p2x[1]]
+
+            # add to transformed frames dict
+            registered_frames.update({'plane1_original': p1_original_frames,
+                                      'plane2_original': p2_original_frames})
+
+        return registered_frames
 
 
 def get_motion_correction_crop_xy_range(oeid):
@@ -594,14 +656,14 @@ def plot_paired_shifts_regression(p1, p2):
     # plt.scatter(p1.y, p2.y, label='plane 2')
 
 
-def fig_paired_planes_shifted_projections(projections_dict: dict):
+def fig_paired_planes_registered_projections(projections_dict: dict):
 
     # get 99 percentile of all images to set vmax
     images = [v for k, v in projections_dict.items()]
     max_val = np.percentile(np.concatenate(images), 99.9)
 
-    keys = ['plane1_raw', 'plane1_original_shifted', 'plane1_paired_shifted',
-            'plane2_raw', 'plane2_original_shifted', 'plane2_paired_shifted']
+    keys = ['plane1_raw', 'plane1_original_registered', 'plane1_paired_registered',
+            'plane2_raw', 'plane2_original_registered', 'plane2_paired_registered']
 
     # check that all keys are in dict
     assert all([k in projections_dict.keys() for k in keys]), "missing keys in projections_dict"
@@ -610,17 +672,17 @@ def fig_paired_planes_shifted_projections(projections_dict: dict):
     fig, ax = plt.subplots(2, 3, figsize=(10, 10))
     ax[0, 0].imshow(projections_dict["plane1_raw"], cmap='gray', vmax=max_val)
     ax[0, 0].set_title('plane 1 raw')
-    ax[0, 1].imshow(projections_dict["plane1_original_shifted"], cmap='gray', vmax=max_val)
-    ax[0, 1].set_title('plane 1 orignal shifts')
-    ax[0, 2].imshow(projections_dict["plane1_paired_shifted"], cmap='gray', vmax=max_val)
-    ax[0, 2].set_title('plane 1 shifted to plane 2')
+    ax[0, 1].imshow(projections_dict["plane1_original_registered"], cmap='gray', vmax=max_val)
+    ax[0, 1].set_title('plane 1 orignal registered')
+    ax[0, 2].imshow(projections_dict["plane1_paired_registered"], cmap='gray', vmax=max_val)
+    ax[0, 2].set_title('plane 1 registered to plane 2')
 
     ax[1, 0].imshow(projections_dict["plane2_raw"], cmap='gray')
     ax[1, 0].set_title('plane 2 raw')
-    ax[1, 1].imshow(projections_dict["plane2_original_shifted"], cmap='gray', vmax=max_val)
-    ax[1, 1].set_title('plane 2 original shifts')
-    ax[1, 2].imshow(projections_dict["plane2_paired_shifted"], cmap='gray', vmax=max_val)
-    ax[1, 2].set_title('plane 2 shifted to plane 1')
+    ax[1, 1].imshow(projections_dict["plane2_original_registered"], cmap='gray', vmax=max_val)
+    ax[1, 1].set_title('plane 2 original registered')
+    ax[1, 2].imshow(projections_dict["plane2_paired_registered"], cmap='gray', vmax=max_val)
+    ax[1, 2].set_title('plane 2 registered to plane 1')
 
     # turn off axis labels
     for i in range(2):
@@ -657,7 +719,7 @@ def acutances_by_blocks(oeid):
     dfs = []
     for bs in block_size:
 
-        projs = paired_planes_shifted_projections(oeid, block_size=bs)
+        projs = paired_planes_registered_projections(oeid, block_size=bs)
 
         # compute acutance for item in dic
         acutances = []
