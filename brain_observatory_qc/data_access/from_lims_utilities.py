@@ -593,7 +593,29 @@ def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.Data
     return dataframe
 
 
-def get_specimen_storage_directory(specimen_id: int) -> str:
+def get_specimen_storage_directory(id_type: str, id_number: int) -> str:
+    '''
+    Parameters
+    ----------
+    id_type : string
+        the type of ID to search on. allowable id_types:
+            donor_id
+            specimen_id
+            labtracks_id: Labtracks ID (6 digit ID on mouse cage)
+            external_specimen_name: alternate name for labtracks_id
+                (used in specimens table)
+            external_donor_name: alternate name for labtracks_id
+                (used in donors table)
+    id_number : int,string, list of ints or list of strings
+        the associated ID number(s)
+
+    Returns
+    -------
+   string
+        a filepath for the specimen storage directory
+    '''
+    specimen_id = get_mouse_ids_from_id(id_type, id_number)['specimen_id'][0]
+    
     query = '''
     SELECT
     storage_directory
