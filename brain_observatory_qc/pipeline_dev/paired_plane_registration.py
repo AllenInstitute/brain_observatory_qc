@@ -373,14 +373,15 @@ def transform_and_save_frames(frames,
     np.ndarray
     """
 
-    if save_path.exists() and not rerun:
-        print(f"File already exists: {save_path}")
-        if return_rframes:
-            print("Returning saved frames")
-            with h5py.File(save_path, 'r') as f:
-                frames = f['data'][:]
-            return frames
-        return
+    if save_path is not None:
+        if save_path.exists() and not rerun:
+            print(f"File already exists: {save_path}")
+            if return_rframes:
+                print("Returning saved frames")
+                with h5py.File(save_path, 'r') as f:
+                    frames = f['data'][:]
+                return frames
+            return
 
     # assert that frames and shifts are the same length
     y_shifts = reg_df['y'].values
