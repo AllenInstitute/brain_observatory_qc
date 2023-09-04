@@ -90,7 +90,7 @@ def get_paired_plane_id(ophys_experiment_id: int) -> int:
         ophys_experiment_id of paired plane
 
     """
-    assert isinstance(ophys_experiment_id, int), 'ophys_experiment_id must be int'
+    assert int(ophys_experiment_id) == ophys_experiment_id, 'ophys_experiment_id must be int'
 
     session_path = session_path_from_oeid(ophys_experiment_id)
 
