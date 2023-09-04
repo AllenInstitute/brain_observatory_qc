@@ -2350,3 +2350,14 @@ def get_paired_plane_id(ophys_experiment_id):
             break
 
     return other_id
+
+
+def get_pixel_size_um(oeid):
+    # assume that all experiments in a session have the same pixel size
+    # Otherwise, need to find the right experiment form the json file
+    osid = get_ophys_session_id_for_ophys_experiment_id(oeid)
+    platform_json_fp = get_platform_json_filepath(osid)
+    with open(platform_json_fp, 'r') as f:
+        platform_json = json.load(f)
+    pixel_size_um = platform_json['imaging_plane_groups'][0]['imaging_planes'][0]['registration']['pixel_size_um']
+    return pixel_size_um
