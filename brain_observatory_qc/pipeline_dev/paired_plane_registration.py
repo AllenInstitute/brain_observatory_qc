@@ -90,7 +90,7 @@ def get_paired_plane_id(ophys_experiment_id: int) -> int:
         ophys_experiment_id of paired plane
 
     """
-    assert isinstance(ophys_experiment_id, int), 'ophys_experiment_id must be int'
+    assert int(ophys_experiment_id) == ophys_experiment_id, 'ophys_experiment_id must be int'
 
     session_path = session_path_from_oeid(ophys_experiment_id)
 
@@ -549,6 +549,32 @@ def get_motion_correction_crop_xy_range(oeid):
     range_y = [-min_y, -max_y]
     range_x = [-min_x, -max_x]
     return range_y, range_x
+
+
+def get_motion_correction_crop_xy_range_from_both_planes(oeid):
+    """Get x-y ranges to crop motion-correction frame rolling from both planes
+
+    TODO: when nonrigid registration parameter setting is done,
+    include nonrigid shift max into the calculation.
+
+    Parameters
+    ----------
+    oeid : int
+        ophys experiment ID
+
+    Returns
+    -------
+    list, list
+        Lists of y range and x range, [start, end] pixel index
+    """    
+    xrange_og, yrange_og = get_motion_correction_crop_xy_range(oeid)
+    paired_id = get_paired_plane_id(oeid)
+    xrange_paired, yrange_paired = get_motion_correction_crop_xy_range(paired_id)
+
+    xrange = [max(xrange_og[0], xrange_paired[0]), min(xrange_og[1], xrange_paired[1])]
+    yrange = [max(yrange_og[0], yrange_paired[0]), min(yrange_og[1], yrange_paired[1])]
+
+    return xrange, yrange
 
 
 def shift_frame(frame: np.ndarray, dy: int, dx: int) -> np.ndarray:
