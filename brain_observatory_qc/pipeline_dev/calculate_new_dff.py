@@ -8,7 +8,7 @@ import multiprocessing as mp
 from functools import partial
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-# In case where timestamps from lims does not match with dff length
+from visual_behavior.data_access import utilities as vba_utils
 
 from brain_observatory_qc.data_access import from_lims
 
@@ -117,7 +117,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
                        frame_rate=frame_rate,
                        tmp_dir=tmp_dir)
         if num_core == 0:
-            num_core = mp.cpu_count()
+            num_core = mp.cpu_count() - 1
         print(f'Running multiprocessing with {num_core} cores')
         with mp.Pool(num_core) as p:
             p.starmap(func,
@@ -151,9 +151,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     temp_df['old_dff'] = old_dff_all
     # merge with np_corrected_df, check one-to-one
     np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
-    # Add timestamps
+    # Add timestamps    
     ophys_timestamps = timestamps.ophys_frames.timestamps
-
     if len(ophys_timestamps) != len(new_dff_all[0]):  # In some cases, the length is different
         cache = bpc.from_lims()
         exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
@@ -497,9 +496,11 @@ def get_correct_frame_rate(ophys_experiment_id):
         float: frame rate
         np.array: timestamps
     """
-    cache = bpc.from_lims()
-    exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
-    timestamps = exp.ophys_timestamps
+    # cache = bpc.from_lims()
+    # exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+    # timestamps = exp.ophys_timestamps
+    lims_data = vba_utils.get_lims_data(oeid)
+    timestamps = vba_utils.get_timestamps(lims_data)
     frame_rate = 1 / np.mean(np.diff(timestamps))
     return frame_rate, timestamps
 
