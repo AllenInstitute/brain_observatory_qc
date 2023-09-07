@@ -161,9 +161,18 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
     # Add timestamps    
     if len(ophys_timestamps) != len(new_dff_all[0]):  # In some cases, the length is different
-        cache = bpc.from_lims()
-        exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
-        ophys_timestamps = exp.ophys_timestamps
+        try:
+            # It only works with behavior (so not working with pilot data)
+            cache = bpc.from_lims()
+            exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+            ophys_timestamps = exp.ophys_timestamps
+        except:
+            # Just start with 0
+            # And set frame_rate as the one from platform json file
+            frame_rate = from_lims.get_platform_frame_rate_for_oeid(ophys_experiment_id)
+            dff_len = len(new_dff_all[0])
+            time_interval = 1/frame_rate
+            ophys_timestamps = np.linspace(0,dff_len*time_interval,dff_len)
     assert len(ophys_timestamps) == len(new_dff_all[0])
     return np_corrected_df, ophys_timestamps
 
