@@ -499,7 +499,7 @@ def get_correct_frame_rate(ophys_experiment_id):
     # cache = bpc.from_lims()
     # exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
     # timestamps = exp.ophys_timestamps
-    lims_data = vba_utils.get_lims_data(oeid)
+    lims_data = vba_utils.get_lims_data(ophys_experiment_id)
     timestamps = vba_utils.get_timestamps(lims_data)
     frame_rate = 1 / np.mean(np.diff(timestamps))
     return frame_rate, timestamps
