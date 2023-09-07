@@ -99,7 +99,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         Ophys timestamps
     """
     # Get the correct frame rate along with the timestamps
-    frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
+    frame_rate, ophys_timestamps = get_correct_frame_rate(ophys_experiment_id)
 
     # Define filter lengths (int was necessary in HPC)
     long_filter_length = int(round(frame_rate * 60 * inactive_kernel_size))
@@ -160,7 +160,6 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     # merge with np_corrected_df, check one-to-one
     np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
     # Add timestamps    
-    ophys_timestamps = timestamps.ophys_frames.timestamps
     if len(ophys_timestamps) != len(new_dff_all[0]):  # In some cases, the length is different
         cache = bpc.from_lims()
         exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
