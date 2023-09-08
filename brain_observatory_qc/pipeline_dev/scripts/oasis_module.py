@@ -347,7 +347,7 @@ def generate_oasis_events_for_h5_path(h5_path: Path,
         # cehck if oasis h5 exists
         if oasis_h5.exists():
             print(f"{oasis_h5} already exists")
-            return
+            return oasis_h5
 
         trace_dict = load_new_dff_h5(h5_path)
         traces = trace_dict[trace_type]
