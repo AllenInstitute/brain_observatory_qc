@@ -173,7 +173,7 @@ def tmp_save_new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length,
         print(f'Saved cell_roi_id {cell_roi_id} to {tmp_fn}')
 
 
-def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
+def new_dff_each_cell_SLOW(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
     """ Calculate new dff for each cell
     Parameters
     ----------
@@ -219,6 +219,126 @@ def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive
     # Calculate DFF
     new_dff = calculate_dff(corrected_trace, baseline_new, noise_sd)
     return new_dff, cell_roi_id
+
+
+def new_dff_each_cell(corrected_trace, cell_roi_id, long_filter_length, inactive_percentile, short_filter_length, frame_rate):
+    """ Calculate new dff for each cell
+    Parameters
+    ----------
+    corrected_trace : np.ndarray
+        neuropil-corrected trace
+    cell_roi_id : int
+        cell_roi_id, this is to confirm the match with the trace
+    long_filter_length : int
+        kernel size for low_baseline calculation
+    inactive_percentile : int
+        percentile to calculate low_baseline
+    short_filter_length : int
+        kernel size for baseline calculation
+    frame_rate : float
+        frame rate
+
+    Returns
+    -------
+    np.ndarray
+        new dff
+    int
+        cell_roi_id
+    """
+
+    # Calculate noise_sd
+    noise_sd = noise_std(corrected_trace, filter_length=int(
+        round(frame_rate * 3.33)))  # 3.33 s is fixed
+    # 10th percentile "low_baseline"
+    low_baseline = rolling_percentile(corrected_trace, 
+                                      long_filter_length, 
+                                      inactive_percentile)
+    # Create trace using inactive frames only, by replacing signals in "active frames" with NaN
+    active_frame = np.where(corrected_trace > (
+        low_baseline + 3 * noise_sd))[0]
+    negative_frame = np.where(corrected_trace < (
+        low_baseline - 3 * noise_sd))[0]
+    inactive_trace = corrected_trace.copy()
+    for i in active_frame:
+        inactive_trace[i] = np.nan
+    for i in negative_frame:
+        inactive_trace[i] = np.nan
+    # Calculate baseline using median filter
+    baseline_new = rolling_nanmedian(inactive_trace, short_filter_length)
+    # Calculate DFF
+    new_dff = calculate_dff(corrected_trace, baseline_new, noise_sd)
+    return new_dff, cell_roi_id
+
+
+def rolling_reflect(s, window):
+    """ Calculate rolling with reflection at the edges
+
+    Parameters
+    ----------
+    s : np.ndarray
+        1d array of signal
+    window : int
+        window size
+
+    Returns
+    -------
+    pd.Series
+    """
+    s = pd.Series(s)
+    nb_ref = window // 2
+    left = pd.Series(s.iloc[:nb_ref].values)[::-1]
+    right = pd.Series(s.iloc[-nb_ref + 1:].values[::-1])
+    rolling_ = pd.concat([left, s, right]).rolling(window, center=True, min_periods=1)
+    return rolling_, nb_ref
+
+
+def rolling_percentile(s, window, inactive_percentile):
+    """ Calculate rolling percentile with reflection at the edges
+
+    Parameters
+    ----------
+    s : np.ndarray
+        1d array of signal
+    window : int
+        window size
+    inactive_percentile : int
+        percentile to calculate low_baseline
+
+    Returns
+    -------
+        np.ndarray
+    """
+    rolling, nb_ref = rolling_reflect(s, window)
+
+    low_bl = rolling.quantile(inactive_percentile / 100).values
+
+    return low_bl[nb_ref:-nb_ref + 1]
+
+
+def rolling_nanmedian(s, window):
+    """ Calculate rolling nanmedian with reflection at the edges
+
+    Parameters
+    ----------
+    s : np.ndarray
+        1d array of signal
+    window : int
+        window size
+
+    Returns
+    -------
+        np.ndarray
+    """
+    rolling, nb_ref = rolling_reflect(s, window)
+
+    median = rolling.median().values
+    filtered_trace = median[nb_ref:-nb_ref + 1]
+
+    # generally not neeeded as rolling, min_window=1 does interpolation
+    if np.isnan(filtered_trace).any():
+        filtered_trace = _fill_nan(filtered_trace)
+
+    return filtered_trace
 
 
 def gather_tmp_files_and_delete_dir(tmp_dir, all_crids):
