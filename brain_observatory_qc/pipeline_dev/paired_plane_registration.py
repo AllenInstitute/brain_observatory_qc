@@ -567,14 +567,14 @@ def get_motion_correction_crop_xy_range_from_both_planes(oeid):
     list, list
         Lists of y range and x range, [start, end] pixel index
     """    
-    xrange_og, yrange_og = get_motion_correction_crop_xy_range(oeid)
+    yrange_og, xrange_og  = get_motion_correction_crop_xy_range(oeid)
     paired_id = get_paired_plane_id(oeid)
-    xrange_paired, yrange_paired = get_motion_correction_crop_xy_range(paired_id)
+    yrange_paired, xrange_paired = get_motion_correction_crop_xy_range(paired_id)
 
     xrange = [max(xrange_og[0], xrange_paired[0]), min(xrange_og[1], xrange_paired[1])]
     yrange = [max(yrange_og[0], yrange_paired[0]), min(yrange_og[1], yrange_paired[1])]
 
-    return xrange, yrange
+    return yrange, xrange
 
 
 def shift_frame(frame: np.ndarray, dy: int, dx: int) -> np.ndarray:
