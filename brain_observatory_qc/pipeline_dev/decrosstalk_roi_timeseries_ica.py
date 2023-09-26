@@ -168,6 +168,8 @@ def calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=0.01, 
     for alpha in alpha_list:
         for beta in beta_list:
             temp_mixing = np.array([[1-alpha, alpha], [beta, 1-beta]])
+            # TODO: whiten them, match the pair (using correlation),
+            # and then match the DC component (how?)
             temp_unmixing = np.linalg.inv(temp_mixing)
             temp_unmixed_data = np.dot(temp_unmixing, data)
             temp_mi = skimage.metrics.normalized_mutual_information(temp_unmixed_data[0,:],
