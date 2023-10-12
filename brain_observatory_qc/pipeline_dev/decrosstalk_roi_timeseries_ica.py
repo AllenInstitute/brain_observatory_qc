@@ -10,7 +10,7 @@ from brain_observatory_qc.pipeline_dev import paired_plane_registration as ppr
 
 
 def decrosstalk_timeseries_exp(oeid, paired_reg_fn, dendrite_diameter_um=10, num_top_rois=15, nrshiftmax=5,
-                               grid_interval=0.01, max_val=0.3):
+                               grid_interval=0.01, max_grid_val=0.3, return_recon=True):
     """Decrosstalk timeseries for an experiment
 
     Parameters
@@ -27,8 +27,10 @@ def decrosstalk_timeseries_exp(oeid, paired_reg_fn, dendrite_diameter_um=10, num
         maximum number of pixels to shift ROIs to avoid border ROIs
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
+    return_recon : bool
+        whether to return reconstructed signal data
 
     Returns
     -------
@@ -45,25 +47,28 @@ def decrosstalk_timeseries_exp(oeid, paired_reg_fn, dendrite_diameter_um=10, num
                                                                               nrshiftmax=nrshiftmax)
     alpha_list, beta_list = constrained_ica_timeseries(timeseries_signal, timeseries_paired,
                                                        grid_interval=grid_interval,
-                                                       max_val=max_val)
+                                                       max_grid_val=max_grid_val)
     alpha = np.mean(alpha_list)
     beta = np.mean(beta_list)
 
     signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
 
-    with h5py.File(signal_fn, 'r') as f:
-        signal_data = f['data'][:]
-        data_length = signal_data.shape[0]
-    with h5py.File(paired_reg_fn, 'r') as f:
-        paired_data = f['data'][:]
-    recon_signal_data = np.zeros_like(signal_data)
-    for i in range(data_length):
-        recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    if return_recon:
+        with h5py.File(signal_fn, 'r') as f:
+            signal_data = f['data'][:]
+            data_length = signal_data.shape[0]
+        with h5py.File(paired_reg_fn, 'r') as f:
+            paired_data = f['data'][:]
+        recon_signal_data = np.zeros_like(signal_data)
+        for i in range(data_length):
+            recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    else:
+        recon_signal_data = None
     return recon_signal_data, alpha_list, beta_list
 
 
 def constrained_ica_timeseries(timeseries_signal, timeseries_paired,
-                               method='grid_search', grid_interval=0.01, max_val=0.3):
+                               method='grid_search', grid_interval=0.01, max_grid_val=0.3):
     """Constrained ICA for timeseries
 
     Parameters
@@ -76,7 +81,7 @@ def constrained_ica_timeseries(timeseries_signal, timeseries_paired,
         method for unmixing, either 'grid_search' or 'gradient_descent'
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
 
     Returns
@@ -94,7 +99,7 @@ def constrained_ica_timeseries(timeseries_signal, timeseries_paired,
     for i in range(num_roi):
         if method == 'grid_search':
             alpha, beta = unmixing_using_grid_search(timeseries_signal[i,:], timeseries_paired[i,:],
-                                                     grid_interval=grid_interval, max_val=max_val)
+                                                     grid_interval=grid_interval, max_grid_val=max_grid_val)
         # elif method == 'gradient_descent':
         #     alpha, beta = unmixing_using_gradient_descent(timeseries_signal[i,:], timeseries_paired[i,:])
         alpha_list[i] = alpha
@@ -102,7 +107,7 @@ def constrained_ica_timeseries(timeseries_signal, timeseries_paired,
     return alpha_list, beta_list
 
 
-def unmixing_using_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_val=0.3):
+def unmixing_using_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_grid_val=0.3):
     """Unmixing using grid search
 
     Parameters
@@ -113,7 +118,7 @@ def unmixing_using_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_val
         timeseries data from paired plane
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
 
     Returns
@@ -125,7 +130,7 @@ def unmixing_using_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_val
     """
     assert len(ts_signal) == len(ts_paired)
     _, _, mi_values, ab_pair = \
-        calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=grid_interval, max_val=max_val)
+        calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=grid_interval, max_grid_val=max_grid_val)
     min_idx = np.argmin(mi_values)
     alpha = ab_pair[min_idx][0]
     beta = ab_pair[min_idx][1]
@@ -133,7 +138,7 @@ def unmixing_using_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_val
     return alpha, beta
 
 
-def calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_val=0.3):
+def calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=0.01, max_grid_val=0.3):
     """Calculate mutual information using grid search
 
     Parameters
@@ -144,7 +149,7 @@ def calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=0.01, 
         timeseries data from paired plane
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
 
     Returns
@@ -161,8 +166,8 @@ def calculate_mutual_info_grid_search(ts_signal, ts_paired, grid_interval=0.01, 
     assert len(ts_signal) == len(ts_paired)
     data = np.vstack((ts_signal, ts_paired))
 
-    alpha_list = np.arange(0, max_val + grid_interval, grid_interval)
-    beta_list = np.arange(0, max_val + grid_interval, grid_interval)
+    alpha_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
+    beta_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
     mi_values = []
     ab_pair = []
     for alpha in alpha_list:

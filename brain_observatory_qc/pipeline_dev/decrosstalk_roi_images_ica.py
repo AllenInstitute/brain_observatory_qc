@@ -9,7 +9,8 @@ import brain_observatory_qc.data_access.from_lims as from_lims
 from brain_observatory_qc.pipeline_dev import paired_plane_registration as ppr
 
 
-def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_frames_avg=1000):
+def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_frames_avg=1000,
+                                grid_interval=0.01, max_grid_val=0.3, return_recon=True):
     """Get alpha and beta values for an experiment based on 
     the mutual information of the ROI images
 
@@ -26,6 +27,12 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
         For shorter experiments, this number will be modified
     num_frames_avg : int, optional
         number of frames to average, by default 1000
+    grid_interval : float, optional
+        interval of the grid, by default 0.01
+    max_grid_val : float, optional
+        maximum value of alpha and beta, by default 0.3
+    return_recon : bool, optional
+        whether to return the reconstructed signal and paired images, by default True
 
     Returns:
     -----------
@@ -53,7 +60,9 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
     for start_frame in start_frames:        
         alpha, beta, mean_norm_mi_values = decrosstalk_roi_image_single_pair(oeid, paired_reg_fn,
                                                                              start_frame=start_frame,
-                                                                             num_frames_avg=num_frames_avg)
+                                                                             num_frames_avg=num_frames_avg,
+                                                                             grid_interval=grid_interval,
+                                                                             max_grid_val=max_grid_val)
         alpha_list.append(alpha)
         beta_list.append(beta)
         mean_norm_mi_list.append(mean_norm_mi_values)
@@ -61,18 +70,21 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
     alpha = np.mean(alpha_list)
     beta = np.mean(beta_list)
 
-    with h5py.File(signal_fn, 'r') as f:
-        signal_data = f['data'][:]    
-    with h5py.File(paired_reg_fn, 'r') as f:
-        paired_data = f['data'][:]
-    recon_signal_data = np.zeros_like(signal_data)
-    for i in range(data_length):
-        recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    if return_recon:
+        with h5py.File(signal_fn, 'r') as f:
+            signal_data = f['data'][:]    
+        with h5py.File(paired_reg_fn, 'r') as f:
+            paired_data = f['data'][:]
+        recon_signal_data = np.zeros_like(signal_data)
+        for i in range(data_length):
+            recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    else:
+        recon_signal_data = None
     return recon_signal_data, alpha_list, beta_list, mean_norm_mi_list
 
 
 def decrosstalk_roi_image_single_pair(oeid, paired_reg_fn, start_frame=1000, num_frames_avg=1000,
-                                      motion_buffer=5, grid_interval=0.01, max_val=0.3):
+                                      motion_buffer=5, grid_interval=0.01, max_grid_val=0.3):
     """Get alpha and beta values for a single pair of mean images
     based on the mean normalized mutual information of the ROI images
 
@@ -93,7 +105,7 @@ def decrosstalk_roi_image_single_pair(oeid, paired_reg_fn, start_frame=1000, num
         TODO: Get this from the suite2p parameters
     grid_interval : float, optional
         interval of the grid, by default 0.01
-    max_val : float, optional
+    max_grid_val : float, optional
         maximum value of alpha and beta, by default 0.3
 
     Returns:
@@ -134,8 +146,8 @@ def decrosstalk_roi_image_single_pair(oeid, paired_reg_fn, start_frame=1000, num
     # Grid search for alpha and beta using mean normalized mutual information across ROIs
     data = np.vstack((signal_mean.ravel(), paired_mean.ravel()))
 
-    alpha_list = np.arange(0, max_val + grid_interval, grid_interval)
-    beta_list = np.arange(0, max_val + grid_interval, grid_interval)
+    alpha_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
+    beta_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
     ab_pair = []
     mean_norm_mi_values = []
     for alpha in alpha_list:

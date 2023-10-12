@@ -6,7 +6,8 @@ from scipy import ndimage
 import skimage
 
 
-def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=15, num_frames=300):
+def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=10, num_frames_avg=1000,
+                      grid_interval=0.01, max_grid_val=0.3, return_recon=True, return_epoch_results=False):
     """Run FOV-based decrosstalk using constrained ICA on motion corrected movie data
     
     Parameters
@@ -21,8 +22,16 @@ def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=15, nu
         sigma for gaussian filter in microns
     num_epochs : int
         number of epochs to run
-    num_frames : int
-        number of frames to use for each epoch
+    num_frames_avg : int
+        number of frames to average for each epoch
+    grid_interval : float
+        interval for grid search
+    max_grid_val : float
+        maximum value for grid search
+    return_recon : bool
+        whether to return reconstructed images
+    return_epoch_results : bool
+        whether to return results for each epoch
     
     Returns
     -------
@@ -37,37 +46,59 @@ def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=15, nu
     with h5py.File(signal_fn, 'r') as f:
         data_length = f['data'].shape[0]
     epoch_interval = data_length // (num_epochs+1)  # +1 to avoid the very first frame (about half of each epoch)
-    num_frames = min(num_frames, epoch_interval)
-    start_frames = [num_frames//2 + i * epoch_interval for i in range(num_epochs)]
-    assert start_frames[-1] + num_frames < data_length
+    num_frames_avg = min(num_frames_avg, epoch_interval)
+    start_frames = [num_frames_avg//2 + i * epoch_interval for i in range(num_epochs)]
+    assert start_frames[-1] + num_frames_avg < data_length
 
     pixel_size_um = from_lims.get_pixel_size_um(oeid)
-    sigma = filter_sigma_um / pixel_size_um
+    if (filter_sigma_um is None) or (filter_sigma_um == 0):
+        sigma = None
+    else:
+        sigma = filter_sigma_um / pixel_size_um
 
     alpha_list = []
     beta_list = []
+    if return_epoch_results:
+        signal_mean_list = []
+        paired_mean_list = []
+        recon_signal_list = []
+        recon_paired_list = []
     for i in range(num_epochs):
-        alpha, beta, _, _, _, _= decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma,
-                                                               start_frame=start_frames[i],
-                                                               num_frames=num_frames,
-                                                               get_recon=False)
+        alpha, beta, signal_mean, paired_mean, recon_signal, recon_paired = \
+            decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma,
+                                         start_frame=start_frames[i],
+                                         num_frames_avg=num_frames_avg,
+                                         grid_interval=grid_interval,
+                                         max_grid_val=max_grid_val,
+                                         get_recon=False)
         alpha_list.append(alpha)
         beta_list.append(beta)
+        if return_epoch_results:
+            signal_mean_list.append(signal_mean)
+            paired_mean_list.append(paired_mean)
+            recon_signal_list.append(recon_signal)
+            recon_paired_list.append(recon_paired)
     alpha = np.mean(alpha_list)
     beta = np.mean(beta_list)
 
-    with h5py.File(signal_fn, 'r') as f:
-        signal_data = f['data'][:]    
-    with h5py.File(paired_reg_fn, 'r') as f:
-        paired_data = f['data'][:]
-    recon_signal_data = np.zeros_like(signal_data)
-    for i in range(data_length):
-        recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
-    return recon_signal_data, alpha_list, beta_list
+    if return_recon:
+        with h5py.File(signal_fn, 'r') as f:
+            signal_data = f['data'][:]    
+        with h5py.File(paired_reg_fn, 'r') as f:
+            paired_data = f['data'][:]
+        recon_signal_data = np.zeros_like(signal_data)
+        for i in range(data_length):
+            recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    else:
+        recon_signal_data = None
+    if return_epoch_results:
+        return recon_signal_data, alpha_list, beta_list, signal_mean_list, paired_mean_list, recon_signal_list, recon_paired_list
+    else:
+        return recon_signal_data, alpha_list, beta_list
 
 
-def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, num_frames=300,
-                                  motion_buffer=5, get_recon=True):
+def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, num_frames_avg=300,
+                                  motion_buffer=5, grid_interval=0.01, max_grid_val=0.3, get_recon=True):
     """Run FOV-based decrosstalk using constrained ICA on a pair of mean images
 
     Parameters
@@ -80,14 +111,19 @@ def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, n
         this parameter can be removed or replaced with paired_oeid
     sigma : float
         sigma for gaussian filter in pixels
+        if None, then no filtering
     start_frame : int
         starting frame index
-    num_frames : int
-        number of frames to use
+    num_frames_avg : int
+        number of frames to average
     motion_buffer : int
         number of pixels to crop from the edge of the motion corrected image (for nonrigid registration)
         TODO: Get this information from nonrigid registration parameters
         (e.g., from suite2p ops, maxShiftNR)
+    grid_interval : float
+        interval for grid search
+    max_grid_val : float
+        maximum value for grid search
     get_recon : bool
         whether to return reconstructed images
 
@@ -108,9 +144,9 @@ def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, n
     """
     signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
     with h5py.File(signal_fn, 'r') as f:
-        signal_mean = f['data'][start_frame:start_frame+num_frames].mean(axis=0)
+        signal_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
     with h5py.File(paired_reg_fn, 'r') as f:
-        paired_mean = f['data'][start_frame:start_frame+num_frames].mean(axis=0)
+        paired_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
 
     p1y, p1x = ppr.get_motion_correction_crop_xy_range_from_both_planes(oeid)
     signal_mean = signal_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
@@ -118,11 +154,16 @@ def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, n
     paired_mean = paired_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
                               p1x[0]+motion_buffer:p1x[1]-motion_buffer]
 
-    signal_filtered = signal_mean - ndimage.gaussian_filter(signal_mean, sigma)
-    paired_filtered = paired_mean - ndimage.gaussian_filter(paired_mean, sigma)
+    if sigma is None:
+        signal_filtered = signal_mean
+        paired_filtered = paired_mean
+    else:
+        signal_filtered = signal_mean - ndimage.gaussian_filter(signal_mean, sigma)
+        paired_filtered = paired_mean - ndimage.gaussian_filter(paired_mean, sigma)
 
     # TODO: change grid searching to constrained gradient descent to speed up
-    alpha, beta ,_, _ = unmixing_using_grid_search(signal_filtered, paired_filtered)
+    alpha, beta ,_, _ = unmixing_using_grid_search(signal_filtered, paired_filtered,
+                                                   grid_interval=grid_interval, max_grid_val=max_grid_val)
     if get_recon:
         recon_signal, recon_paired = apply_mixing_matrix(alpha, beta, signal_mean, paired_mean)
     else:
@@ -132,7 +173,7 @@ def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, n
 
 
 def unmixing_using_grid_search(signal_mean, paired_mean, yrange_for_mi=None, xrange_for_mi=None,
-                               grid_interval=0.01, max_val=0.3):
+                               grid_interval=0.01, max_grid_val=0.3):
     """Calculate unmixing matrix using grid search for minimum mutual information
     
     Parameters:
@@ -147,7 +188,7 @@ def unmixing_using_grid_search(signal_mean, paired_mean, yrange_for_mi=None, xra
         x range of the image to calculate mutual information
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
 
     Returns:
@@ -169,7 +210,7 @@ def unmixing_using_grid_search(signal_mean, paired_mean, yrange_for_mi=None, xra
     crop_signal_mean = signal_mean[yrange_for_mi[0]:yrange_for_mi[1], xrange_for_mi[0]:xrange_for_mi[1]]
     crop_paired_mean = paired_mean[yrange_for_mi[0]:yrange_for_mi[1], xrange_for_mi[0]:xrange_for_mi[1]]
     _, _, mi_values, _, _, ab_pair = \
-        calculate_mutual_info_grid_search(crop_signal_mean, crop_paired_mean, grid_interval=grid_interval, max_val=max_val)
+        calculate_mutual_info_grid_search(crop_signal_mean, crop_paired_mean, grid_interval=grid_interval, max_grid_val=max_grid_val)
     min_idx = np.argmin(mi_values)
     alpha = ab_pair[min_idx][0]
     beta = ab_pair[min_idx][1]
@@ -178,7 +219,7 @@ def unmixing_using_grid_search(signal_mean, paired_mean, yrange_for_mi=None, xra
     return alpha, beta, recon_signal, recon_paired
 
 
-def calculate_mutual_info_grid_search(signal_mean, paired_mean, grid_interval=0.01, max_val=0.3):
+def calculate_mutual_info_grid_search(signal_mean, paired_mean, grid_interval=0.01, max_grid_val=0.3):
     """Calculate mutual information using grid search
     
     Parameters:
@@ -189,7 +230,7 @@ def calculate_mutual_info_grid_search(signal_mean, paired_mean, grid_interval=0.
         mean image of the paired plane
     grid_interval : float
         interval for grid search
-    max_val : float
+    max_grid_val : float
         maximum value for grid search
 
     Returns:
@@ -209,8 +250,8 @@ def calculate_mutual_info_grid_search(signal_mean, paired_mean, grid_interval=0.
     """
     data = np.vstack((signal_mean.ravel(), paired_mean.ravel()))
 
-    alpha_list = np.arange(0, max_val + grid_interval, grid_interval)
-    beta_list = np.arange(0, max_val + grid_interval, grid_interval)
+    alpha_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
+    beta_list = np.arange(0, max_grid_val + grid_interval, grid_interval)
     recon_signal = []
     recon_paired = []
     ab_pair = []
