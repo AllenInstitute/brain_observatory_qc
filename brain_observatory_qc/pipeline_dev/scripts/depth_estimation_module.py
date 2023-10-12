@@ -23,11 +23,38 @@ if os.name == 'nt':
     global_base_dir = Path(
         r'\\allen\programs\mindscope\workgroups\learning\ophys\zdrift'.replace('\\', '/'))
 else:
-    global_base_dir = Path('/allen/programs/mindscope/workgroups/learning/ophys/zdrift')
+    global_base_dir = Path(
+        '/allen/programs/mindscope/workgroups/learning/ophys/zdrift')
 
 ###############################################################################
 # General tools
 ###############################################################################
+
+
+def calculate_valid_pix(img1, img2, valid_pix_threshold=1e-3):
+    """Calculate valid pixels for registration between two images
+    Parameters
+    ----------
+    img1 : np.ndarray (2D)
+        Image 1
+    img2 : np.ndarray (2D)
+        Image 2
+    valid_pix_threshold : float, optional
+        threshold for valid pixels, by default 1e-3
+
+    Returns
+    -------
+    list
+        valid y range
+    list
+        valid x range
+    """
+    y1, x1 = np.where(img1 > valid_pix_threshold)
+    y2, x2 = np.where(img2 > valid_pix_threshold)
+    # unravel the indices
+    valid_y = [max(min(y1), min(y2)), min(max(y1), max(y2))]
+    valid_x = [max(min(x1), min(x2)), min(max(x1), max(x2))]
+    return valid_y, valid_x
 
 
 def image_normalization_uint8(image, im_thresh=0):
@@ -46,7 +73,8 @@ def image_normalization_uint8(image, im_thresh=0):
         image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
     norm_image = (clip_image - np.amin(clip_image)) / \
         (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint8_image = ((norm_image + 0.05) * np.iinfo(np.uint8).max * 0.9).astype(np.uint8)
+    uint8_image = ((norm_image + 0.05) *
+                   np.iinfo(np.uint8).max * 0.9).astype(np.uint8)
     return uint8_image
 
 
@@ -66,7 +94,8 @@ def image_normalization_uint16(image, im_thresh=0):
         image[image > im_thresh], 0.2), np.percentile(image[image > im_thresh], 99.8))
     norm_image = (clip_image - np.amin(clip_image)) / \
         (np.amax(clip_image) - np.amin(clip_image)) * 0.9
-    uint16_image = ((norm_image + 0.05) * np.iinfo(np.uint16).max * 0.9).astype(np.uint16)
+    uint16_image = ((norm_image + 0.05) *
+                    np.iinfo(np.uint16).max * 0.9).astype(np.uint16)
     return uint16_image
 
 
@@ -450,7 +479,8 @@ def get_local_zstack_path(ophys_experiment_id):
         zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
             / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
     if not os.path.isfile(zstack_fp):
-        raise Exception(f'Error: zstack file path might be wrong ({zstack_fp})')
+        raise Exception(
+            f'Error: zstack file path might be wrong ({zstack_fp})')
     return zstack_fp
 
 
@@ -502,7 +532,8 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir, number_of_z
         within and between plane registered z-stack
     """
     if number_of_z_planes is None:
-        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
+        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+            ophys_experiment_id).equipment_name[0]
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     reg_zstack_fn = f'{ophys_experiment_id}_zstack_reg.h5'
     reg_zstack_fp = ophys_experiment_dir / reg_zstack_fn
@@ -514,7 +545,8 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir, number_of_z
         if not os.path.isdir(ophys_experiment_dir):
             os.makedirs(ophys_experiment_dir)
         # Register the first z-stack
-        reg_zstack = register_z_stack(ophys_experiment_id, number_of_z_planes=number_of_z_planes, number_of_repeats=number_of_repeats)
+        reg_zstack = register_z_stack(
+            ophys_experiment_id, number_of_z_planes=number_of_z_planes, number_of_repeats=number_of_repeats)
         # Save the registered first z-stack
         with h5py.File(reg_zstack_fp, 'w') as h:
             h.create_dataset('data', data=reg_zstack)
@@ -539,8 +571,9 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     np.ndarray (3D)
         within and between plane registered z-stack
     """
+    equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+        ophys_experiment_id).equipment_name[0]
     if number_of_z_planes is None:
-        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).equipment_name[0]
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     local_zstack_path = get_local_zstack_path(ophys_experiment_id)
     h = h5py.File(local_zstack_path, 'r')
@@ -554,6 +587,9 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
             plane_ind, total_num_frames, number_of_z_planes), ...]
         single_plane = average_reg_plane(single_plane_images)
         mean_local_zstack_reg.append(single_plane)
+    # Old Scientifica microscope had flyback and ringing in the first 5 frames
+    if 'CAM2P' in equipment_name:
+        mean_local_zstack_reg = mean_local_zstack_reg[5:]
     zstack_reg = reg_between_planes(np.array(mean_local_zstack_reg))
     return zstack_reg
 
@@ -581,7 +617,7 @@ def average_reg_plane(images):
     return np.mean(reg, axis=0)
 
 
-def reg_between_planes(stack_imgs):
+def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapthisteq=True):
     """Register between planes. Each plane with single 2D image
     Use phase correlation.
     Use median filtered images to calculate shift between neighboring planes.
@@ -591,6 +627,12 @@ def reg_between_planes(stack_imgs):
     ----------
     stack_imgs : np.ndarray (3D)
         images of a stack. Typically z-stack with each plane registered and averaged.
+    top_ring_buffer : int, optional
+        number of top lines to skip due to ringing noise, by default 10
+    window_size : int, optional
+        window size for rolling, by default 4
+    use_adapthisteq : bool, optional
+        whether to use adaptive histogram equalization, by default True
 
     Returns
     -------
@@ -600,14 +642,31 @@ def reg_between_planes(stack_imgs):
     num_planes = stack_imgs.shape[0]
     reg_stack_imgs = np.zeros_like(stack_imgs)
     reg_stack_imgs[0, :, :] = stack_imgs[0, :, :]
-    medfilt_stack_imgs = med_filt_z_stack(stack_imgs)
-    reg_medfilt_imgs = np.zeros_like(stack_imgs)
-    reg_medfilt_imgs[0, :, :] = medfilt_stack_imgs[0, :, :]
+    ref_stack_imgs = med_filt_z_stack(stack_imgs)
+    if use_adapthisteq:
+        for i in range(num_planes):
+            plane_img = ref_stack_imgs[i, :, :]
+            ref_stack_imgs[i, :, :] = image_normalization_uint16(skimage.exposure.equalize_adapthist(
+                plane_img.astype(np.uint16)))  # normalization to make it uint16
+
+    temp_stack_imgs = np.zeros_like(stack_imgs)
+    temp_stack_imgs[0, :, :] = ref_stack_imgs[0, :, :]
     for i in range(1, num_planes):
+        # Calculation valid pixels
+        temp_ref = np.mean(
+            temp_stack_imgs[max(0, i - window_size): i, :, :], axis=0)
+        temp_mov = ref_stack_imgs[i, :, :]
+        valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
+
+        temp_ref = temp_ref[valid_y[0] +
+                            top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+        temp_mov = temp_mov[valid_y[0] +
+                            top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+
         shift, _, _ = skimage.registration.phase_cross_correlation(
-            reg_medfilt_imgs[i - 1, :, :], medfilt_stack_imgs[i, :, :], normalization=None)
-        reg_medfilt_imgs[i, :, :] = scipy.ndimage.shift(
-            medfilt_stack_imgs[i, :, :], shift)
+            temp_ref, temp_mov, normalization=None, upsample_factor=10)
+        temp_stack_imgs[i, :, :] = scipy.ndimage.shift(
+            ref_stack_imgs[i, :, :], shift)
         reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
             stack_imgs[i, :, :], shift)
     return reg_stack_imgs
@@ -636,6 +695,37 @@ def med_filt_z_stack(zstack, kernel_size=5):
     return np.array(filtered_z_stack)
 
 
+def rolling_average_stack(stack, n_averaging_planes=5):
+    """Rolling average of a z-stack
+
+    Parameters
+    ----------
+    stack : np.ndarray (3D)
+        z-stack to apply rolling average
+    n_averaging_planes : int, optional
+        number of planes to average, by default 5
+        should be in odd number
+
+    Returns
+    -------
+    np.ndarray (3D)
+        rolling average of a z-stack
+    """
+    stack_rolling = np.zeros_like(stack)
+    n_averaging_planes = 5  # should be in odd number
+    n_flanking_planes = (n_averaging_planes - 1) // 2
+    for i in range(stack.shape[0]):
+        if i < n_flanking_planes:
+            stack_rolling[i] = np.mean(
+                stack[:i + n_flanking_planes + 1], axis=0)
+        elif i >= stack.shape[0] - n_flanking_planes:
+            stack_rolling[i] = np.mean(stack[i - n_flanking_planes:], axis=0)
+        else:
+            stack_rolling[i] = np.mean(
+                stack[i - n_flanking_planes:i + n_flanking_planes + 1], axis=0)
+    return stack_rolling
+
+
 def save_stack_to_video(stack, save_fn_path, frame_rate=5, vmin=None, vmax=None):
     """Save image stack to video
 
@@ -656,8 +746,10 @@ def save_stack_to_video(stack, save_fn_path, frame_rate=5, vmin=None, vmax=None)
         vmin = 0
     if vmax is None:
         vmax = np.amax(stack)
-    ex_video = ((stack - vmin) / (vmax - vmin) * np.iinfo(np.uint8).max).astype(np.uint8)
-    out = cv2.VideoWriter(str(save_fn_path), cv2.VideoWriter_fourcc(*"divx"), frame_rate, ex_video.shape[1:], False)
+    ex_video = ((stack - vmin) / (vmax - vmin) *
+                np.iinfo(np.uint8).max).astype(np.uint8)
+    out = cv2.VideoWriter(str(save_fn_path), cv2.VideoWriter_fourcc(
+        *"divx"), frame_rate, ex_video.shape[1:], False)
     for img in ex_video:
         out.write(img)
     out.release()
@@ -708,13 +800,18 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.nda
     DataFrame
         DataFrame about the container-wise z-drift
     """
+    oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
+        ocid).ophys_experiment_id.values
     if oeid_to_run is None:
-        oeid_all = from_lims.get_ophys_experiment_ids_for_ophys_container_id(
-            ocid).ophys_experiment_id.values
         oeid_to_run = np.asarray(
             [oeid for oeid in oeid_all if check_correct_data(oeid)])
     else:
-        oeid_to_run = np.asarray(oeid_to_run)  # In case if it is not an array
+        oeid_to_run = np.asarray(oeid_to_run)
+        # Check if oeid_to_run is in the oeid_all
+        if not np.all(np.isin(oeid_to_run, oeid_all)):
+            raise ValueError(
+                'oeid_to_run is not in the oeid_all for this container.')
+
     if ref_oeid is None:
         ref_oeid = min(oeid_to_run)  # Assume oeid is sorted.
     save_fn = f'{ocid}_zdrift_ref_{ref_oeid}.pkl'
@@ -734,7 +831,7 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.nda
         # What's the use case?
     if run_flag == 0:
         # Initialize columns
-        matched_plane_indice = []
+        matched_plane_indices = []
         zdrift = []
         corrcoef = []
         peak_cc = []
@@ -751,11 +848,11 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.nda
                                       save_dir=save_exp_dir, save_data=save_exp, rerun=rerun)
             translation_shift_list.append(translation_shift)
             rigid_tmat_list.append(rigid_tmat)
-            matched_plane_indice.append(_mpi)
+            matched_plane_indices.append(_mpi)
             zdrift.append(
                 [(mpi - center_plane_ind) * zstack_interval_in_micron for mpi in _mpi])
             corrcoef.append(_cc)
-            peak_cc.append(np.amax(_cc, axis=1))
+            peak_cc.append(np.nanmax(_cc, axis=1))
             use_clahe_list.append(ops['use_clahe'])
             use_valid_pix_pc_list.append(ops['use_valid_pix_pc'])
             use_valid_pix_sr_list.append(ops['use_valid_pix_sr'])
@@ -763,15 +860,15 @@ def get_container_zdrift_df(ocid: int, ref_oeid: int = None, oeid_to_run: np.nda
                                   'zdrift': zdrift,
                                   'peak_cc': peak_cc,
                                   'corrcoef': corrcoef,
-                                  'matched_plane_indice': matched_plane_indice,
+                                  'matched_plane_index': matched_plane_indices,
                                   'translation_shift': translation_shift_list,
                                   'rigid_tmat': rigid_tmat_list,
                                   'ref_experiment_id': ref_oeid,
                                   'use_clahe': use_clahe_list,
                                   'use_valid_pix_pc': use_valid_pix_pc_list,
                                   'use_valid_pix_sr': use_valid_pix_sr_list})
-        if save_df:
-            zdrift_df.to_pickle(save_dir / save_fn)
+    if save_df:
+        zdrift_df.to_pickle(save_dir / save_fn)
 
     return zdrift_df
 
@@ -829,7 +926,7 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     dict
         Options for calculating z-drift
     """
-    valid_threshold = 0.01  # TODO: find the best valid threshold
+    # valid_threshold = 0.01  # TODO: find the best valid threshold
 
     # Basic info
     if save_dir is None:
@@ -850,15 +947,13 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     exp_fn = f'{oeid}_zdrift_ref_{ref_oeid}.h5'
     if os.path.isfile(exp_dir / exp_fn) and (not rerun):
         with h5py.File(exp_dir / exp_fn, 'r') as h:
-            matched_plane_indice = h['matched_plane_indice'][:]
-            corrcoef = h['corrcoef'][:]
+            matched_plane_indices = h['matched_plane_indices'][()]
+            corrcoef = h['corrcoef'][()]
             segment_reg_imgs = h['segment_fov_registered'][:]
-            mpi_mean_fov = h['matched_plane_index_mean_fov'][0]
-            cc_mean_fov = h['corrcoef_index_mean_fov'][:]
-            regimg_mean_fov = h['mean_fov_registered'][:]
+            ref_oeid = h['ref_oeid'][()]
             ref_zstack_crop = h['ref_zstack_crop'][:]
-            rigid_tmat = h['rigid_tmat'][:]
-            translation_shift = h['translation_shift'][:]
+            rigid_tmat_list = h['rigid_tmat'][:]
+            translation_shift_list = h['translation_shift'][:]
             use_clahe = h['ops/use_clahe'][0]
             use_valid_pix_pc = h['ops/use_valid_pix_pc'][0]
             use_valid_pix_sr = h['ops/use_valid_pix_sr'][0]
@@ -871,41 +966,29 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
         ref_zstack = get_registered_zstack(ref_oeid, ref_dir)
         ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
-        # Get mean FOV and crop
-        mean_img = np.asarray(Image.open(
-            from_lims.get_average_intensity_projection_filepath(oeid)))  # in uint8
-        mean_img_crop = mean_img[range_y[0]:range_y[1], range_x[0]:range_x[1]]
-
-        # Run registration from mean FOV to reference z-stack
-        mpi_mean_fov, cc_mean_fov, regimg_mean_fov, *_, rigid_tmat, translation_shift = estimate_plane_from_ref_zstack(
-            mean_img_crop, ref_zstack_crop, use_clahe=use_clahe, use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr)
-
         # Get segmented FOVs and crop
         segment_mean_images = get_segment_mean_images(
             oeid, save_dir=exp_dir, segment_minute=segment_minute)
         segment_mean_images_crop = segment_mean_images[:,
                                                        range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
-        # Apply transformations from the mean FOV registration
-        segment_reg_imgs = twostep_fov_reg_zdrift(
-            segment_mean_images_crop, translation_shift, rigid_tmat)
-
-        # Calculate correlation coefficients and estimate matched plane indice
-        matched_plane_indice = []
-        corrcoef_list = []
-        for i in range(segment_reg_imgs.shape[0]):
-            fov = segment_reg_imgs[i]
-            corrcoef = np.zeros_like(np.zeros(ref_zstack_crop.shape[0]))
-            for pi in range(len(corrcoef)):
-                valid_y, valid_x = np.where(fov > valid_threshold)
-                corrcoef[pi] = np.corrcoef(ref_zstack_crop[pi, valid_y, valid_x].flatten(
-                ), fov[valid_y, valid_x].flatten())[0, 1]
-            corrcoef = moving_average(np.array(corrcoef), 5)
-            matched_plane_index = np.argmax(corrcoef)
-            corrcoef_list.append(corrcoef)
-            matched_plane_indice.append(matched_plane_index)
-        corrcoef = np.asarray(corrcoef_list)
-        matched_plane_indice = np.asarray(matched_plane_indice).astype(int)
+        # Rung registration for each segmented FOVs
+        matched_plane_indices = np.zeros(
+            segment_mean_images_crop.shape[0], dtype=int)
+        corrcoef = []
+        segment_reg_imgs = []
+        rigid_tmat_list = []
+        translation_shift_list = []
+        for i in range(segment_mean_images_crop.shape[0]):
+            mpi, cc, regimg, cc_pre, regimg_pre, rigid_tmat, translation_shift = estimate_plane_from_ref_zstack(
+                segment_mean_images_crop[i], ref_zstack_crop, use_clahe=use_clahe,
+                use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr)
+            matched_plane_indices[i] = mpi
+            corrcoef.append(cc)
+            segment_reg_imgs.append(regimg)
+            rigid_tmat_list.append(rigid_tmat)
+            translation_shift_list.append(translation_shift)
+        corrcoef = np.asarray(corrcoef)
 
         ops = {'use_clahe': use_clahe,
                'use_valid_pix_pc': use_valid_pix_pc,
@@ -916,27 +999,27 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
             if not os.path.isdir(exp_dir):
                 os.makedirs(exp_dir)
             with h5py.File(exp_dir / exp_fn, 'w') as h:
-                h.create_dataset('matched_plane_indice',
-                                 data=matched_plane_indice)
+                h.create_dataset('matched_plane_indices',
+                                 data=matched_plane_indices)
                 h.create_dataset('corrcoef', data=corrcoef)
                 h.create_dataset('segment_fov_registered',
                                  data=segment_reg_imgs)
-                h.create_dataset('matched_plane_index_mean_fov',
-                                 shape=(1,), data=mpi_mean_fov)
-                h.create_dataset('corrcoef_index_mean_fov', data=cc_mean_fov)
-                h.create_dataset('mean_fov_registered', data=regimg_mean_fov)
+                h.create_dataset('corrcoef_pre', data=cc_pre)
+                h.create_dataset('segment_fov_registered_pre',
+                                 data=regimg_pre)
+                h.create_dataset('ref_oeid', data=ref_oeid)
                 h.create_dataset('ref_zstack_crop', data=ref_zstack_crop)
-                h.create_dataset('rigid_tmat', data=rigid_tmat)
-                h.create_dataset('translation_shift', data=translation_shift)
+                h.create_dataset('rigid_tmat', data=rigid_tmat_list)
+                h.create_dataset('translation_shift',
+                                 data=translation_shift_list)
                 h.create_dataset('ops/use_clahe', shape=(1,), data=use_clahe)
                 h.create_dataset('ops/use_valid_pix_pc',
                                  shape=(1,), data=use_valid_pix_pc)
                 h.create_dataset('ops/use_valid_pix_sr',
                                  shape=(1,), data=use_valid_pix_sr)
 
-    return matched_plane_indice, corrcoef, segment_reg_imgs, \
-        mpi_mean_fov, cc_mean_fov, regimg_mean_fov, ref_zstack_crop, \
-        rigid_tmat, translation_shift, ops
+    return matched_plane_indices, corrcoef, segment_reg_imgs, \
+        ref_oeid, ref_zstack_crop, rigid_tmat_list, translation_shift_list, ops
 
 
 def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array,
@@ -985,7 +1068,6 @@ def estimate_plane_from_ref_zstack(fov_crop: np.array, ref_zstack_crop: np.array
     fov_reg_stack_pre, corrcoef_pre, shift_list = \
         fov_stack_register_phase_correlation(
             fov_crop, ref_zstack_crop, use_clahe=use_clahe, use_valid_pix=use_valid_pix_pc)
-    corrcoef_pre = moving_average(corrcoef_pre)
 
     # TODO: Find a better measure to test first pass registration
     # Select the best registered FOV and translation shift
@@ -1041,11 +1123,8 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
     assert len(stack.shape) == 3
     assert fov.shape == stack.shape[1:]
 
-    # median filtering the z-stack as default
-    # if use_medfilt:
     stack_pre = med_filt_z_stack(stack)
-    # else:
-    #     stack_pre = stack.copy()
+    stack_pre = rolling_average_stack(stack_pre)
 
     if use_clahe:
         fov_for_reg = image_normalization_uint16(skimage.exposure.equalize_adapthist(
@@ -1067,12 +1146,12 @@ def fov_stack_register_phase_correlation(fov, stack, use_clahe=True, use_valid_p
         fov_reg = scipy.ndimage.shift(fov, shift)
         fov_reg_stack[pi, :, :] = fov_reg
         if use_valid_pix:
-            valid_y, valid_x = np.where(fov_reg > 0.01)
-            corrcoef[pi] = np.corrcoef(stack[pi, valid_y, valid_x].flatten(
+            valid_y, valid_x = np.where(fov_reg > 0)
+            corrcoef[pi] = np.corrcoef(stack_pre[pi, valid_y, valid_x].flatten(
             ), fov_reg[valid_y, valid_x].flatten())[0, 1]
         else:
             corrcoef[pi] = np.corrcoef(
-                stack[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
+                stack_pre[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
         shift_list.append(shift)
     return fov_reg_stack, corrcoef, shift_list
 
@@ -1106,13 +1185,10 @@ def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
     assert fov.shape == stack.shape[1:]
 
     # TODO: figure out what is the best threshold. This value should be larger than one because of the results after registration
-    valid_pix_threshold = 0.01
+    valid_pix_threshold = 10  # for uint16 data
 
-    # median filtering the z-stack as default
-    # if use_medfilt:
     stack_pre = med_filt_z_stack(stack)
-    # else:
-    #     stack_pre = stack.copy()
+    stack_pre = rolling_average_stack(stack_pre)
 
     sr = StackReg(StackReg.RIGID_BODY)
 
@@ -1125,44 +1201,26 @@ def fov_stack_register_rigid(fov, stack, use_valid_pix=True):
             skimage.exposure.equalize_adapthist(stack_pre[pi, :, :].astype(np.uint16)))
 
     # Initialize
-    corrcoef_first = np.zeros(stack_clahe.shape[0])
+    corrcoef = np.zeros(stack_clahe.shape[0])
     fov_reg_stack = np.zeros_like(stack)
     tmat_list = []
-    for pi in range(len(corrcoef_first)):
+    for pi in range(len(corrcoef)):
         tmat = sr.register(stack_clahe[pi, :, :], fov_clahe)
         # Apply the transformation matrix to the FOV registered using phase correlation
         fov_reg = sr.transform(fov, tmat=tmat)
         if use_valid_pix:
             valid_y, valid_x = np.where(fov_reg > valid_pix_threshold)
-            corrcoef_first[pi] = np.corrcoef(
-                stack[pi, valid_y, valid_x].flatten(), fov_reg[valid_y, valid_x].flatten())[0, 1]
+            corrcoef[pi] = np.corrcoef(
+                stack_pre[pi, valid_y, valid_x].flatten(), fov_reg[valid_y, valid_x].flatten())[0, 1]
         else:
-            corrcoef_first[pi] = np.corrcoef(
-                stack[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
+            corrcoef[pi] = np.corrcoef(
+                stack_pre[pi, :, :].flatten(), fov_reg.flatten())[0, 1]
         fov_reg_stack[pi, :, :] = fov_reg
         tmat_list.append(tmat)
-
-    corrcoef_first = moving_average(corrcoef_first, 5)
-    max_pi_first = np.argmax(corrcoef_first)
-
-    # Use the best registered FOV to sweep through the first z-stack again
-    fov_final = fov_reg_stack[max_pi_first, :, :]
-    valid_y, valid_x = np.where(fov_final > valid_pix_threshold)
-
-    # Calculate correlation between each z-stack to the best RIGID_BODY registered FOV
-    corrcoef_second = np.zeros_like(corrcoef_first)
-    for pi in range(len(corrcoef_first)):
-        if use_valid_pix:
-            corrcoef_second[pi] = np.corrcoef(stack[pi, valid_y, valid_x].flatten(
-            ), fov_final[valid_y, valid_x].flatten())[0, 1]
-        else:
-            corrcoef_second[pi] = np.corrcoef(
-                stack[pi, :, :].flatten(), fov_final.flatten())[0, 1]
-    corrcoef_second = moving_average(np.array(corrcoef_second), 5)
-    matched_plane_index = np.argmax(corrcoef_second)
+    matched_plane_index = np.argmax(corrcoef)
     tmat = tmat_list[matched_plane_index]
 
-    return matched_plane_index, corrcoef_second, tmat
+    return matched_plane_index, corrcoef, tmat
 
 
 def get_segment_mean_images(ophys_experiment_id, save_dir=None, save_images=True, segment_minute=10):
@@ -1253,12 +1311,14 @@ def twostep_fov_reg_zdrift(segment_mean_images, translation_shift, rigid_tmat):
 # Plot
 ########################################
 
-def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=True, fig_size=(6, 5),
+def plot_container_zdrift_using_df(ocid, zdrift_df, ref_oeid=None, save_dir=None, save_figure=True, fig_size=(6, 5),
                                    cc_threshold=0.5, y_min=-20, y_max=20):
     if save_dir is None:
         save_dir = global_base_dir
-    png_fn = f'container_{ocid}_zdrift.png'
-    pdf_fn = f'container_{ocid}_zdrift.pdf'
+    if ref_oeid is None:
+        ref_oeid = zdrift_df.ref_experiment_id.values[0]
+    png_fn = f'container_{ocid}_zdrift_ref_{ref_oeid}.png'
+    # pdf_fn = f'container_{ocid}_zdrift_ref_{ref_oeid}.pdf'
 
     zdrift = zdrift_df.zdrift.values
     peak_cc = zdrift_df.peak_cc.values
@@ -1268,7 +1328,8 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
     fig, ax = plt.subplots(figsize=fig_size)
     for i in range(num_exp):
         depth = np.asarray(zdrift[i])
-        x = np.linspace(i, i + len(depth) / max_num_segments, len(depth) + 1)[:-1]
+        x = np.linspace(i, i + len(depth) / max_num_segments,
+                        len(depth) + 1)[:-1]
         ax.plot(x, depth, 'k-', zorder=-1)
         colors = peak_cc[i]
         h1 = ax.scatter(x, depth, s=20, c=colors,
@@ -1309,10 +1370,154 @@ def plot_container_zdrift_using_df(ocid, zdrift_df, save_dir=None, save_figure=T
             ax.tick_params(axis='y', colors='red')
         else:
             ax.set_ylim(y_min, y_max)
+    fig.suptitle(f'Container {ocid} z-drift from reference exp {ref_oeid}')
+
     # if (not os.path.isfile(save_dir / png_fn)) or (not os.path.isfile(save_dir / pdf_fn)):
     if save_figure:
         fig.savefig(save_dir / png_fn, bbox_inches='tight')
-        fig.savefig(save_dir / pdf_fn, bbox_inches='tight')
+        # fig.savefig(save_dir / pdf_fn, bbox_inches='tight')
+    return fig, ax
+
+
+def plot_container_zdrift_with_self(ocid, zdrift_df, ref_oeid=None, base_dir=None,
+                                    save_dir=None, save_figure=True, fig_size=(3, 5),
+                                    cc_threshold=0.5, y_min=-20, y_max=20):
+    zstack_interval = 0.75  # in micron
+    if save_dir is None:
+        save_dir = global_base_dir
+    if base_dir is None:
+        base_dir = global_base_dir
+    if ref_oeid is None:
+        ref_oeid = zdrift_df.ref_experiment_id.values[0]
+    png_fn = f'container_{ocid}_zdrift_ref_{ref_oeid}.png'
+    # pdf_fn = f'container_{ocid}_zdrift.pdf'
+
+    zdrift = zdrift_df.zdrift.values
+    peak_cc = zdrift_df.peak_cc.values
+    max_num_segments = max([len(z) for z in zdrift])
+    num_exp = len(zdrift)
+    has_low_cc = 0
+    fig, ax = plt.subplots(2, 1, figsize=fig_size)
+    for i in range(num_exp):
+        depth = np.asarray(zdrift[i])
+        x = np.linspace(i, i + len(depth) / max_num_segments,
+                        len(depth) + 1)[:-1]
+        ax[0].plot(x, depth, 'k-', zorder=-1)
+        colors = peak_cc[i]
+        h1 = ax[0].scatter(x, depth, s=20, c=colors,
+                           cmap='binary', vmin=cc_threshold, vmax=1)
+
+        under_threshold_ind = np.where(colors < cc_threshold)[0]
+        if len(under_threshold_ind) > 0:
+            has_low_cc = 1
+            h2 = ax[0].scatter(x[under_threshold_ind], depth[under_threshold_ind], s=20,
+                               c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
+    if has_low_cc == 0:
+        ylim = ax[0].get_ybound()
+        xlim = ax[0].get_xbound()
+        h2 = ax[0].scatter(xlim[0] - 1, ylim[0] - 1, c=0,
+                           cmap='Reds_r', vmin=0, vmax=cc_threshold)
+        ax[0].set_ylim(ylim)
+        ax[0].set_xlim(xlim)
+    cax1 = fig.add_axes([ax[0].get_position().x1 + 0.01,
+                        ax[0].get_position().y0 +
+                         (ax[0].get_position().height) * cc_threshold,
+                        0.02,
+                        ax[0].get_position().height * (1 - cc_threshold)])
+    bar1 = plt.colorbar(h1, cax=cax1)
+    cax2 = fig.add_axes([ax[0].get_position().x1 + 0.01,
+                        ax[0].get_position().y0,
+                        0.02,
+                        ax[0].get_position().height * cc_threshold])
+    plt.colorbar(h2, cax=cax2)
+    bar1.set_label('Correlation coefficient')
+
+    ax[0].set_ylabel(r'Relative depths ($\mu$m)')
+    if (y_min is not None) and (y_max is not None):
+        ylim = ax[0].get_ybound()
+        if (ylim[0] < y_min) or (ylim[1]) > y_max:
+            ax[0].yaxis.label.set_color('red')
+            ax[0].spines['left'].set_color('red')
+            ax[0].tick_params(axis='y', colors='red')
+        else:
+            ax[0].set_ylim(y_min, y_max)
+
+    zdrift_df_copy = zdrift_df
+    oeids = zdrift_df_copy.ophys_experiment_id.values
+    zdrift_self = []
+    peak_cc_self = []
+    for i, oeid in enumerate(oeids):
+        oeid_self_zdrift_fn = base_dir / \
+            f'container_{ocid}' / f'experiment_{oeid}' / \
+            f'{oeid}_zdrift_ref_{oeid}.h5'
+        with h5py.File(oeid_self_zdrift_fn, 'r') as f:
+            matched_plane_indices = f['matched_plane_indices'][()]
+            corrcoef = f['corrcoef'][()]
+        # zdrift_df_copy.iloc[i].peak_cc = np.max(corrcoef, axis=1)
+        peak_cc_self.append(np.max(corrcoef, axis=1))
+        zdrift = zdrift_df.iloc[i].zdrift
+        # zdrift_self = (matched_plane_indices - matched_plane_indices[0]) * zstack_interval + zdrift[0]
+        zdrift_self.append(
+            (matched_plane_indices - matched_plane_indices[0]) * zstack_interval + zdrift[0])
+        # zdrift_df_copy.iloc[i].zdrift = zdrift_self
+
+    # zdrift = zdrift_df_copy.zdrift.values
+    # peak_cc = zdrift_df_copy.peak_cc.values
+    zdrift = zdrift_self.copy()
+    peak_cc = peak_cc_self.copy()
+    max_num_segments = max([len(z) for z in zdrift])
+    num_exp = len(zdrift)
+    has_low_cc = 0
+    for i in range(num_exp):
+        depth = np.asarray(zdrift[i])
+        x = np.linspace(i, i + len(depth) / max_num_segments,
+                        len(depth) + 1)[:-1]
+        ax[1].plot(x, depth, 'k-', zorder=-1)
+        colors = peak_cc[i]
+        h1 = ax[1].scatter(x, depth, s=20, c=colors,
+                           cmap='binary', vmin=cc_threshold, vmax=1)
+
+        under_threshold_ind = np.where(colors < cc_threshold)[0]
+        if len(under_threshold_ind) > 0:
+            has_low_cc = 1
+            h2 = ax[1].scatter(x[under_threshold_ind], depth[under_threshold_ind], s=20,
+                               c=colors[under_threshold_ind], cmap='Reds_r', vmin=0, vmax=cc_threshold)
+    if has_low_cc == 0:
+        ylim = ax[1].get_ybound()
+        xlim = ax[1].get_xbound()
+        h2 = ax[1].scatter(xlim[0] - 1, ylim[0] - 1, c=0,
+                           cmap='Reds_r', vmin=0, vmax=cc_threshold)
+        ax[1].set_ylim(ylim)
+        ax[1].set_xlim(xlim)
+    cax1 = fig.add_axes([ax[1].get_position().x1 + 0.01,
+                        ax[1].get_position().y0 +
+                         (ax[1].get_position().height) * cc_threshold,
+                        0.02,
+                        ax[1].get_position().height * (1 - cc_threshold)])
+    bar1 = plt.colorbar(h1, cax=cax1)
+    cax2 = fig.add_axes([ax[1].get_position().x1 + 0.01,
+                        ax[1].get_position().y0,
+                        0.02,
+                        ax[1].get_position().height * cc_threshold])
+    plt.colorbar(h2, cax=cax2)
+    bar1.set_label('Correlation coefficient')
+
+    ax[1].set_xlabel('Session #')
+    ax[1].set_ylabel(r'Relative depths ($\mu$m)')
+    if (y_min is not None) and (y_max is not None):
+        ylim = ax[1].get_ybound()
+        if (ylim[0] < y_min) or (ylim[1]) > y_max:
+            ax[1].yaxis.label.set_color('red')
+            ax[1].spines['left'].set_color('red')
+            ax[1].tick_params(axis='y', colors='red')
+        else:
+            ax[1].set_ylim(y_min, y_max)
+    fig.suptitle(f'Container {ocid} z-drift\nreference exp {ref_oeid}')
+
+    # if (not os.path.isfile(save_dir / png_fn)) or (not os.path.isfile(save_dir / pdf_fn)):
+    if save_figure:
+        fig.savefig(save_dir / png_fn, bbox_inches='tight')
+        # fig.savefig(save_dir / pdf_fn, bbox_inches='tight')
     return fig, ax
 
 
@@ -1408,7 +1613,8 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir=None, co
                 num_segments = len(matched_plane_indice)
                 num_planes = len(corrcoef[0])
                 for i in range(num_segments):
-                    x = range(-matched_plane_indice[i], - matched_plane_indice[i] + num_planes)
+                    x = range(-matched_plane_indice[i], -
+                              matched_plane_indice[i] + num_planes)
                     ax_temp.plot(x, corrcoef[i], c=cm.winter(
                         i / num_segments), label=f'segment_{i}')
                 ax_temp.legend(fontsize=7)
@@ -1570,7 +1776,9 @@ def save_raw_segment_fov(ophys_experiment_id, save_dir):
         np.array(raw_segment_fovs_registered), im_thresh=0)  # for tiff stack
     with h5py.File(save_dir / 'raw_segment_fov.h5', 'w') as h:
         h.create_dataset('data', data=np.array(raw_segment_fovs_registered))
-    tifffile.imwrite(save_dir / 'raw_segment_fov.tif', norm_uint16_segment_fovs)
-    save_stack_to_video(norm_uint8_segment_fovs, save_dir / 'raw_segment_fov.mp4', frame_rate=2)
+    tifffile.imwrite(save_dir / 'raw_segment_fov.tif',
+                     norm_uint16_segment_fovs)
+    save_stack_to_video(norm_uint8_segment_fovs, save_dir /
+                        'raw_segment_fov.mp4', frame_rate=2)
     imageio.mimsave(save_dir / 'raw_segment_fov.gif',
                     norm_uint8_segment_fovs, fps=2)
