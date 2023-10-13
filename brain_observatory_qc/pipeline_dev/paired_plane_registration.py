@@ -348,7 +348,7 @@ def paired_planes_registered_projections(oeid: int, num_frames: int = 10000):
     return images
 
 
-def transform_and_save_frames(frames,
+def transform_and_save_frames(h5_file,
                               reg_df,
                               save_path: Path = None,
                               return_rframes: bool = False,
@@ -372,6 +372,8 @@ def transform_and_save_frames(frames,
     -------
     np.ndarray
     """
+
+    frames = load_h5_movie(h5_file)
 
     if save_path is not None:
         if save_path.exists() and not rerun:
@@ -420,6 +422,146 @@ def transform_and_save_frames(frames,
             f.create_dataset('data', data=r_frames)
     if return_rframes:
         return r_frames
+    else:
+        del r_frames
+        del frames
+
+
+def transform_frames(frames,
+                     reg_df):
+    """Transform frames and save to h5 file
+
+    Parameters
+    ----------
+    frames : np.ndarray
+        frames to transform
+    reg_df : pandas.DataFrame
+        registration DataFrame (from the csv file)
+    Returns
+    -------
+    np.ndarray
+    """
+
+    # assert that frames and shifts are the same length
+    y_shifts = reg_df['y'].values
+    x_shifts = reg_df['x'].values
+    run_nonrigid = False
+    if 'nonrigid_x' in reg_df.columns:
+        run_nonrigid = True
+        # from default parameters:
+        # TODO: read this from the log file
+        Ly = 512
+        Lx = 512
+        block_size = (128, 128)
+        blocks = nonrigid.make_blocks(Ly=Ly, Lx=Lx, block_size=block_size)
+        ymax1 = np.vstack(reg_df.nonrigid_y.values)
+        xmax1 = np.vstack(reg_df.nonrigid_x.values)
+    assert len(frames) == len(y_shifts) == len(x_shifts)
+    if run_nonrigid:
+        assert len(frames) == ymax1.shape[0] == xmax1.shape[0]
+
+    r_frames = np.zeros_like(frames)
+    for i, (frame, dy, dx) in enumerate(zip(frames, y_shifts, x_shifts)):
+        r_frames[i] = shift_frame(frame=frame, dy=dy, dx=dx)
+    if run_nonrigid:
+        r_frames = nonrigid.transform_data(r_frames, yblock=blocks[0], xblock=blocks[1], nblocks=blocks[2],
+                                           ymax1=ymax1, xmax1=xmax1, bilinear=True)
+        # uint16 is preferrable, but suite2p default seems like int16, and other files are in int16
+        # Suite2p codes also need to be changed to work with uint16 (e.g., using nonrigid_uint16 branch)
+        # njit pre-defined data type
+        # TODO: change all processing into uint16 in the future
+        r_frames = r_frames.astype(np.int16)
+
+    return r_frames
+
+
+def load_h5_movie(h5_file):
+    with h5py.File(h5_file, 'r') as f:
+        frames = f['data'][:]
+
+    return frames
+
+
+def load_and_process_chunked_h5_movie(h5_file, reg_df, output_file,chunk_size=5000):
+    """
+    
+    Parameters
+    ----------
+    h5_file : str
+        [description]
+    reg_df : pd.DataFrame
+
+
+    """
+    with h5py.File(h5_file, 'r') as f:
+        frames = f['data']
+        num_frames = frames.shape[0]
+        n_df = reg_df.shape[0]
+
+
+        assert num_frames == n_df, f"Number of frames ({num_frames}) and number of rows in reg_df ({n_df}) do not match"
+
+        with h5py.File(output_file, 'w') as out_file:
+            out_frames = out_file.create_dataset('data', shape=frames.shape, dtype=frames.dtype)
+
+            for i in range(0, num_frames, chunk_size):
+                print(f"Processing frames {i} to {i+chunk_size}")
+
+                end_range = i + chunk_size
+
+                if end_range > num_frames:
+                    end_range = num_frames
+                chunk = frames[i:end_range]
+                df_chunk = reg_df.iloc[i:end_range]
+                processed_chunk = transform_frames(chunk, df_chunk)
+                out_frames[i:i+chunk_size] = processed_chunk
+
+                del chunk
+                del processed_chunk
+
+    return
+
+
+def generate_all_pairings_registered_frames_chunked(oeid,
+                                                    save_path: Path = None):
+    """Generate registered frames for an experiment
+
+    Parameters
+    ----------
+    oeid : int
+        experiment id
+    save_path : Path, optional
+        path to save registered frames, by default Nonese
+
+    Returns
+    -------
+    None
+    """
+    if save_path is not None:
+        save_path = Path(save_path)
+
+    # Not all the experiments have general_info_for_ophys_experiment_id (e.g., pilot data)
+    # But since this is about paired plane registration, they all must have motion_corrected_movie_filepath
+    expt_path = from_lims.get_motion_corrected_movie_filepath(oeid).parent.parent
+    raw_h5 = expt_path / (str(oeid) + '.h5')
+    plane1_reg_df = get_s2p_motion_transform(oeid)
+
+    # get reg_df for paired
+    paired_id = get_paired_plane_id(oeid)
+    expt_path_paired = from_lims.get_motion_corrected_movie_filepath(paired_id).parent.parent
+    raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
+    paired_reg_df = get_s2p_motion_transform(paired_id)
+
+    # if save path, make all 4 filenames
+    if save_path is not None:
+        save_path.mkdir(exist_ok=True)
+        p2_paired_fn = save_path / f'{paired_id}_paired_registered.h5'
+        p1_paired_fn = save_path / f'{oeid}_paired_registered.h5'
+
+    load_and_process_chunked_h5_movie(h5_file=raw_h5_paired, reg_df=plane1_reg_df, output_file=p2_paired_fn)
+
+    # dont need to generate the paired
+    # load_and_process_chunked_h5_movie(h5_file=raw_h5, reg_df=paired_reg_df, output_file=p1_paired_fn)
 
 
 def generate_all_pairings_registered_frames(oeid,
@@ -455,42 +597,36 @@ def generate_all_pairings_registered_frames(oeid,
     # But since this is about paired plane registration, they all must have motion_corrected_movie_filepath
     expt_path = from_lims.get_motion_corrected_movie_filepath(oeid).parent.parent
     raw_h5 = expt_path / (str(oeid) + '.h5')
-    with h5py.File(raw_h5, 'r') as f:
-        plane1_frames = f['data'][:]
     plane1_reg_df = get_s2p_motion_transform(oeid)
 
     # get reg_df for paired
     paired_id = get_paired_plane_id(oeid)
-    paired_reg_df = get_s2p_motion_transform(paired_id)
-    expt_path_paired = from_lims.get_motion_corrected_movie_filepath(
-        paired_id).parent.parent
+    expt_path_paired = from_lims.get_motion_corrected_movie_filepath(paired_id).parent.parent
     raw_h5_paired = expt_path_paired / (str(paired_id) + '.h5')
-    with h5py.File(raw_h5_paired, 'r') as f:
-        plane2_frames = f['data'][:]
+    paired_reg_df = get_s2p_motion_transform(paired_id)
 
     # if save path, make all 4 filenames
     if save_path is not None:
         save_path.mkdir(exist_ok=True)
-
         p1_og_fn = save_path / f'{oeid}_original_registered.h5'
         p2_paired_fn = save_path / f'{paired_id}_paired_registered.h5'
         p1_paired_fn = save_path / f'{oeid}_paired_registered.h5'
         p2_og_fn = save_path / f'{paired_id}_original_registered.h5'
 
-    p2_paired_frames = transform_and_save_frames(frames=plane2_frames,
+    p2_paired_frames = transform_and_save_frames(h5_file=raw_h5_paired,
                                                  reg_df=plane1_reg_df,
                                                  save_path=p2_paired_fn,
                                                  return_rframes=return_frames,
                                                  rerun=rerun)
 
-    p1_paired_frames = transform_and_save_frames(frames=plane1_frames,
+    p1_paired_frames = transform_and_save_frames(h5_file=raw_h5,
                                                  reg_df=paired_reg_df,
                                                  save_path=p1_paired_fn,
                                                  return_rframes=return_frames,
                                                  rerun=rerun)
 
     if reg_original:
-        p1_original_frames = transform_and_save_frames(frames=plane1_frames,
+        p1_original_frames = transform_and_save_frames(frames=plane1_frames, # TODO
                                                        reg_df=plane1_reg_df,
                                                        save_path=p1_og_fn,
                                                        return_rframes=return_frames,
