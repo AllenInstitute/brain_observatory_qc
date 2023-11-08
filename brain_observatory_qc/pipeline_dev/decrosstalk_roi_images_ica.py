@@ -7,10 +7,12 @@ import skimage
 
 import brain_observatory_qc.data_access.from_lims as from_lims
 from brain_observatory_qc.pipeline_dev import paired_plane_registration as ppr
+from brain_observatory_qc.visualizations.data_processing.ophys import motion_correction
 
 
-def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_frames_avg=1000,
-                                grid_interval=0.01, max_grid_val=0.3, return_recon=True):
+def decrosstalk_movie_roi_image(oeid, max_num_epochs=10, num_frames_to_avg=1000,
+                                motion_buffer=5, grid_interval=0.01, max_grid_val=0.3,
+                                num_top_rois=15, return_epoch_results=True):
     """Get alpha and beta values for an experiment based on 
     the mutual information of the ROI images
 
@@ -18,21 +20,22 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
     -----------
     oeid : int
         oeid of the signal plane
-    paired_reg_fn : str, Path
-        path to paired registration file
-        TODO: Once paired plane registration pipeline is finalized,
-        this parameter can be removed or replaced with paired_oeid
     max_num_epochs : int, optional
         Maximum number of epochs to calculate the alpha and beta values, by default 10
         For shorter experiments, this number will be modified
-    num_frames_avg : int, optional
+    num_frames_to_avg : int, optional
         number of frames to average, by default 1000
+    motion_buffer : int
+        number of pixels to crop from the edge of the motion corrected image (for nonrigid registration)
+        TODO: Get this information from nonrigid registration parameters
     grid_interval : float, optional
         interval of the grid, by default 0.01
     max_grid_val : float, optional
         maximum value of alpha and beta, by default 0.3
-    return_recon : bool, optional
-        whether to return the reconstructed signal and paired images, by default True
+    num_top_rois : int, optional
+        number of top ROIs to keep, by default 15
+    return_epoch_results : bool, optional
+        whether to return results for each epoch, by default True
 
     Returns:
     -----------
@@ -43,26 +46,20 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
     mean_norm_mi_list : list
         list of mean normalized mutual information values across epochs
     """
+    signal_ep_meanfov, paired_ep_meanfov = motion_correction.get_signal_paired_ep_meanfov(oeid, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg, motion_buffer=motion_buffer)
+    num_epochs = signal_ep_meanfov.shape[0]
     
-    # Assign start frames for each epoch
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    with h5py.File(signal_fn, 'r') as f:
-        data_length = f['data'].shape[0]
-    num_epochs = min(max_num_epochs, data_length // num_frames_avg)
-    epoch_interval = data_length // (num_epochs+1)  # +1 to avoid the very first frame (about half of each epoch)
-    num_frames = min(num_frames_avg, epoch_interval)
-    start_frames = [num_frames//2 + i * epoch_interval for i in range(num_epochs)]
-    assert start_frames[-1] + num_frames < data_length
-
     alpha_list = []
     beta_list = []
     mean_norm_mi_list = []
-    for start_frame in start_frames:        
-        alpha, beta, mean_norm_mi_values = decrosstalk_roi_image_single_pair(oeid, paired_reg_fn,
-                                                                             start_frame=start_frame,
-                                                                             num_frames_avg=num_frames_avg,
-                                                                             grid_interval=grid_interval,
-                                                                             max_grid_val=max_grid_val)
+    for i in range(num_epochs):
+        signal_mean = signal_ep_meanfov[i]
+        paired_mean = paired_ep_meanfov[i]
+        alpha, beta, mean_norm_mi_values = \
+            decrosstalk_roi_image_single_pair(signal_mean, paired_mean,
+                                            grid_interval=grid_interval,
+                                            max_grid_val=max_grid_val,
+                                            num_top_rois=num_top_rois)
         alpha_list.append(alpha)
         beta_list.append(beta)
         mean_norm_mi_list.append(mean_norm_mi_values)
@@ -70,44 +67,40 @@ def decrosstalk_movie_roi_image(oeid, paired_reg_fn, max_num_epochs=10, num_fram
     alpha = np.mean(alpha_list)
     beta = np.mean(beta_list)
 
-    if return_recon:
-        with h5py.File(signal_fn, 'r') as f:
-            signal_data = f['data'][:]    
-        with h5py.File(paired_reg_fn, 'r') as f:
-            paired_data = f['data'][:]
-        recon_signal_data = np.zeros_like(signal_data)
-        for i in range(data_length):
-            recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
+    if return_epoch_results:
+        recon_signal = np.zeros_like(signal_ep_meanfov)
+        recon_paired = np.zeros_like(paired_ep_meanfov)
+        for i in range(num_epochs):
+            signal_mean = signal_ep_meanfov[i]
+            paired_mean = paired_ep_meanfov[i]
+            recon_signal[i], recon_paired[i] = apply_mixing_matrix(alpha, beta, signal_mean, paired_mean)
+        return alpha_list, beta_list, mean_norm_mi_list, recon_signal, recon_paired
     else:
-        recon_signal_data = None
-    return recon_signal_data, alpha_list, beta_list, mean_norm_mi_list
+        return alpha_list, beta_list, mean_norm_mi_list
 
 
-def decrosstalk_roi_image_single_pair(oeid, paired_reg_fn, start_frame=1000, num_frames_avg=1000,
-                                      motion_buffer=5, grid_interval=0.01, max_grid_val=0.3):
+def decrosstalk_roi_image_single_pair(signal_mean, paired_mean,
+                                      pix_size=0.78, num_top_rois=15,
+                                      grid_interval=0.01, max_grid_val=0.3,
+                                      ):
     """Get alpha and beta values for a single pair of mean images
     based on the mean normalized mutual information of the ROI images
 
     Parameters:
     -----------
-    oeid : int
-        ophys experiment id
-    paired_reg_fn : str, Path
-        path to paired registration file
-        TODO: Once paired plane registration pipeline is finalized,
-        this parameter can be removed or replaced with paired_oeid
-    start_frame : int, optional
-        starting frame of the mean image, by default 1000
-    num_frames_avg : int, optional
-        number of frames to average, by default 1000
-    motion_buffer : int, optional
-        number of pixels to crop from the nonrigid motion corrected image, by default 5
-        TODO: Get this from the suite2p parameters
+    signal_mean : np.array
+        mean image of the signal plane
+    paired_mean : np.array
+        mean image of the paired plane
+    pix_size : float, optional
+        pixel size in um, by default 0.78
+    num_top_rois : int, optional
+        number of top ROIs to keep, by default 15        
     grid_interval : float, optional
         interval of the grid, by default 0.01
     max_grid_val : float, optional
         maximum value of alpha and beta, by default 0.3
-
+    
     Returns:
     -----------
     alpha : float
@@ -117,21 +110,11 @@ def decrosstalk_roi_image_single_pair(oeid, paired_reg_fn, start_frame=1000, num
     mean_norm_mi_values : np.array
         mean normalized mutual information values
     """
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    with h5py.File(signal_fn, 'r') as f:
-        signal_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
-    with h5py.File(paired_reg_fn, 'r') as f:
-        paired_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
-
-    p1y, p1x = ppr.get_motion_correction_crop_xy_range_from_both_planes(oeid)
-    signal_mean = signal_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
-                              p1x[0]+motion_buffer:p1x[1]-motion_buffer]
-    paired_mean = paired_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
-                              p1x[0]+motion_buffer:p1x[1]-motion_buffer]
     
     # Get the top masks of the signal and paired planes
-    pix_size = from_lims.get_pixel_size_um(oeid)
-    signal_top_masks, paired_top_masks = get_signal_paired_top_masks(signal_mean, paired_mean, pix_size=pix_size) # About 22 s
+    signal_top_masks, paired_top_masks = get_signal_paired_top_masks(signal_mean, paired_mean,
+                                                                     pix_size=pix_size,
+                                                                     num_top_rois=num_top_rois) # About 22 s
     # Create bounding boxes
     signal_bb_masks = get_bounding_box(signal_top_masks)
     paired_bb_masks = get_bounding_box(paired_top_masks)

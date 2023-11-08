@@ -2,67 +2,58 @@ import h5py
 import numpy as np
 import brain_observatory_qc.data_access.from_lims as from_lims
 from brain_observatory_qc.pipeline_dev import paired_plane_registration as ppr
+from brain_observatory_qc.visualizations.data_processing.ophys import motion_correction
 from scipy import ndimage
 import skimage
 from cellpose import models as cp_models
 
 
-def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=10, num_frames_avg=1000,
-                      grid_interval=0.01, max_grid_val=0.3, return_recon=True, return_epoch_results=False):
+def decrosstalk_movie(oeid, filter_sigma_um=25, max_num_epochs=10, num_frames_to_avg=1000,
+                      motion_buffer=5, grid_interval=0.01, max_grid_val=0.3,
+                      return_epoch_results=True):
     """Run FOV-based decrosstalk using constrained ICA on motion corrected movie data
     
     Parameters
     ----------
     oeid : int
         ophys experiment id
-    paired_reg_fn : str, Path
-        path to paired registration file
-        TODO: Once paired plane registration pipeline is finalized,
-        this parameter can be removed or replaced with paired_oeid
-    filter_sigma_um : float or list
+    filter_sigma_um : int, float or list
         sigma for gaussian filter in microns
         if list, then sigma for each epoch (dynamic filtering)
     num_epochs : int
         number of epochs to run
     num_frames_avg : int
         number of frames to average for each epoch
+    motion_buffer : int
+        number of pixels to crop from the edge of the motion corrected image (for nonrigid registration)
+        TODO: Get this information from nonrigid registration parameters
     grid_interval : float
         interval for grid search
     max_grid_val : float
         maximum value for grid search
-    return_recon : bool
-        whether to return reconstructed images
     return_epoch_results : bool
         whether to return results for each epoch
     
     Returns
     -------
-    recon_signal_data : np.ndarray
-        reconstructed signal data
     alpha_list : list
         list of alpha values for each epoch
     beta_list : list
         list of beta values for each epoch
     """
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    with h5py.File(signal_fn, 'r') as f:
-        data_length = f['data'].shape[0]
-    epoch_interval = data_length // (num_epochs+1)  # +1 to avoid the very first frame (about half of each epoch)
-    num_frames_avg = min(num_frames_avg, epoch_interval)
-    start_frames = [num_frames_avg//2 + i * epoch_interval for i in range(num_epochs)]
-    assert start_frames[-1] + num_frames_avg < data_length
+    signal_ep_meanfov, paired_ep_meanfov = motion_correction.get_signal_paired_ep_meanfov(oeid, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg, motion_buffer=motion_buffer)
+    num_epochs = signal_ep_meanfov.shape[0]
 
     pixel_size_um = from_lims.get_pixel_size_um(oeid)
     if filter_sigma_um is None:
-        filter_sigma_um = 0
-    assert len(filter_sigma_um) > 0
-    if len(filter_sigma_um) > 1:
+        sigma_list = [None] * num_epochs
+    elif isinstance(filter_sigma_um, list):
         assert len(filter_sigma_um) == num_epochs
         sigma_list = [sigma / pixel_size_um for sigma in filter_sigma_um]
-    elif filter_sigma_um == 0:
-        sigma_list = [None] * num_epochs
-    else:
+    elif isinstance(filter_sigma_um, (int, np.integer, float, np.float32, np.float16)):
         sigma_list = [filter_sigma_um / pixel_size_um] * num_epochs
+    else:
+        raise ValueError('filter_sigma_um must be float, int, or list')
 
     alpha_list = []
     beta_list = []
@@ -73,13 +64,13 @@ def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=10, nu
         recon_paired_list = []
     for i in range(num_epochs):
         sigma = sigma_list[i]
+        signal_mean = signal_ep_meanfov[i]
+        paired_mean = paired_ep_meanfov[i]
         alpha, beta, signal_mean, paired_mean, recon_signal, recon_paired = \
-            decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma,
-                                         start_frame=start_frames[i],
-                                         num_frames_avg=num_frames_avg,
+            decrosstalk_single_mean_image(signal_mean, paired_mean, sigma,
                                          grid_interval=grid_interval,
                                          max_grid_val=max_grid_val,
-                                         get_recon=False)
+                                         get_recon=return_epoch_results)
         alpha_list.append(alpha)
         beta_list.append(beta)
         if return_epoch_results:
@@ -90,45 +81,25 @@ def decrosstalk_movie(oeid, paired_reg_fn, filter_sigma_um=25, num_epochs=10, nu
     alpha = np.mean(alpha_list)
     beta = np.mean(beta_list)
 
-    if return_recon:
-        with h5py.File(signal_fn, 'r') as f:
-            signal_data = f['data'][:]    
-        with h5py.File(paired_reg_fn, 'r') as f:
-            paired_data = f['data'][:]
-        recon_signal_data = np.zeros_like(signal_data)
-        for i in range(data_length):
-            recon_signal_data[i, :, :] = apply_mixing_matrix(alpha, beta, signal_data[i, :, :], paired_data[i, :, :])[0]
-    else:
-        recon_signal_data = None
     if return_epoch_results:
-        return recon_signal_data, alpha_list, beta_list, signal_mean_list, paired_mean_list, recon_signal_list, recon_paired_list
+        return alpha_list, beta_list, signal_mean_list, paired_mean_list, recon_signal_list, recon_paired_list
     else:
-        return recon_signal_data, alpha_list, beta_list
+        return alpha_list, beta_list
 
 
-def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, num_frames_avg=300,
-                                  motion_buffer=5, grid_interval=0.01, max_grid_val=0.3, get_recon=True):
+def decrosstalk_single_mean_image(signal_mean, paired_mean, sigma,
+                                  grid_interval=0.01, max_grid_val=0.3, get_recon=True):
     """Run FOV-based decrosstalk using constrained ICA on a pair of mean images
 
     Parameters
     ----------
-    oeid : int
-        ophys experiment id
-    paired_reg_fn : str, Path
-        path to paired registration file
-        TODO: Once paired plane registration pipeline is finalized,
-        this parameter can be removed or replaced with paired_oeid
+    signal_mean : np.array
+        mean image of the signal plane
+    paired_mean : np.array
+        mean image of the paired plane
     sigma : float
         sigma for gaussian filter in pixels
         if None, then no filtering
-    start_frame : int
-        starting frame index
-    num_frames_avg : int
-        number of frames to average
-    motion_buffer : int
-        number of pixels to crop from the edge of the motion corrected image (for nonrigid registration)
-        TODO: Get this information from nonrigid registration parameters
-        (e.g., from suite2p ops, maxShiftNR)
     grid_interval : float
         interval for grid search
     max_grid_val : float
@@ -151,18 +122,7 @@ def decrosstalk_single_mean_image(oeid, paired_reg_fn, sigma, start_frame=500, n
     recon_paired : np.array
         reconstructed paired image
     """
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    with h5py.File(signal_fn, 'r') as f:
-        signal_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
-    with h5py.File(paired_reg_fn, 'r') as f:
-        paired_mean = f['data'][start_frame:start_frame+num_frames_avg].mean(axis=0)
-
-    p1y, p1x = ppr.get_motion_correction_crop_xy_range_from_both_planes(oeid)
-    signal_mean = signal_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
-                              p1x[0]+motion_buffer:p1x[1]-motion_buffer]
-    paired_mean = paired_mean[p1y[0]+motion_buffer:p1y[1]-motion_buffer,
-                              p1x[0]+motion_buffer:p1x[1]-motion_buffer]
-
+    
     if sigma is None:
         signal_filtered = signal_mean
         paired_filtered = paired_mean
@@ -315,19 +275,15 @@ def apply_mixing_matrix(alpha, beta, signal_mean, paired_mean):
 #######################
 ## Optimal sigma search using mutual information grid search
 #######################
-def find_optimal_sigma_exp(oeid, paired_reg_fn, num_epochs=10, fixed_sigma=True):
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    with h5py.File(signal_fn, 'r') as f:
-        data_length = f['data'].shape[0]
-    epoch_interval = data_length // (num_epochs+1)  # +1 to avoid the very first frame (about half of each epoch)
-    num_frames_avg = min(num_frames_avg, epoch_interval)
-    start_frames = [num_frames_avg//2 + i * epoch_interval for i in range(num_epochs)]
-    assert start_frames[-1] + num_frames_avg < data_length
+def find_optimal_sigma_exp(oeid, max_num_epochs=10, num_frames_to_avg=1000, motion_buffer=5, fixed_sigma=True):
+    signal_ep_meanfov, paired_ep_meanfov = motion_correction.get_signal_paired_ep_meanfov(oeid, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg, motion_buffer=motion_buffer)
+    num_epochs = signal_ep_meanfov.shape[0]
 
     mi_filtered_all_list = []
     mi_raw_list = []
-    for start_frame in start_frames:
-        signal_mean, paired_mean = get_signal_paired_mean(oeid, paired_reg_fn, start_frame=start_frame, num_frames_to_run=num_frames_avg)
+    for i in range(num_epochs):
+        signal_mean = signal_ep_meanfov[i]
+        paired_mean = paired_ep_meanfov[i]
         _, other_results = find_optimal_sigma_pair_images_constrained_ica(oeid, signal_mean, paired_mean)
         mi_filtered_all_list.append(other_results['mi_filtered_all'])
         mi_raw_list.append(other_results['mi_raw'])
@@ -348,28 +304,6 @@ def find_optimal_sigma_exp(oeid, paired_reg_fn, num_epochs=10, fixed_sigma=True)
             else:
                 sigma_optimal[i] = other_results['sigma_list_um'][np.argmin(mi_filtered_all[i])]
     return sigma_optimal
-
-
-def get_signal_paired_mean(oeid, paired_reg_fn,
-                           start_frame=1000, num_frames_to_run=1000, 
-                           nonrigid_buffer=5, use_paired_reg=True):
-    signal_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
-    if not use_paired_reg:
-        paired_id = ppr.get_paired_plane_id(oeid)
-        paired_reg_fn = from_lims.get_motion_corrected_movie_filepath(paired_id)
-    frames_to_test = np.arange(start_frame, start_frame + num_frames_to_run)
-    with h5py.File(signal_fn, 'r') as signal_h5:
-        signal_frames = signal_h5['data'][frames_to_test]
-    with h5py.File(paired_reg_fn, 'r') as paired_h5:
-        paired_frames = paired_h5['data'][frames_to_test]
-
-    yrange, xrange = ppr.get_motion_correction_crop_xy_range_from_both_planes(oeid)
-    
-    signal_mean = signal_frames[:, yrange[0] + nonrigid_buffer : yrange[1] - nonrigid_buffer, 
-                                xrange[0] + nonrigid_buffer : xrange[1] - nonrigid_buffer].mean(axis=0)
-    paired_mean = paired_frames[:, yrange[0] + nonrigid_buffer : yrange[1] - nonrigid_buffer, 
-                                xrange[0] + nonrigid_buffer : xrange[1] - nonrigid_buffer].mean(axis=0)
-    return signal_mean, paired_mean        
 
 
 def find_optimal_sigma_pair_images_constrained_ica(oeid, signal_mean, paired_mean,
