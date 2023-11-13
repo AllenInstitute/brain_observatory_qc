@@ -65,7 +65,7 @@ def episodic_mean_fov_reg_to_the_paired(oeid, max_num_epochs=10, num_frames_to_a
     except:
         raise ValueError('No paired plane found for oeid {}'.format(oeid))
     paired_shifts_df = ppr.get_s2p_motion_transform(paired_plane_id)
-    if_nonrigid = True if 'nonrigid' in paired_shifts_df.columns else False
+    if_nonrigid = True if 'nonrigid_x' in paired_shifts_df.columns else False
     oeid_path = from_lims.get_motion_xy_offset_filepath(oeid).parent.parent
     raw_movie_h5 = oeid_path / (str(oeid) + '.h5')
     if not raw_movie_h5.exists():
@@ -91,6 +91,8 @@ def episodic_mean_fov_reg_to_the_paired(oeid, max_num_epochs=10, num_frames_to_a
             if if_nonrigid:
                 nonrigid_y = paired_shifts_df['nonrigid_y'].values[start_frame : start_frame + num_frames]
                 nonrigid_x = paired_shifts_df['nonrigid_x'].values[start_frame : start_frame + num_frames]
+                nonrigid_y = np.stack(nonrigid_y)
+                nonrigid_x = np.stack(nonrigid_x)
                 # from default parameters:
                 # TODO: read from a file
                 Ly1 = 512
