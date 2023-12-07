@@ -113,8 +113,9 @@ def episodic_mean_fov_reg_to_the_paired(oeid, max_num_epochs=10, num_frames_to_a
 
 def get_signal_paired_ep_meanfov(oeid, max_num_epochs=10, num_frames_to_avg=1000, motion_buffer=5, remove_motion_boundary=True):
     exp_movie_fn = from_lims.get_motion_corrected_movie_filepath(oeid)
+    paired_oeid = from_lims.get_paired_plane_id(oeid)
     signal_ep_meanfov = episodic_mean_fov(exp_movie_fn, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg)
-    paired_ep_meanfov = episodic_mean_fov_reg_to_the_paired(oeid, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg)
+    paired_ep_meanfov = episodic_mean_fov_reg_to_the_paired(paired_oeid, max_num_epochs=max_num_epochs, num_frames_to_avg=num_frames_to_avg)
     assert signal_ep_meanfov.shape == paired_ep_meanfov.shape
 
     if remove_motion_boundary:
