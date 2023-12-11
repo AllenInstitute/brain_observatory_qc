@@ -13,7 +13,8 @@ setup(name='brain_observatory_qc',
         'flake8',
         'pytest',
         'allensdk',
-        'pystackreg'
+        'pystackreg',
+        'dask'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
