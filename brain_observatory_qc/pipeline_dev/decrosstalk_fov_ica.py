@@ -227,7 +227,7 @@ def calculate_mutual_info_grid_search(signal_mean, paired_mean, grid_interval=0.
     mi_values = []
     for alpha in alpha_list:
         for beta in beta_list:
-            temp_mixing = np.array([[1-alpha, alpha], [beta, 1-beta]])
+            temp_mixing = np.array([[1-alpha, beta], [alpha, 1-beta]])
             temp_unmixing = np.linalg.inv(temp_mixing)
             temp_unmixed_data = np.dot(temp_unmixing, data)
             recon_signal.append(temp_unmixed_data[0,:].reshape(signal_mean.shape))
@@ -264,7 +264,7 @@ def apply_mixing_matrix(alpha, beta, signal_mean, paired_mean):
     recon_paired : np.array
         reconstructed paired image
     """
-    mixing_mat = [[1-alpha, alpha], [beta, 1-beta]]
+    mixing_mat = [[1-alpha, beta], [alpha, 1-beta]]
     unmixing_mat = np.linalg.inv(mixing_mat)
     raw_data = np.vstack([signal_mean.ravel(), paired_mean.ravel()])
     recon_data = np.dot(unmixing_mat, raw_data)
