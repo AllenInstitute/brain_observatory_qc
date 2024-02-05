@@ -36,7 +36,52 @@ metrics = report_components_db['metrics']
 controlled_language_tags = report_components_db['controlled_language_tags']
 
 
-####  GET RECORDS  ####
+####  QUERY FUNCTIONS  ####
+def build_impacted_data_table():
+    # Query controlled language tags and metrics for impacted data
+    tag_impacted_data = controlled_language_tags.aggregate([
+        {
+            '$addFields': {
+                'data_context': '$impacted_data.data_context', 
+                'data_streams': '$impacted_data.data_streams'
+            }
+        }, {
+            '$project': {
+                'name_db': 1, 
+                'data_context': 1, 
+                'data_streams': 1
+            }
+        }])
+    
+    metric_impacted_data = metrics.aggregate([
+        {
+            '$match': {
+                'threshold_info.thresholds_active': True
+            }
+        }, {
+            '$addFields': {
+                'data_streams': '$impacted_data.data_streams', 
+                'data_context': '$impacted_data.data_context'
+            }
+        }, {
+            '$project': {
+                'name_db': 1, 
+                'data_streams': 1, 
+                'data_context': 1
+            }
+        }
+    ])
+    # build a dataframe from query results
+    metrics_df = query_results_to_df(metric_impacted_data)
+    clt_df = query_results_to_df(tag_impacted_data)
+    # unify and clean up dataframe
+    impacted_data = metrics_df.append(clt_df)
+    impacted_data["impacted_data"] = impacted_data["data_context"] + impacted_data["data_streams"]
+    impacted_data = impacted_data.drop(columns=['data_streams', 'data_context'])
+    impacted_data = impacted_data.explode("impacted_data").reset_index(drop=True)
+    return impacted_data
+
+
 def session_records_within_dates( start_date, end_date):
     timed_records = metrics_records.aggregate([
         {
