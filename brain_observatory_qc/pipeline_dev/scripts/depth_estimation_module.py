@@ -1604,18 +1604,22 @@ def plot_corrcoef_container(ophys_container_id, container_dir, save_dir=None, co
             if check_correct_data(oeid):
                 exp_dir = container_dir / f'experiment_{oeid}'
                 if oeid == ref_oeid:
-                    match_fn = f'{oeid}_plane_estimated_from_session.h5'
+                    match_fn = f'{oeid}_zdrift_ref_{oeid}.h5'
                 else:
-                    match_fn = f'{oeid}_plane_estimated_from_{ref_oeid}.h5'
+                    #match_fn = f'{oeid}_zdrift_ref_{ref_oeid}.h5'
+                    match_fn = f'{oeid}_zdrift_ref_{oeid}.h5' # HACKS
                 h = h5py.File(exp_dir / match_fn, 'r')
-                matched_plane_indice = h['matched_plane_indice'][:].astype(int)
+                matched_plane_indice = h['matched_plane_indices'][:].astype(int)
                 corrcoef = h['corrcoef'][:]
                 num_segments = len(matched_plane_indice)
                 num_planes = len(corrcoef[0])
                 for i in range(num_segments):
                     x = range(-matched_plane_indice[i], -
                               matched_plane_indice[i] + num_planes)
-                    ax_temp.plot(x, corrcoef[i], c=cm.winter(
+                    #ax_temp.plot(x, corrcoef[i], c=cm.winter(
+                    #    i / num_segments), label=f'segment_{i}')
+
+                    ax_temp.plot(corrcoef[i], c=cm.winter(
                         i / num_segments), label=f'segment_{i}')
                 ax_temp.legend(fontsize=7)
                 if yi == ny - 1:
