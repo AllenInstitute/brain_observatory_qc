@@ -27,6 +27,10 @@ QC_SUBMIT_STATUS_DICT = {
 
 QC_STATUS_NA_LIST = ["incomplete", "ready", "error"]
 
+MANUAL_OVERRIDE_LIST = ['manual_override_pass',
+                        'manual_override_flag',
+                        'manual_override_fail']
+
 #####################################################################
 #
 #           CONNECT TO MONGODB
@@ -350,10 +354,10 @@ def gen_session_qc_info_for_ids(session_ids_list):
     return session_report_status_df
 
 
-
 ############################
 #    Experiment Based Queries
 ############################
+
 
 def get_experiment_records_for_ids(experiment_ids_list):
     exp_info = metrics_records.aggregate([
@@ -375,7 +379,7 @@ def get_experiment_records_for_ids(experiment_ids_list):
 
 
 def gen_exp_qc_info(experiment_ids_list):
-    
+
     exp_records_df = get_experiment_records_for_ids(experiment_ids_list)
     
     gen_status_df = get_report_generation_status(experiment_ids_list)
@@ -394,6 +398,48 @@ def gen_exp_qc_info(experiment_ids_list):
                                                       left_on= "ophys_experiment_id",
                                                       right_on= "ophys_experiment_id")
     return exp_report_status_df
+
+
+############################
+#    Tag Based Queries
+############################
+def get_tags_for_ids(ids_list):
+    id_tags = qc_logs.aggregate([
+        {'$match': {
+            'data_id': {'$in': ids_list},
+            'qc_tag':{'$nin': MANUAL_OVERRIDE_LIST},
+            'current': True}},
+        {'$match': {
+            'qc_tag':{'$nin':['qc_pass', 'qc_flag_other']}}},
+        {'$project': {
+            'data_id': 1, 
+            'qc_tag': 1, 
+            'metric_name': 1}}
+    ])
+    tags_df = query_results_to_df(id_tags)
+    return tags_df
+
+
+def get_qc_flag_other_for_ids(ids_list):
+    other_tags = qc_logs.aggregate([
+        {'$match': {
+            'data_id': {'$in': ids_list},
+            'current': True, 
+            'qc_tag': 'qc_flag_other'}}, 
+        {'$unwind': {
+            'path': '$module', 
+            'preserveNullAndEmptyArrays': True}}, 
+        {'$project': {
+            'data_id': 1, 
+            'qc_tag': 1, 
+            'module': 1, 
+            'note': 1}}
+    ])
+    other_tags_df = query_results_to_df(other_tags)
+    return other_tags_df
+
+
+
 
 #####################################################################
 #
