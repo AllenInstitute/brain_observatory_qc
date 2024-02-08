@@ -355,6 +355,10 @@ def gen_exp_qc_info(experiment_ids_list):
     return exp_report_status_df
 
 
+############################
+#    CLTag and Metrics Based Queries
+############################
+
 def build_impacted_data_table()-> pd.DataFrame:
     """
     Queries the production database and builds a table with the 
@@ -420,6 +424,8 @@ def build_CLtag_outcomes_table():
 def get_tags_for_ids(ids_list):
     # get tag qc outcomes
     clt_outcomes = build_CLtag_outcomes_table()
+    # get impacted data
+    impacted_data = build_impacted_data_table()
 
     # query to get tag records
     id_tags = qc_logs.aggregate([
@@ -441,6 +447,11 @@ def get_tags_for_ids(ids_list):
                            how = "left", 
                            left_on = "qc_tag",
                            right_on = "qc_tag")
+    # merge with impacted data
+    tags_df = tags_df.merge(impacted_data,
+                            how = "left",
+                            left_on = "qc_tag",
+                            right_on = "qc_tag")
     return tags_df
 
 
@@ -481,7 +492,8 @@ def get_manual_overrides_for_ids(ids_list):
     
     return overrides_df
 
-def gen_tag_dfs_for_ids(ids_list):
+def get_all_tags_for_ids(ids_list):
+    impacted_data_df = build_impacted_data_table()
     tags_df = get_tags_for_ids(ids_list)
     other_tags_df = get_other_tags_for_ids(ids_list)
     overrides_df = get_manual_overrides_for_ids(ids_list)
