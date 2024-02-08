@@ -85,7 +85,7 @@ def get_records_collections(mongo_connection):
 
     report_generation_status = qc_metadata_db['qc_generation_status']
     module_group_status = qc_metadata_db['qc_module_group_status']
-    report_submit_status = qc_metadata_db['qc_submit_status']
+    report_review_status = qc_metadata_db['qc_submit_status']
 
     return qc_logs, metrics_records, images_records, report_generation_status, module_group_status, report_submit_status
 
@@ -152,6 +152,7 @@ def build_impacted_data_table()-> pd.DataFrame:
     impacted_data = impacted_data.explode("impacted_data").reset_index(drop=True)
     return impacted_data
 
+
 def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
     session_ids = metrics_records.aggregate([
         {'$match': {
@@ -169,8 +170,6 @@ def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
     ids_df = ids_df.rename(columns={"lims_id":"ophys_session_id", 
                                     "date": "date_time"})
     return ids_df
-
-
 
 
 def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
@@ -213,37 +212,63 @@ def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
                                               "date": "date_time"})
     return sessions_df
 
-def get_qc_status_for_sessions(sessions_list)-> pd.DataFrame:
-    ses_qc_df = pd.DataFrame()
-    for session_id in sessions_list:
-        session_id = int(session_id)
-        session_qc_status = report_submit_status.aggregate([{
-            '$match': {
-                'data_id': session_id, 
-                'current': True
-            }
-        }, {
-            '$project': {
-                'status': 1, 
-                'data_id': 1
-            }
-        }])
-        
-        temp_df = pd.DataFrame(list(session_qc_status))
-        if temp_df.empty:
-            tmp_dict = {"status": "report_not_generated",
-                        "data_id": session_id}
-            tmp_df = pd.DataFrame(tmp_dict, index=[0])
-            ses_qc_df = ses_qc_df.append(tmp_df)
-        else:
-            temp_df = temp_df.drop(['_id'], axis=1)
-            ses_qc_df = ses_qc_df.append(temp_df)
-            
-    ses_qc_df = ses_qc_df.reset_index(drop=True)
 
-    ses_qc_df = ses_qc_df.rename(columns={"data_id": "ophys_session_id",
-                                          "status": "qc_submit_status"})
-    return ses_qc_df
+def get_report_generation_status(id_list)-> pd.DataFrame:
+    gen_status = report_generation_status.aggregate([
+        {'$match': {
+            'data_id': {'$in': id_list}, 
+            'current': True}}, 
+        {'$project': {
+            'data_id': 1, 
+            'status': 1
+        }}])
+    gen_df = query_results_to_df(gen_status)
+    gen_df = gen_df.rename(columns={"data_id":"lims_id", 
+                                    "status": "generation_status"})
+    gen_df.loc[gen_df["generation_status"] == "ready", "generation_status"] = "complete"
+    return gen_df
+
+
+def get_report_review_status(id_list)-> pd.DataFrame:
+    rvw_status = report_review_status.aggregate([
+        {'$match': {
+            'data_id': {'$in': id_list}, 
+            'current': True}}, 
+        {'$project': {
+            'data_id': 1, 
+            'status': 1}}
+    ])
+    rvw_df = query_results_to_df(rvw_status)
+    rvw_df = rvw_df.rename(columns={"data_id":"lims_id", 
+                                    "status": "qc_status"})
+    rvw_df["review_status"] = rvw_df["qc_status"].apply(generate_qc_review_status)
+    rvw_df.loc[rvw_df["qc_status"].isin(QC_STATUS_NA_LIST), "qc_status"] = "NA"
+    return rvw_df
+
+
+def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
+    
+    start_date, end_date = set_date_range(end_date_str, range_in_days)
+    
+    session_records_df = session_records_within_dates(start_date, end_date)
+    sessions_list = session_records_df["ophys_session_id"].tolist()
+    
+    gen_status_df = get_report_generation_status(sessions_list)
+    gen_status_df = gen_status_df.rename(columns={"lims_id":"ophys_session_id"})
+    
+    rev_status_df = get_report_review_status(sessions_list)
+    rev_status_df = rev_status_df.rename(columns={"lims_id":"ophys_session_id"})
+    
+    session_report_status_df = session_records_df.merge(gen_status_df,
+                                                        how = "left",
+                                                        left_on="ophys_session_id",
+                                                        right_on = "ophys_session_id")
+    
+    session_report_status_df = session_report_status_df.merge(rev_status_df,
+                                                              how = "left",
+                                                              left_on= "ophys_session_id",
+                                                              right_on= "ophys_session_id")
+    return session_report_status_df
     
 
 #####################################################################
