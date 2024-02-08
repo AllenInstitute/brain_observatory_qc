@@ -297,7 +297,6 @@ def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
     return session_report_status_df
 
 
-
 def get_records_for_session_ids(session_ids_list)-> pd.DataFrame:
     session_records = metrics_records.aggregate([
     {'$match': {
@@ -329,12 +328,72 @@ def get_records_for_session_ids(session_ids_list)-> pd.DataFrame:
     return sessions_df
 
 
+def gen_session_qc_info_for_ids(session_ids_list):
+
+    session_records_df = get_records_for_session_ids(session_ids_list)
+    
+    gen_status_df = get_report_generation_status(session_ids_list)
+    gen_status_df = gen_status_df.rename(columns={"lims_id":"ophys_session_id"})
+    
+    rev_status_df = get_report_review_status(session_ids_list)
+    rev_status_df = rev_status_df.rename(columns={"lims_id":"ophys_session_id"})
+    
+    session_report_status_df = session_records_df.merge(gen_status_df,
+                                                        how = "left",
+                                                        left_on="ophys_session_id",
+                                                        right_on = "ophys_session_id")
+    
+    session_report_status_df = session_report_status_df.merge(rev_status_df,
+                                                              how = "left",
+                                                              left_on= "ophys_session_id",
+                                                              right_on= "ophys_session_id")
+    return session_report_status_df
+
+
 
 ############################
 #    Experiment Based Queries
 ############################
 
+def get_experiment_records_for_ids(experiment_ids_list):
+    exp_info = metrics_records.aggregate([
+        {'$match': {
+            'lims_ophys_experiment.id': {'$in': experiment_ids_list}}}, 
+        {'$addFields': {
+            'ophys_experiment_id': '$lims_ophys_experiment.id', 
+            'ophys_session_id': '$lims_ophys_experiment.ophys_session.id', 
+            'area': '$lims_ophys_experiment.area', 
+            'depth': '$lims_ophys_experiment.depth'}}, 
+        {'$project': {
+            'ophys_experiment_id': 1, 
+            'ophys_session_id': 1, 
+            'area': 1, 
+            'depth': 1}}
+    ])
+    exp_df = query_results_to_df(exp_info)
+    return exp_df
 
+
+def gen_exp_qc_info(experiment_ids_list):
+    
+    exp_records_df = get_experiment_records_for_ids(experiment_ids_list)
+    
+    gen_status_df = get_report_generation_status(experiment_ids_list)
+    gen_status_df = gen_status_df.rename(columns={"lims_id":"ophys_experiment_id"})
+    
+    rev_status_df = get_report_review_status(experiment_ids_list)
+    rev_status_df = rev_status_df.rename(columns={"lims_id":"ophys_experiment_id"})
+    
+    exp_report_status_df = exp_records_df.merge(gen_status_df,
+                                                how = "left",
+                                                left_on="ophys_experiment_id",
+                                                right_on = "ophys_experiment_id")
+    
+    exp_report_status_df = exp_report_status_df.merge(rev_status_df,
+                                                      how = "left",
+                                                      left_on= "ophys_experiment_id",
+                                                      right_on= "ophys_experiment_id")
+    return exp_report_status_df
 
 #####################################################################
 #
