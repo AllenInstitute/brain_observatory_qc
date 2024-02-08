@@ -25,6 +25,12 @@ QC_SUBMIT_STATUS_DICT = {
     "error":      ["error"]
 }
 
+MANUAL_OVERRIDE_OUTCOMES_DICT = {
+    "pass": ["manual_override_pass"],
+    "flag": ["manual_override_flag"],
+    "fail": ["manual_override_fail"]
+}
+
 QC_STATUS_NA_LIST = ["incomplete", "ready", "error"]
 
 MANUAL_OVERRIDE_LIST = ['manual_override_pass',
@@ -109,12 +115,6 @@ def get_report_components_collections(mongo_connection):
 #           QUERY FUNCTIONS
 #
 #####################################################################
-
-############################
-#    Metric & CLTag Based Queries
-############################
-
-
 
 
 ############################
@@ -402,6 +402,7 @@ def build_impacted_data_table()-> pd.DataFrame:
     impacted_data["impacted_data"] = impacted_data["data_context"] + impacted_data["data_streams"]
     impacted_data = impacted_data.drop(columns=['data_streams', 'data_context'])
     impacted_data = impacted_data.explode("impacted_data").reset_index(drop=True)
+    impacted_data = impacted_data.rename(columns={"name_db":"qc_tag"})
     return impacted_data
 
 
@@ -412,11 +413,14 @@ def build_CLtag_outcomes_table():
             'qc_outcome': 1}
     }])
     outcomes_df = query_results_to_df(tag_qc_outcomes)
+    outcomes_df = outcomes_df.rename(columns={"name_db":"qc_tag"})
     return outcomes_df
 
 
 def get_tags_for_ids(ids_list):
-    
+    # get tag qc outcomes
+    clt_outcomes = build_CLtag_outcomes_table()
+
     # query to get tag records
     id_tags = qc_logs.aggregate([
         {'$match': {
@@ -430,10 +434,13 @@ def get_tags_for_ids(ids_list):
             'qc_tag': 1, 
             'metric_name': 1}}
     ])
-    tags_df = query_results_to_df(id_tags)
+    tags_records = query_results_to_df(id_tags)
 
-    #add qc outcome column
-
+    # merge tag records with outcomes
+    tags_df = tags_records.merge(clt_outcomes,
+                           how = "left", 
+                           left_on = "qc_tag",
+                           right_on = "qc_tag")
     return tags_df
 
 
@@ -541,6 +548,13 @@ def generate_qc_review_status(qc_submit_status):
         if qc_submit_status in value:
             return key
     return "Cannot find review status for {}".format(qc_submit_status)
+
+
+def manual_override_qc_outcome(manual_override_tag):
+    for key, value in MANUAL_OVERRIDE_OUTCOMES_DICT.items():
+        if manual_override_tag in value:
+            return key
+    return "Cannot find qc outcome for {}".format(manual_override_tag)
 
 
 def clean_session_records_df(sessions_df):
