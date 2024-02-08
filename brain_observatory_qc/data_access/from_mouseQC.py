@@ -103,6 +103,11 @@ def get_report_components_collections(mongo_connection):
 #           QUERY FUNCTIONS
 #
 #####################################################################
+
+############################
+#    Metric & CLTag Based Queries
+############################
+
 def build_impacted_data_table()-> pd.DataFrame:
     """
     Queries the production database and builds a table with the 
@@ -153,6 +158,10 @@ def build_impacted_data_table()-> pd.DataFrame:
     return impacted_data
 
 
+############################
+#    Session Based Queries
+############################
+
 def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
     session_ids = metrics_records.aggregate([
         {'$match': {
@@ -172,45 +181,29 @@ def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
     return ids_df
 
 
-def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
-    timed_records = metrics_records.aggregate([
-        {
-            '$match': {
-                'lims_ophys_session.date_of_acquisition': {
-                    '$gte': start_date, 
-                    '$lt':end_date
-                }
-            }
-        }, {
-            '$addFields': {
-                'lims_id': '$lims_ophys_session.id', 
-                'genotype': '$lims_ophys_session.genotype', 
-                'mouse_id': '$lims_ophys_session.external_specimen_name', 
-                'operator': '$lims_ophys_session.operator', 
-                'rig': '$lims_ophys_session.rig', 
-                'project': '$lims_ophys_session.project', 
-                'date': '$lims_ophys_session.date_of_acquisition', 
-                'qc_report_staus': '$qc_meta.qc_report_staus', 
-                'stimulus': '$lims_ophys_session.stimulus_name'
-            }
-        }, {
-            '$project': {
-                'lims_id': 1, 
-                'genotype': 1, 
-                'mouse_id': 1, 
-                'operator': 1, 
-                'rig': 1, 
-                'project': 1, 
-                'date': 1, 
-                'qc_report_staus': 1, 
-                'stimulus': 1
-            }
+def get_experiment_ids_for_session_ids(ophys_session_list):
+    exps_for_sess = metrics_records.aggregate([{
+        '$match': {
+            'data_id': {'$in': ophys_session_list},
         }
-    ])
-    sessions_df = query_results_to_df(timed_records)
-    sessions_df = sessions_df.rename(columns={"lims_id":"ophys_session_id", 
-                                              "date": "date_time"})
-    return sessions_df
+    }, {
+        '$addFields': {
+            'ophys_session_id': '$lims_ophys_session.id', 
+            'ophys_experiment_id': '$lims_ophys_session.ophys_experiment_ids'
+        }
+    }, {
+        '$project': {
+            'ophys_session_id': 1, 
+            'ophys_experiment_id': 1
+        }
+    }, {
+        '$unwind': {
+            'path': '$ophys_experiment_id', 
+            'preserveNullAndEmptyArrays': True
+        }
+    }])
+    exp_id_df = query_results_to_df(exps_for_sess)
+    return exp_id_df
 
 
 def get_report_generation_status(id_list)-> pd.DataFrame:
@@ -246,6 +239,39 @@ def get_report_review_status(id_list)-> pd.DataFrame:
     return rvw_df
 
 
+def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
+    timed_records = metrics_records.aggregate([
+    {'$match': {
+            'lims_ophys_session.date_of_acquisition': {
+                '$gte': start_date, 
+                '$lt': end_date}}}, 
+    {'$addFields': {
+            'ophys_session_id': '$lims_ophys_session.id', 
+            'genotype':         '$lims_ophys_session.genotype', 
+            'mouse_id':         '$lims_ophys_session.external_specimen_name', 
+            'operator':         '$lims_ophys_session.operator', 
+            'rig':              '$lims_ophys_session.rig', 
+            'project':          '$lims_ophys_session.project', 
+            'date':             '$lims_ophys_session.date_of_acquisition', 
+            'stimulus':         '$lims_ophys_session.stimulus_name'}}, 
+    { '$project': {
+            'ophys_session_id': 1, 
+            'genotype': 1, 
+            'mouse_id': 1, 
+            'operator': 1, 
+            'rig': 1, 
+            'project': 1, 
+            'date': 1, 
+            'stimulus': 1}}
+])
+    
+    sessions_df = query_results_to_df(timed_records)
+    sessions_df = sessions_df.rename(columns={"lims_id":"ophys_session_id", 
+                                              "date": "date_time"})
+    sessions_df = clean_session_records_df(sessions_df)
+    return sessions_df
+
+
 def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
     
     start_date, end_date = set_date_range(end_date_str, range_in_days)
@@ -269,7 +295,46 @@ def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
                                                               left_on= "ophys_session_id",
                                                               right_on= "ophys_session_id")
     return session_report_status_df
+
+
+
+def get_records_for_session_ids(session_ids_list)-> pd.DataFrame:
+    session_records = metrics_records.aggregate([
+    {'$match': {
+            'lims_ophys_session.id':{'$in': session_ids_list}}}, 
+    {'$addFields': {
+            'ophys_session_id': '$lims_ophys_session.id', 
+            'genotype':         '$lims_ophys_session.genotype', 
+            'mouse_id':         '$lims_ophys_session.external_specimen_name', 
+            'operator':         '$lims_ophys_session.operator', 
+            'rig':              '$lims_ophys_session.rig', 
+            'project':          '$lims_ophys_session.project', 
+            'date':             '$lims_ophys_session.date_of_acquisition', 
+            'stimulus':         '$lims_ophys_session.stimulus_name'}}, 
+    { '$project': {
+            'ophys_session_id': 1, 
+            'genotype': 1, 
+            'mouse_id': 1, 
+            'operator': 1, 
+            'rig': 1, 
+            'project': 1, 
+            'date': 1, 
+            'stimulus': 1}}
+     ])
     
+    sessions_df = query_results_to_df(session_records)
+    sessions_df = sessions_df.rename(columns={"lims_id":"ophys_session_id", 
+                                              "date": "date_time"})
+    sessions_df = clean_session_records_df(sessions_df)
+    return sessions_df
+
+
+
+############################
+#    Experiment Based Queries
+############################
+
+
 
 #####################################################################
 #
