@@ -67,9 +67,11 @@ report_submit_status = qc_metadata_db['qc_submit_status']
 metrics = report_components_db['metrics']
 controlled_language_tags = report_components_db['controlled_language_tags']
 
+
 ############################
 #    Connection Functs for jupyter notebooks
 ############################
+
 
 def connect_to_mouseqc_production(username = 'public', password = 'public_password'):
     mongo_host = 'qc-sys-db'
@@ -112,54 +114,7 @@ def get_report_components_collections(mongo_connection):
 #    Metric & CLTag Based Queries
 ############################
 
-def build_impacted_data_table()-> pd.DataFrame:
-    """
-    Queries the production database and builds a table with the 
-    impacted data for all controlled language tags and metrics that
-    have active thresholds
-    """
-    # Query controlled language tags and metrics for impacted data
-    tag_impacted_data = controlled_language_tags.aggregate([
-        {
-            '$addFields': {
-                'data_context': '$impacted_data.data_context', 
-                'data_streams': '$impacted_data.data_streams'
-            }
-        }, {
-            '$project': {
-                'name_db': 1, 
-                'data_context': 1, 
-                'data_streams': 1
-            }
-        }])
-    
-    metric_impacted_data = metrics.aggregate([
-        {
-            '$match': {
-                'threshold_info.thresholds_active': True
-            }
-        }, {
-            '$addFields': {
-                'data_streams': '$impacted_data.data_streams', 
-                'data_context': '$impacted_data.data_context'
-            }
-        }, {
-            '$project': {
-                'name_db': 1, 
-                'data_streams': 1, 
-                'data_context': 1
-            }
-        }
-    ])
-    # build a dataframe from query results
-    metrics_df = query_results_to_df(metric_impacted_data)
-    clt_df = query_results_to_df(tag_impacted_data)
-    # unify and clean up dataframe
-    impacted_data = metrics_df.append(clt_df)
-    impacted_data["impacted_data"] = impacted_data["data_context"] + impacted_data["data_streams"]
-    impacted_data = impacted_data.drop(columns=['data_streams', 'data_context'])
-    impacted_data = impacted_data.explode("impacted_data").reset_index(drop=True)
-    return impacted_data
+
 
 
 ############################
@@ -400,10 +355,69 @@ def gen_exp_qc_info(experiment_ids_list):
     return exp_report_status_df
 
 
-############################
-#    Tag Based Queries
-############################
+def build_impacted_data_table()-> pd.DataFrame:
+    """
+    Queries the production database and builds a table with the 
+    impacted data for all controlled language tags and metrics that
+    have active thresholds
+    """
+    # Query controlled language tags and metrics for impacted data
+    tag_impacted_data = controlled_language_tags.aggregate([
+        {
+            '$addFields': {
+                'data_context': '$impacted_data.data_context', 
+                'data_streams': '$impacted_data.data_streams'
+            }
+        }, {
+            '$project': {
+                'name_db': 1, 
+                'data_context': 1, 
+                'data_streams': 1
+            }
+        }])
+    
+    metric_impacted_data = metrics.aggregate([
+        {
+            '$match': {
+                'threshold_info.thresholds_active': True
+            }
+        }, {
+            '$addFields': {
+                'data_streams': '$impacted_data.data_streams', 
+                'data_context': '$impacted_data.data_context'
+            }
+        }, {
+            '$project': {
+                'name_db': 1, 
+                'data_streams': 1, 
+                'data_context': 1
+            }
+        }
+    ])
+    # build a dataframe from query results
+    metrics_df = query_results_to_df(metric_impacted_data)
+    clt_df = query_results_to_df(tag_impacted_data)
+    # unify and clean up dataframe
+    impacted_data = metrics_df.append(clt_df)
+    impacted_data["impacted_data"] = impacted_data["data_context"] + impacted_data["data_streams"]
+    impacted_data = impacted_data.drop(columns=['data_streams', 'data_context'])
+    impacted_data = impacted_data.explode("impacted_data").reset_index(drop=True)
+    return impacted_data
+
+
+def build_CLtag_outcomes_table():
+    tag_qc_outcomes = controlled_language_tags.aggregate([{
+        '$project': {
+            'name_db': 1, 
+            'qc_outcome': 1}
+    }])
+    outcomes_df = query_results_to_df(tag_qc_outcomes)
+    return outcomes_df
+
+
 def get_tags_for_ids(ids_list):
+    
+    # query to get tag records
     id_tags = qc_logs.aggregate([
         {'$match': {
             'data_id': {'$in': ids_list},
@@ -417,10 +431,13 @@ def get_tags_for_ids(ids_list):
             'metric_name': 1}}
     ])
     tags_df = query_results_to_df(id_tags)
+
+    #add qc outcome column
+
     return tags_df
 
 
-def get_qc_flag_other_for_ids(ids_list):
+def get_other_tags_for_ids(ids_list):
     other_tags = qc_logs.aggregate([
         {'$match': {
             'data_id': {'$in': ids_list},
@@ -439,6 +456,31 @@ def get_qc_flag_other_for_ids(ids_list):
     return other_tags_df
 
 
+def get_manual_overrides_for_ids(ids_list):
+    manual_overrides = qc_logs.aggregate([
+        {'$match': {
+            'data_id': {'$in': ids_list},
+            'qc_tag':{'$in': MANUAL_OVERRIDE_LIST},
+            'current': True}},
+        {'$unwind': {
+            'path': '$module', 
+            'preserveNullAndEmptyArrays': True}}, 
+        {'$project': {
+            'data_id': 1, 
+            'qc_tag': 1, 
+            'module': 1}}
+    ])
+    overrides_df = query_results_to_df(manual_overrides)
+    
+    return overrides_df
+
+def gen_tag_dfs_for_ids(ids_list):
+    tags_df = get_tags_for_ids(ids_list)
+    other_tags_df = get_other_tags_for_ids(ids_list)
+    overrides_df = get_manual_overrides_for_ids(ids_list)
+    return tags_df, other_tags_df, overrides_df
+
+
 
 
 #####################################################################
@@ -446,6 +488,7 @@ def get_qc_flag_other_for_ids(ids_list):
 #          UTILITY FUNCTIONS
 #
 #####################################################################
+
 
 def query_results_to_df(query_results)-> pd.DataFrame:
     df = pd.DataFrame(list(query_results))
