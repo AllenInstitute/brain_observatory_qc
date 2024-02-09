@@ -68,7 +68,7 @@ images_records = records_db['images']
 
 report_generation_status = qc_metadata_db['qc_generation_status']
 module_group_status = qc_metadata_db['qc_module_group_status']
-report_submit_status = qc_metadata_db['qc_submit_status']
+report_review_status = qc_metadata_db['qc_submit_status']
 
 metrics = report_components_db['metrics']
 controlled_language_tags = report_components_db['controlled_language_tags']
@@ -99,7 +99,7 @@ def get_records_collections(mongo_connection):
     module_group_status = qc_metadata_db['qc_module_group_status']
     report_review_status = qc_metadata_db['qc_submit_status']
 
-    return qc_logs, metrics_records, images_records, report_generation_status, module_group_status, report_submit_status
+    return qc_logs, metrics_records, images_records, report_generation_status, module_group_status, report_review_status
 
 
 def get_report_components_collections(mongo_connection):
@@ -118,53 +118,8 @@ def get_report_components_collections(mongo_connection):
 
 
 ############################
-#    Session Based Queries
+#    Report Status Queries
 ############################
-
-def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
-    session_ids = metrics_records.aggregate([
-        {'$match': {
-            'lims_ophys_session.date_of_acquisition': {
-                '$gte': start_date, 
-                '$lt': end_date}}}, 
-        {'$addFields': {
-            'date':'$lims_ophys_session.date_of_acquisition'}}, 
-        { '$project': {
-            'ophys_session_id': 1, 
-            'date': 1}}
-    ])
-    
-    ids_df = query_results_to_df(session_ids)
-    ids_df = ids_df.rename(columns={"lims_id":"ophys_session_id", 
-                                    "date": "date_time"})
-    return ids_df
-
-
-def get_experiment_ids_for_session_ids(ophys_session_list):
-    exps_for_sess = metrics_records.aggregate([{
-        '$match': {
-            'data_id': {'$in': ophys_session_list},
-        }
-    }, {
-        '$addFields': {
-            'ophys_session_id': '$lims_ophys_session.id', 
-            'ophys_experiment_id': '$lims_ophys_session.ophys_experiment_ids'
-        }
-    }, {
-        '$project': {
-            'ophys_session_id': 1, 
-            'ophys_experiment_id': 1
-        }
-    }, {
-        '$unwind': {
-            'path': '$ophys_experiment_id', 
-            'preserveNullAndEmptyArrays': True
-        }
-    }])
-    exp_id_df = query_results_to_df(exps_for_sess)
-    return exp_id_df
-
-
 def get_report_generation_status(id_list)-> pd.DataFrame:
     gen_status = report_generation_status.aggregate([
         {'$match': {
@@ -196,6 +151,55 @@ def get_report_review_status(id_list)-> pd.DataFrame:
     rvw_df["review_status"] = rvw_df["qc_status"].apply(generate_qc_review_status)
     rvw_df.loc[rvw_df["qc_status"].isin(QC_STATUS_NA_LIST), "qc_status"] = "NA"
     return rvw_df
+
+
+############################
+#    Session Info Queries
+############################
+
+def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
+    session_ids = metrics_records.aggregate([
+        {'$match': {
+            'lims_ophys_session.date_of_acquisition': {
+                '$gte': start_date, 
+                '$lt': end_date}}}, 
+        {'$addFields': {
+            'date':'$lims_ophys_session.date_of_acquisition',
+            'ophys_session_id': '$lims_ophys_session.id'}}, 
+        { '$project': {
+            'ophys_session_id': 1, 
+            'date': 1}}
+    ])
+    
+    ids_df = query_results_to_df(session_ids)
+    ids_df = ids_df.rename(columns={"date": "date_time"})
+    return ids_df
+
+
+def get_experiment_ids_for_session_ids(ophys_session_list):
+    exps_for_sess = metrics_records.aggregate([{
+        '$match': {
+            'data_id': {'$in': ophys_session_list},
+        }
+    }, {
+        '$addFields': {
+            'ophys_session_id': '$lims_ophys_session.id', 
+            'ophys_experiment_id': '$lims_ophys_session.ophys_experiment_ids'
+        }
+    }, {
+        '$project': {
+            'ophys_session_id': 1, 
+            'ophys_experiment_id': 1
+        }
+    }, {
+        '$unwind': {
+            'path': '$ophys_experiment_id', 
+            'preserveNullAndEmptyArrays': True
+        }
+    }])
+    exp_id_df = query_results_to_df(exps_for_sess)
+    return exp_id_df
+
 
 
 def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
@@ -546,6 +550,10 @@ def set_date_range(end_date_str=None, range_in_days=21):
 def get_date_from_dttime(datetime_obj):
     # use if loading directly from mongodb
     return datetime_obj.date() 
+
+
+def convert_str_to_dttime(date_str):
+    return datetime.strptime(date_str, '%m-%d-%Y')
 
 
 def generate_project_group(project_code:str):
