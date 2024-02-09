@@ -451,11 +451,17 @@ def get_tags_for_ids(ids_list):
                            how = "left", 
                            left_on = "qc_tag",
                            right_on = "qc_tag")
+    # just one qc_tags column
+    tags_df['metric_name']= tags_df['metric_name'].fillna(tags_df['qc_tag'])
+    tags_df = tags_df.drop(columns=['qc_tag'])
+    tags_df = tags_df.rename(columns={"metric_name":"qc_tag"})
+    
     # merge with impacted data
     tags_df = tags_df.merge(impacted_data,
                             how = "left",
                             left_on = "qc_tag",
                             right_on = "qc_tag")
+    tags_df = tags_df[["data_id", 'qc_tag',"qc_outcome", "impacted_data"]]
     return tags_df
 
 
@@ -492,18 +498,15 @@ def get_manual_overrides_for_ids(ids_list):
             'qc_tag': 1, 
             'module': 1}}
     ])
-    overrides_df = query_results_to_df(manual_overrides)
     
+    overrides_df = pd.DataFrame(list(manual_overrides))
     return overrides_df
 
 def get_all_tags_for_ids(ids_list):
-    impacted_data_df = build_impacted_data_table()
     tags_df = get_tags_for_ids(ids_list)
     other_tags_df = get_other_tags_for_ids(ids_list)
     overrides_df = get_manual_overrides_for_ids(ids_list)
     return tags_df, other_tags_df, overrides_df
-
-
 
 
 #####################################################################
