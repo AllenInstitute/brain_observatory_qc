@@ -337,7 +337,7 @@ def get_experiment_records_for_ids(experiment_ids_list):
     return exp_df
 
 
-def gen_exp_qc_info(experiment_ids_list):
+def gen_experiment_qc_info(experiment_ids_list):
 
     exp_records_df = get_experiment_records_for_ids(experiment_ids_list)
     
