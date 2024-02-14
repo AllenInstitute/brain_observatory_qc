@@ -696,7 +696,7 @@ def pick_initial_reference(frames: np.ndarray, num_for_ref: int = 20) -> np.ndar
     return refImg, selected_frame_inds
 
 
-def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapthisteq=True):
+def reg_between_planes(stack_imgs, ref_ind=30, top_ring_buffer=10, window_size=1, use_adapthisteq=True):
     """Register between planes. Each plane with single 2D image
     Use phase correlation.
     Use median filtered images to calculate shift between neighboring planes.
@@ -706,6 +706,8 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
     ----------
     stack_imgs : np.ndarray (3D)
         images of a stack. Typically z-stack with each plane registered and averaged.
+    ref_ind : int, optional
+        index of the reference plane, by default 30
     top_ring_buffer : int, optional
         number of top lines to skip due to ringing noise, by default 10
     window_size : int, optional
@@ -720,7 +722,7 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
     """
     num_planes = stack_imgs.shape[0]
     reg_stack_imgs = np.zeros_like(stack_imgs)
-    reg_stack_imgs[0, :, :] = stack_imgs[0, :, :]
+    reg_stack_imgs[ref_ind, :, :] = stack_imgs[ref_ind, :, :]
     ref_stack_imgs = med_filt_z_stack(stack_imgs)
     if use_adapthisteq:
         for i in range(num_planes):
@@ -729,11 +731,12 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
                 plane_img.astype(np.uint16)))  # normalization to make it uint16
 
     temp_stack_imgs = np.zeros_like(stack_imgs)
-    temp_stack_imgs[0, :, :] = ref_stack_imgs[0, :, :]
-    for i in range(1, num_planes):
+
+    temp_stack_imgs[ref_ind, :, :] = ref_stack_imgs[ref_ind, :, :]
+    for i in range(ref_ind + 1, num_planes):
         # Calculation valid pixels
         temp_ref = np.mean(
-            temp_stack_imgs[max(0, i - window_size): i, :, :], axis=0)
+            temp_stack_imgs[max(0, i - window_size) : i, :, :], axis=0)
         temp_mov = ref_stack_imgs[i, :, :]
         valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
 
@@ -748,6 +751,24 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
             ref_stack_imgs[i, :, :], shift)
         reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
             stack_imgs[i, :, :], shift)
+    if ref_ind > 0:
+        for i in range(ref_ind - 1, -1, -1):
+            temp_ref = np.mean(
+                temp_stack_imgs[i+1 : min(num_planes, i + window_size + 1), :, :], axis=0)
+            temp_mov = ref_stack_imgs[i, :, :]
+            valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
+
+            temp_ref = temp_ref[valid_y[0] +
+                                top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+            temp_mov = temp_mov[valid_y[0] +
+                                top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+
+            shift, _, _ = skimage.registration.phase_cross_correlation(
+                temp_ref, temp_mov, normalization=None, upsample_factor=10)
+            temp_stack_imgs[i, :, :] = scipy.ndimage.shift(
+                ref_stack_imgs[i, :, :], shift)
+            reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
+                stack_imgs[i, :, :], shift)
     return reg_stack_imgs
 
 
