@@ -594,7 +594,7 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     return zstack_reg
 
 
-def average_reg_plane(images):
+def average_reg_plane(images, num_for_ref=None):
     """Get mean FOV of a plane after registration.
     Use phase correlation
 
@@ -602,19 +602,61 @@ def average_reg_plane(images):
     ----------
     images : np.ndarray (3D)
         frames from a plane
+    num_for_ref : int, optional
+        number of frames to pick for reference, by default None
+        When None (or num < 1), then use mean image as reference.
 
     Returns
     -------
     np.ndarray (2D)
         mean FOV of a plane after registration.
     """
-    mean_img = np.mean(images, axis=0)
+    if num_for_ref is None or num_for_ref < 1:
+        ref_img = np.mean(images, axis=0)
+    else:
+        ref_img, _ = pick_initial_reference(images, num_for_ref)
     reg = np.zeros_like(images)
     for i in range(images.shape[0]):
         shift, _, _ = skimage.registration.phase_cross_correlation(
-            mean_img, images[i, :, :], normalization=None)
+            ref_img, images[i, :, :], normalization=None)
         reg[i, :, :] = scipy.ndimage.shift(images[i, :, :], shift)
     return np.mean(reg, axis=0)
+
+
+def pick_initial_reference(frames: np.ndarray, num_for_ref: int = 20) -> np.ndarray:
+    """ computes the initial reference image
+
+    the seed frame is the frame with the largest correlations with other frames;
+    the average of the seed frame with its top 20 correlated pairs is the
+    inital reference frame returned
+
+    From suite2p.registration.register
+
+    Parameters
+    ----------
+    frames : 3D array, int16
+        size [frames x Ly x Lx], frames from binary
+
+    Returns
+    -------
+    refImg : 2D array, int16
+        size [Ly x Lx], initial reference image
+
+    """
+    nimg,Ly,Lx = frames.shape
+    frames = np.reshape(frames, (nimg,-1)).astype('float32')
+    frames = frames - np.reshape(frames.mean(axis=1), (nimg, 1))
+    cc = np.matmul(frames, frames.T)
+    ndiag = np.sqrt(np.diag(cc))
+    cc = cc / np.outer(ndiag, ndiag)
+    CCsort = -np.sort(-cc, axis = 1)
+    bestCC = np.mean(CCsort[:, 1:num_for_ref], axis=1)
+    imax = np.argmax(bestCC)
+    indsort = np.argsort(-cc[imax, :])
+    selected_frame_inds = indsort[0:num_for_ref]
+    refImg = np.mean(frames[selected_frame_inds, :], axis = 0)
+    refImg = np.reshape(refImg, (Ly,Lx))
+    return refImg, selected_frame_inds
 
 
 def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapthisteq=True):
