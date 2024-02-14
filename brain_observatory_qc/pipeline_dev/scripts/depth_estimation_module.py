@@ -29,6 +29,43 @@ else:
 ###############################################################################
 # General tools
 ###############################################################################
+    
+def read_si_stack_metadata(zstack_fn):
+    '''Reads metadata from a ScanImage z-stack tiff file.
+    
+    Args:
+        zstack_fn: str or Path, path to the z-stack tiff file
+        
+    Returns:
+        num_slices: int, number of slices in the z-stack
+        num_volumes: int, number of volumes in the z-stack
+        actuator: str, the actuator used to move the z-stack
+        z_values: np.array, the z values of each slice in the z-stack
+
+    TODO: check if actuator and z-values are correct
+    '''
+    from PIL import Image
+    from PIL.TiffTags import TAGS
+    with Image.open(zstack_fn) as img:
+        meta_dict = {TAGS[key] : img.tag[key] for key in img.tag_v2}
+    
+    num_slices_ind = np.where(['SI.hStackManager.numSlices = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    num_slices_txt = meta_dict['Software'][0].split('\n')[num_slices_ind]
+    num_slices = int(num_slices_txt.split('= ')[1])
+    
+    num_volumes_ind = np.where(['SI.hStackManager.numVolumes = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    num_volumes_txt = meta_dict['Software'][0].split('\n')[num_volumes_ind]
+    num_volumes = int(num_volumes_txt.split('= ')[1])
+
+    actuator_ind = np.where(['SI.hStackManager.stackActuator = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    actuator_txt = meta_dict['Software'][0].split('\n')[actuator_ind]
+    actuator = actuator_txt.split('= ')[1].split('\'')[1]
+
+    zs_ind = np.where(['SI.hStackManager.zs = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    zs = meta_dict['Software'][0].split('\n')[zs_ind]
+    z_values = np.array([float(z) for z in zs.split('[')[1].split(']')[0].split(' ')])
+
+    return num_slices, num_volumes, actuator, z_values
 
 
 def calculate_valid_pix(img1, img2, valid_pix_threshold=1e-3):
