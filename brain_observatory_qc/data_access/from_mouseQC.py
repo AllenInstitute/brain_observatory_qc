@@ -43,12 +43,15 @@ MANUAL_OVERRIDE_LIST = ['manual_override_pass',
 #
 #####################################################################
 
-username = 'public'
-password = 'public_password'
-mongo_host = 'qc-sys-db'
-mongo_port = '27017'
+USERNAME = 'public'
+PASSWORD = 'public_password'
+MONGO_HOST = 'qc-sys-db'
+MONGO_PORT = 27017
 
-connection_string = 'mongodb://{}:{}@{}:{}/'.format(username, password, mongo_host, int(mongo_port))
+connection_string = 'mongodb://{}:{}@{}:{}/'.format(USERNAME,
+                                                    PASSWORD,
+                                                    MONGO_HOST,
+                                                    MONGO_PORT)
 mongo_connection = MongoClient(connection_string)
 
 
@@ -79,10 +82,15 @@ controlled_language_tags = report_components_db['controlled_language_tags']
 ############################
 
 
-def connect_to_mouseqc_production(username = 'public', password = 'public_password'):
-    mongo_host = 'qc-sys-db'
-    mongo_port = '27017'
-    connection_string = 'mongodb://{}:{}@{}:{}/'.format(username, password, mongo_host, int(mongo_port))
+def connect_to_mouseqc_production(username = 'public',
+                                  password = 'public_password',
+                                  mongo_host = 'qc-sys-db',
+                                  mongo_port = 27017):
+    
+    connection_string = 'mongodb://{}:{}@{}:{}/'.format(username,
+                                                        password,
+                                                        mongo_host,
+                                                        mongo_port)
     mongo_connection = MongoClient(connection_string)
     return mongo_connection
 

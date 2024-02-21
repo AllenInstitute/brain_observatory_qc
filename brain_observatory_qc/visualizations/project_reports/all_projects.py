@@ -9,11 +9,13 @@ import brain_observatory_qc.data_access.from_mouseQC as from_mouseQC
 ############################
 TIME_RANGE = 21 #3 weeks
 save_path = '/allen/programs/braintv/workgroups/nc-ophys/visual_behavior/qc_plots/'
-today = str(datetime.now().date())
+
 
 ############################
 #   Set Time Range
 ############################
+today = str(datetime.now().date())
+
 # end date is today
 end_date = datetime.now(timezone.utc) 
 end_date = end_date.replace(hour= 0, minute=0, second=0, microsecond=0)
