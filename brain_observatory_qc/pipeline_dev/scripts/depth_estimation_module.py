@@ -13,6 +13,7 @@ from PIL import Image
 from pathlib import Path
 import skimage.registration
 import skimage.exposure
+import json
 
 from visual_behavior.data_access import from_lims
 # Migrate dependency from visual_behavior to brain_observatory_qc when all necessary functions are implemented in the brain_observatory_qc
@@ -513,10 +514,15 @@ def get_local_zstack_path(ophys_experiment_id):
     path
         path to the local z-stack
     """
-    zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    # zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    #     / f'{ophys_experiment_id}_z_stack_local.h5'
+    # if not os.path.isfile(zstack_fp):
+    #     zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    #         / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
+    zstack_fp = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent \
         / f'{ophys_experiment_id}_z_stack_local.h5'
     if not os.path.isfile(zstack_fp):
-        zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+        zstack_fp = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent \
             / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
     if not os.path.isfile(zstack_fp):
         raise Exception(
@@ -572,8 +578,14 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir, number_of_z
         within and between plane registered z-stack
     """
     if number_of_z_planes is None:
-        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
-            ophys_experiment_id).equipment_name[0]
+        # equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+        #     ophys_experiment_id).equipment_name[0]
+        osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        json_filepath = from_lims.get_platform_json_filepath(osid)
+        with open(json_filepath, 'r') as f:
+            data = json.load(f)
+        equipment_name = data['rig_id']
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     reg_zstack_fn = f'{ophys_experiment_id}_zstack_reg.h5'
     reg_zstack_fp = ophys_experiment_dir / reg_zstack_fn
@@ -611,9 +623,15 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     np.ndarray (3D)
         within and between plane registered z-stack
     """
-    equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
-        ophys_experiment_id).equipment_name[0]
+    osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+    json_filepath = from_lims.get_platform_json_filepath(osid)
+    with open(json_filepath, 'r') as f:
+        data = json.load(f)
+    equipment_name = data['rig_id']
     if number_of_z_planes is None:
+        # equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+        #     ophys_experiment_id).equipment_name[0]
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     local_zstack_path = get_local_zstack_path(ophys_experiment_id)
     h = h5py.File(local_zstack_path, 'r')
