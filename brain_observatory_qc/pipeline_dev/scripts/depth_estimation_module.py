@@ -390,10 +390,13 @@ def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id, valid
         the first experiment ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
-        ophys_experiment_id)
-    first_oeid = find_first_experiment_id_from_ophys_container_id(
-        ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
+    try:
+        ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        first_oeid = find_first_experiment_id_from_ophys_container_id(
+            ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
+    except:
+        first_oeid = ophys_experiment_id
     return first_oeid
 
 
@@ -1031,8 +1034,11 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     # Basic info
     if save_dir is None:
         save_dir = global_base_dir
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
-        oeid)
+    try:
+        ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+            oeid)
+    except:
+        ophys_container_id = 'none'
     range_y, range_x = get_motion_correction_crop_xy_range(
         oeid)  # to remove rolling effect from motion correction
     if ref_oeid is None:
