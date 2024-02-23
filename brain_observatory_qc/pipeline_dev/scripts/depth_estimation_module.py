@@ -519,11 +519,16 @@ def get_local_zstack_path(ophys_experiment_id):
     # if not os.path.isfile(zstack_fp):
     #     zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
     #         / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
-    zstack_fp = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent \
-        / f'{ophys_experiment_id}_z_stack_local.h5'
+    try:
+        exp_dir = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent
+    except:
+        osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        exp_dir = from_lims.get_session_h5_filepath(osid).parent / \
+            f'ophys_experiment_{ophys_experiment_id}'
+    zstack_fp = exp_dir / f'{ophys_experiment_id}_z_stack_local.h5'
     if not os.path.isfile(zstack_fp):
-        zstack_fp = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent \
-            / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
+        zstack_fp = exp_dir / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
     if not os.path.isfile(zstack_fp):
         raise Exception(
             f'Error: zstack file path might be wrong ({zstack_fp})')
