@@ -1511,7 +1511,7 @@ def get_experiment_zdrift_first_last(oeid, ref_oeid=None, num_frames: int = 500,
         f'container_{ophys_container_id}' / f'experiment_{oeid}'
 
     # Get the saved result if there is
-    exp_fn = f'{oeid}_zdrift_ref_{ref_oeid}_first_last_500.h5'
+    exp_fn = f'{oeid}_zdrift_ref_{ref_oeid}_first_last.h5'
     if os.path.isfile(exp_dir / exp_fn) and (not rerun):
         with h5py.File(exp_dir / exp_fn, 'r') as h:
             matched_plane_indices = h['matched_plane_indices'][()]
@@ -1524,9 +1524,11 @@ def get_experiment_zdrift_first_last(oeid, ref_oeid=None, num_frames: int = 500,
             use_clahe = h['ops/use_clahe'][0]
             use_valid_pix_pc = h['ops/use_valid_pix_pc'][0]
             use_valid_pix_sr = h['ops/use_valid_pix_sr'][0]
+            num_frames = h['ops/num_frames'][0]
             ops = {'use_clahe': use_clahe,
                    'use_valid_pix_pc': use_valid_pix_pc,
-                   'use_valid_pix_sr': use_valid_pix_sr}
+                   'use_valid_pix_sr': use_valid_pix_sr,
+                   'num_frames': num_frames}
 
     else:
         # Get reference z-stack and crop
@@ -1534,8 +1536,6 @@ def get_experiment_zdrift_first_last(oeid, ref_oeid=None, num_frames: int = 500,
         ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
 
         # Get first and last mean FOVs and crop
-        first_mean_img = get_mean_image(oeid, num_frames=num_frames)
-        last_mean_img = get_mean_image(oeid, num_frames=num_frames, last=True)
         segment_mean_images = get_first_last_mean_images(oeid, save_dir=exp_dir, num_frames=num_frames)
         segment_mean_images_crop = segment_mean_images[:,
                                                        range_y[0]:range_y[1], range_x[0]:range_x[1]]
@@ -1585,6 +1585,8 @@ def get_experiment_zdrift_first_last(oeid, ref_oeid=None, num_frames: int = 500,
                                  shape=(1,), data=use_valid_pix_pc)
                 h.create_dataset('ops/use_valid_pix_sr',
                                  shape=(1,), data=use_valid_pix_sr)
+                h.create_dataset('ops/num_frames',
+                                 shape=(1,), data=num_frames)
 
     return matched_plane_indices, corrcoef, segment_reg_imgs, \
         ref_oeid, ref_zstack_crop, rigid_tmat_list, translation_shift_list, ops
