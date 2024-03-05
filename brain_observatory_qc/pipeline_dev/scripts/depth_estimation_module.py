@@ -29,6 +29,43 @@ else:
 ###############################################################################
 # General tools
 ###############################################################################
+    
+def read_si_stack_metadata(zstack_fn):
+    '''Reads metadata from a ScanImage z-stack tiff file.
+    
+    Args:
+        zstack_fn: str or Path, path to the z-stack tiff file
+        
+    Returns:
+        num_slices: int, number of slices in the z-stack
+        num_volumes: int, number of volumes in the z-stack
+        actuator: str, the actuator used to move the z-stack
+        z_values: np.array, the z values of each slice in the z-stack
+
+    TODO: check if actuator and z-values are correct
+    '''
+    from PIL import Image
+    from PIL.TiffTags import TAGS
+    with Image.open(zstack_fn) as img:
+        meta_dict = {TAGS[key] : img.tag[key] for key in img.tag_v2}
+    
+    num_slices_ind = np.where(['SI.hStackManager.numSlices = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    num_slices_txt = meta_dict['Software'][0].split('\n')[num_slices_ind]
+    num_slices = int(num_slices_txt.split('= ')[1])
+    
+    num_volumes_ind = np.where(['SI.hStackManager.numVolumes = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    num_volumes_txt = meta_dict['Software'][0].split('\n')[num_volumes_ind]
+    num_volumes = int(num_volumes_txt.split('= ')[1])
+
+    actuator_ind = np.where(['SI.hStackManager.stackActuator = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    actuator_txt = meta_dict['Software'][0].split('\n')[actuator_ind]
+    actuator = actuator_txt.split('= ')[1].split('\'')[1]
+
+    zs_ind = np.where(['SI.hStackManager.zs = ' in x for x in meta_dict['Software'][0].split('\n')])[0][0]
+    zs = meta_dict['Software'][0].split('\n')[zs_ind]
+    z_values = np.array([float(z) for z in zs.split('[')[1].split(']')[0].split(' ')])
+
+    return num_slices, num_volumes, actuator, z_values
 
 
 def calculate_valid_pix(img1, img2, valid_pix_threshold=1e-3):
@@ -594,7 +631,7 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     return zstack_reg
 
 
-def average_reg_plane(images):
+def average_reg_plane(images, num_for_ref=None):
     """Get mean FOV of a plane after registration.
     Use phase correlation
 
@@ -602,22 +639,64 @@ def average_reg_plane(images):
     ----------
     images : np.ndarray (3D)
         frames from a plane
+    num_for_ref : int, optional
+        number of frames to pick for reference, by default None
+        When None (or num < 1), then use mean image as reference.
 
     Returns
     -------
     np.ndarray (2D)
         mean FOV of a plane after registration.
     """
-    mean_img = np.mean(images, axis=0)
+    if num_for_ref is None or num_for_ref < 1:
+        ref_img = np.mean(images, axis=0)
+    else:
+        ref_img, _ = pick_initial_reference(images, num_for_ref)
     reg = np.zeros_like(images)
     for i in range(images.shape[0]):
         shift, _, _ = skimage.registration.phase_cross_correlation(
-            mean_img, images[i, :, :], normalization=None)
+            ref_img, images[i, :, :], normalization=None)
         reg[i, :, :] = scipy.ndimage.shift(images[i, :, :], shift)
     return np.mean(reg, axis=0)
 
 
-def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapthisteq=True):
+def pick_initial_reference(frames: np.ndarray, num_for_ref: int = 20) -> np.ndarray:
+    """ computes the initial reference image
+
+    the seed frame is the frame with the largest correlations with other frames;
+    the average of the seed frame with its top 20 correlated pairs is the
+    inital reference frame returned
+
+    From suite2p.registration.register
+
+    Parameters
+    ----------
+    frames : 3D array, int16
+        size [frames x Ly x Lx], frames from binary
+
+    Returns
+    -------
+    refImg : 2D array, int16
+        size [Ly x Lx], initial reference image
+
+    """
+    nimg,Ly,Lx = frames.shape
+    frames = np.reshape(frames, (nimg,-1)).astype('float32')
+    frames = frames - np.reshape(frames.mean(axis=1), (nimg, 1))
+    cc = np.matmul(frames, frames.T)
+    ndiag = np.sqrt(np.diag(cc))
+    cc = cc / np.outer(ndiag, ndiag)
+    CCsort = -np.sort(-cc, axis = 1)
+    bestCC = np.mean(CCsort[:, 1:num_for_ref], axis=1)
+    imax = np.argmax(bestCC)
+    indsort = np.argsort(-cc[imax, :])
+    selected_frame_inds = indsort[0:num_for_ref]
+    refImg = np.mean(frames[selected_frame_inds, :], axis = 0)
+    refImg = np.reshape(refImg, (Ly,Lx))
+    return refImg, selected_frame_inds
+
+
+def reg_between_planes(stack_imgs, ref_ind=30, top_ring_buffer=10, window_size=1, use_adapthisteq=True):
     """Register between planes. Each plane with single 2D image
     Use phase correlation.
     Use median filtered images to calculate shift between neighboring planes.
@@ -627,6 +706,8 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
     ----------
     stack_imgs : np.ndarray (3D)
         images of a stack. Typically z-stack with each plane registered and averaged.
+    ref_ind : int, optional
+        index of the reference plane, by default 30
     top_ring_buffer : int, optional
         number of top lines to skip due to ringing noise, by default 10
     window_size : int, optional
@@ -641,7 +722,7 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
     """
     num_planes = stack_imgs.shape[0]
     reg_stack_imgs = np.zeros_like(stack_imgs)
-    reg_stack_imgs[0, :, :] = stack_imgs[0, :, :]
+    reg_stack_imgs[ref_ind, :, :] = stack_imgs[ref_ind, :, :]
     ref_stack_imgs = med_filt_z_stack(stack_imgs)
     if use_adapthisteq:
         for i in range(num_planes):
@@ -650,11 +731,12 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
                 plane_img.astype(np.uint16)))  # normalization to make it uint16
 
     temp_stack_imgs = np.zeros_like(stack_imgs)
-    temp_stack_imgs[0, :, :] = ref_stack_imgs[0, :, :]
-    for i in range(1, num_planes):
+
+    temp_stack_imgs[ref_ind, :, :] = ref_stack_imgs[ref_ind, :, :]
+    for i in range(ref_ind + 1, num_planes):
         # Calculation valid pixels
         temp_ref = np.mean(
-            temp_stack_imgs[max(0, i - window_size): i, :, :], axis=0)
+            temp_stack_imgs[max(0, i - window_size) : i, :, :], axis=0)
         temp_mov = ref_stack_imgs[i, :, :]
         valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
 
@@ -669,6 +751,24 @@ def reg_between_planes(stack_imgs, top_ring_buffer=10, window_size=4, use_adapth
             ref_stack_imgs[i, :, :], shift)
         reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
             stack_imgs[i, :, :], shift)
+    if ref_ind > 0:
+        for i in range(ref_ind - 1, -1, -1):
+            temp_ref = np.mean(
+                temp_stack_imgs[i+1 : min(num_planes, i + window_size + 1), :, :], axis=0)
+            temp_mov = ref_stack_imgs[i, :, :]
+            valid_y, valid_x = calculate_valid_pix(temp_ref, temp_mov)
+
+            temp_ref = temp_ref[valid_y[0] +
+                                top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+            temp_mov = temp_mov[valid_y[0] +
+                                top_ring_buffer:valid_y[1] + 1, valid_x[0]:valid_x[1] + 1]
+
+            shift, _, _ = skimage.registration.phase_cross_correlation(
+                temp_ref, temp_mov, normalization=None, upsample_factor=10)
+            temp_stack_imgs[i, :, :] = scipy.ndimage.shift(
+                ref_stack_imgs[i, :, :], shift)
+            reg_stack_imgs[i, :, :] = scipy.ndimage.shift(
+                stack_imgs[i, :, :], shift)
     return reg_stack_imgs
 
 
