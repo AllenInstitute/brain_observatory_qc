@@ -82,10 +82,10 @@ controlled_language_tags = report_components_db['controlled_language_tags']
 ############################
 
 
-def connect_to_mouseqc_production(username = 'public',
-                                  password = 'public_password',
-                                  mongo_host = 'qc-sys-db',
-                                  mongo_port = 27017):
+def connect_to_mouseqc_production(username = USERNAME,
+                                  password = PASSWORD,
+                                  mongo_host = MONGO_HOST,
+                                  mongo_port = MONGO_PORT):
     
     connection_string = 'mongodb://{}:{}@{}:{}/'.format(username,
                                                         password,
