@@ -13,6 +13,7 @@ from PIL import Image
 from pathlib import Path
 import skimage.registration
 import skimage.exposure
+import json
 
 from visual_behavior.data_access import from_lims
 # Migrate dependency from visual_behavior to brain_observatory_qc when all necessary functions are implemented in the brain_observatory_qc
@@ -390,10 +391,13 @@ def find_first_experiment_id_from_ophys_experiment_id(ophys_experiment_id, valid
         the first experiment ID
     """
     # Get ophys container id from ophys_experiment id
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
-        ophys_experiment_id)
-    first_oeid = find_first_experiment_id_from_ophys_container_id(
-        ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
+    try:
+        ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        first_oeid = find_first_experiment_id_from_ophys_container_id(
+            ophys_container_id, valid_only=valid_only, correct_image_size=correct_image_size)
+    except:
+        first_oeid = ophys_experiment_id
     return first_oeid
 
 
@@ -510,11 +514,21 @@ def get_local_zstack_path(ophys_experiment_id):
     path
         path to the local z-stack
     """
-    zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
-        / f'{ophys_experiment_id}_z_stack_local.h5'
+    # zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    #     / f'{ophys_experiment_id}_z_stack_local.h5'
+    # if not os.path.isfile(zstack_fp):
+    #     zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
+    #         / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
+    try:
+        exp_dir = from_lims.get_dff_traces_filepath(ophys_experiment_id).parent
+    except:
+        osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        exp_dir = from_lims.get_session_h5_filepath(osid).parent / \
+            f'ophys_experiment_{ophys_experiment_id}'
+    zstack_fp = exp_dir / f'{ophys_experiment_id}_z_stack_local.h5'
     if not os.path.isfile(zstack_fp):
-        zstack_fp = from_lims.get_general_info_for_ophys_experiment_id(ophys_experiment_id).experiment_storage_directory[0] \
-            / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
+        zstack_fp = exp_dir / f'{ophys_experiment_id}_zstack_local_dewarping.h5'
     if not os.path.isfile(zstack_fp):
         raise Exception(
             f'Error: zstack file path might be wrong ({zstack_fp})')
@@ -569,8 +583,14 @@ def get_registered_zstack(ophys_experiment_id, ophys_experiment_dir, number_of_z
         within and between plane registered z-stack
     """
     if number_of_z_planes is None:
-        equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
-            ophys_experiment_id).equipment_name[0]
+        # equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+        #     ophys_experiment_id).equipment_name[0]
+        osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+        json_filepath = from_lims.get_platform_json_filepath(osid)
+        with open(json_filepath, 'r') as f:
+            data = json.load(f)
+        equipment_name = data['rig_id']
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     reg_zstack_fn = f'{ophys_experiment_id}_zstack_reg.h5'
     reg_zstack_fp = ophys_experiment_dir / reg_zstack_fn
@@ -608,9 +628,15 @@ def register_z_stack(ophys_experiment_id, number_of_z_planes=None, number_of_rep
     np.ndarray (3D)
         within and between plane registered z-stack
     """
-    equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
-        ophys_experiment_id).equipment_name[0]
+    osid = from_lims.get_ophys_session_id_for_ophys_experiment_id(
+            ophys_experiment_id)
+    json_filepath = from_lims.get_platform_json_filepath(osid)
+    with open(json_filepath, 'r') as f:
+        data = json.load(f)
+    equipment_name = data['rig_id']
     if number_of_z_planes is None:
+        # equipment_name = from_lims.get_general_info_for_ophys_experiment_id(
+        #     ophys_experiment_id).equipment_name[0]
         number_of_z_planes = 81 if 'MESO' in equipment_name else 80
     local_zstack_path = get_local_zstack_path(ophys_experiment_id)
     h = h5py.File(local_zstack_path, 'r')
@@ -1031,8 +1057,11 @@ def get_experiment_zdrift(oeid, ref_oeid=None, segment_minute: int = 10, correct
     # Basic info
     if save_dir is None:
         save_dir = global_base_dir
-    ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
-        oeid)
+    try:
+        ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+            oeid)
+    except:
+        ophys_container_id = 'none'
     range_y, range_x = get_motion_correction_crop_xy_range(
         oeid)  # to remove rolling effect from motion correction
     if ref_oeid is None:
@@ -1405,6 +1434,211 @@ def twostep_fov_reg_zdrift(segment_mean_images, translation_shift, rigid_tmat):
     if segment_reg_imgs.shape[0] == 1:
         segment_reg_imgs = segment_reg_imgs[0]
     return segment_reg_imgs
+
+
+def get_experiment_zdrift_first_last(oeid, ref_oeid=None, num_frames: int = 500,
+                                     correct_image_size=(512, 512),
+                                     use_clahe=True, use_valid_pix_pc=True, use_valid_pix_sr=True,
+                                     save_dir: Path = None, save_data=True, rerun=False):
+    """Get zdrift within an ophys experiment like previous mouse-seeks.
+    Register the mean FOV image of the first and last 500 frames 
+    to the z-stack using 2-step registration.
+    Then calculate matched planes in each segment.
+
+    Parameters
+    ----------
+    oeid : int
+        Ophys Experiment ID
+    ref_oeid : int, optional
+        Reference experiment ID, by default None
+        If None, then the first valid experiment in the container
+    num_frames : int, optional
+        Number of frames to use, by default 500 (from mouse-seeks)
+    correct_image_size : tuple, optional
+        Tuple for correct image size, (y,x), by default (512,512)
+    use_clahe : bool, optional
+        if to use CLAHE for registration, by default True
+    use_valid_pix_pc : bool, optional
+        if to use valid pixels only for correlation coefficient calculation
+        during the 1st step - phase correlation registration, by default True
+    use_valid_pix_sr : bool, optional
+        if to use valid pixels only for correlation coefficient calculation
+        during the 2nd step - StackReg registration, by default True
+    save_dir : Path (from pathlib), optional
+        Directory path to save the DataFrame, or to retrieve from, by default None
+
+    Returns
+    -------
+    np.ndarray (1d: int)
+        matched plane indice from all the segments
+    np.ndarray (2d: float)
+        correlation coeffiecient for each segment across the reference z-stack
+    np.ndarray (3d: float)
+        Segment FOVs registered to the z-stack
+    int
+        Index of the matched plane for the mean FOV
+    np.ndarray (1d: float)
+        correlation coefficient for the mean FOV across the reference z-stack
+    np.ndarray (2d: float)
+        Mean FOV registered to the reference z-stack
+    np.ndarray (3d: float)
+        Reference z-stack cropped using motion output of the experiment
+    np.ndarray (2d: float)
+        Transformation matrix for StackReg RIGID_BODY
+    np.ndarray (1d: int or float)
+        An array of translation shift
+    dict
+        Options for calculating z-drift
+    """
+    # valid_threshold = 0.01  # TODO: find the best valid threshold
+
+    # Basic info
+    if save_dir is None:
+        save_dir = global_base_dir
+    try:
+        ophys_container_id = from_lims.get_ophys_container_id_for_ophys_experiment_id(
+            oeid)
+    except:
+        ophys_container_id = 'none'
+    range_y, range_x = get_motion_correction_crop_xy_range(
+        oeid)  # to remove rolling effect from motion correction
+    if ref_oeid is None:
+        ref_oeid = find_first_experiment_id_from_ophys_experiment_id(
+            oeid, correct_image_size=correct_image_size)
+    ref_dir = save_dir / \
+        f'container_{ophys_container_id}' / f'experiment_{ref_oeid}'
+    exp_dir = save_dir / \
+        f'container_{ophys_container_id}' / f'experiment_{oeid}'
+
+    # Get the saved result if there is
+    exp_fn = f'{oeid}_zdrift_ref_{ref_oeid}_first_last.h5'
+    if os.path.isfile(exp_dir / exp_fn) and (not rerun):
+        with h5py.File(exp_dir / exp_fn, 'r') as h:
+            matched_plane_indices = h['matched_plane_indices'][()]
+            corrcoef = h['corrcoef'][()]
+            segment_reg_imgs = h['segment_fov_registered'][:]
+            ref_oeid = h['ref_oeid'][()]
+            ref_zstack_crop = h['ref_zstack_crop'][:]
+            rigid_tmat_list = h['rigid_tmat'][:]
+            translation_shift_list = h['translation_shift'][:]
+            use_clahe = h['ops/use_clahe'][0]
+            use_valid_pix_pc = h['ops/use_valid_pix_pc'][0]
+            use_valid_pix_sr = h['ops/use_valid_pix_sr'][0]
+            num_frames = h['ops/num_frames'][0]
+            ops = {'use_clahe': use_clahe,
+                   'use_valid_pix_pc': use_valid_pix_pc,
+                   'use_valid_pix_sr': use_valid_pix_sr,
+                   'num_frames': num_frames}
+
+    else:
+        # Get reference z-stack and crop
+        ref_zstack = get_registered_zstack(ref_oeid, ref_dir)
+        ref_zstack_crop = ref_zstack[:, range_y[0]:range_y[1], range_x[0]:range_x[1]]
+
+        # Get first and last mean FOVs and crop
+        segment_mean_images = get_first_last_mean_images(oeid, save_dir=exp_dir, num_frames=num_frames)
+        segment_mean_images_crop = segment_mean_images[:,
+                                                       range_y[0]:range_y[1], range_x[0]:range_x[1]]
+
+        # Rung registration for each segmented FOVs
+        matched_plane_indices = np.zeros(
+            segment_mean_images_crop.shape[0], dtype=int)
+        corrcoef = []
+        segment_reg_imgs = []
+        rigid_tmat_list = []
+        translation_shift_list = []
+        for i in range(segment_mean_images_crop.shape[0]):
+            mpi, cc, regimg, cc_pre, regimg_pre, rigid_tmat, translation_shift = estimate_plane_from_ref_zstack(
+                segment_mean_images_crop[i], ref_zstack_crop, use_clahe=use_clahe,
+                use_valid_pix_pc=use_valid_pix_pc, use_valid_pix_sr=use_valid_pix_sr)
+            matched_plane_indices[i] = mpi
+            corrcoef.append(cc)
+            segment_reg_imgs.append(regimg)
+            rigid_tmat_list.append(rigid_tmat)
+            translation_shift_list.append(translation_shift)
+        corrcoef = np.asarray(corrcoef)
+
+        ops = {'use_clahe': use_clahe,
+               'use_valid_pix_pc': use_valid_pix_pc,
+               'use_valid_pix_sr': use_valid_pix_sr}
+
+        if save_data:
+            # Save the result
+            if not os.path.isdir(exp_dir):
+                os.makedirs(exp_dir)
+            with h5py.File(exp_dir / exp_fn, 'w') as h:
+                h.create_dataset('matched_plane_indices',
+                                 data=matched_plane_indices)
+                h.create_dataset('corrcoef', data=corrcoef)
+                h.create_dataset('segment_fov_registered',
+                                 data=segment_reg_imgs)
+                h.create_dataset('corrcoef_pre', data=cc_pre)
+                h.create_dataset('segment_fov_registered_pre',
+                                 data=regimg_pre)
+                h.create_dataset('ref_oeid', data=ref_oeid)
+                h.create_dataset('ref_zstack_crop', data=ref_zstack_crop)
+                h.create_dataset('rigid_tmat', data=rigid_tmat_list)
+                h.create_dataset('translation_shift',
+                                 data=translation_shift_list)
+                h.create_dataset('ops/use_clahe', shape=(1,), data=use_clahe)
+                h.create_dataset('ops/use_valid_pix_pc',
+                                 shape=(1,), data=use_valid_pix_pc)
+                h.create_dataset('ops/use_valid_pix_sr',
+                                 shape=(1,), data=use_valid_pix_sr)
+                h.create_dataset('ops/num_frames',
+                                 shape=(1,), data=num_frames)
+
+    return matched_plane_indices, corrcoef, segment_reg_imgs, \
+        ref_oeid, ref_zstack_crop, rigid_tmat_list, translation_shift_list, ops
+
+
+def get_first_last_mean_images(ophys_experiment_id, save_dir=None, save_images=True, num_frames=500):
+    """Get the mean first and last n images of an experiment
+    And save the result, in case the directory was specified.
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        ophys experiment ID
+    save_dir : Path, optional
+        ophys experiment directory to load/save.
+        If None, then do not attemp loading previously saved data (it takes 2-3 min)
+    num_frames : int, optional
+        Number of frames to use, by default 500
+
+    Returns
+    -------
+    np.ndarray (3d)
+        mean FOVs from each segment of the video
+    """
+
+    if save_dir is None:
+        save_dir = global_base_dir
+    got_flag = 0
+    segment_fov_fp = save_dir / f'{ophys_experiment_id}_first_last_mean_fov.h5'
+    if os.path.isfile(segment_fov_fp):
+        with h5py.File(segment_fov_fp, 'r') as h:
+            mean_images = h['data'][:]
+            got_flag = 1
+
+    if got_flag == 0:
+        frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
+        movie_fp = from_lims.get_motion_corrected_movie_filepath(
+            ophys_experiment_id)
+        h = h5py.File(movie_fp, 'r')
+        movie_len = h['data'].shape[0]
+        frame_start_end = [[0, num_frames], [movie_len-num_frames, movie_len]]
+
+        mean_images = np.zeros((len(frame_start_end), *h['data'].shape[1:]))
+        for i in range(len(frame_start_end)):
+            mean_images[i, :, :] = np.mean(
+                h['data'][frame_start_end[i][0]:frame_start_end[i][1], :, :], axis=0)
+        if save_images:
+            if not os.path.isdir(save_dir):
+                os.makedirs(save_dir)
+            with h5py.File(segment_fov_fp, 'w') as h:
+                h.create_dataset('data', data=mean_images)
+    return mean_images
 
 
 ########################################
