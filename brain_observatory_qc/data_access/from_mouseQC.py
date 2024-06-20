@@ -43,49 +43,33 @@ MANUAL_OVERRIDE_LIST = ['manual_override_pass',
 #
 #####################################################################
 
-USERNAME = 'public'
-PASSWORD = 'public_password'
-MONGO_HOST = 'qc-sys-db'
-MONGO_PORT = 27017
-
-connection_string = 'mongodb://{}:{}@{}:{}/'.format(USERNAME,
-                                                    PASSWORD,
-                                                    MONGO_HOST,
-                                                    MONGO_PORT)
-mongo_connection = MongoClient(connection_string)
-
-
 ############################
-#   COLLECTION CONNECTIONS
+#    FUNCTS FOR JUPYTER NOTEBOOKS
 ############################
 
-## databases
-records_db = mongo_connection['records']
-qc_metadata_db = mongo_connection['qc_metadata']
-report_components_db = mongo_connection['report_components']  
-
-## Collections
-qc_logs = records_db['qc_logs']
-metrics_records = records_db['metrics']
-images_records = records_db['images']
-
-report_generation_status = qc_metadata_db['qc_generation_status']
-module_group_status = qc_metadata_db['qc_module_group_status']
-report_review_status = qc_metadata_db['qc_submit_status']
-
-metrics = report_components_db['metrics']
-controlled_language_tags = report_components_db['controlled_language_tags']
+def connect_to_mouseqc_production(username = 'public',
+                                  password = 'public_password',
+                                  mongo_host = 'qc-sys-db',
+                                  mongo_port = '27017'):
+    """ READ ONLY connection to the production instance of mouseqc
 
 
-############################
-#    Connection Functs for jupyter notebooks
-############################
+    Parameters
+    ----------
+    username : str, optional
+        _description_, by default 'public'
+    password : str, optional
+        _description_, by default 'public_password'
+    mongo_host : str, optional
+        _description_, by default 'qc-sys-db'
+    mongo_port : str, optional
+        _description_, by default '27017'
 
-
-def connect_to_mouseqc_production(username = USERNAME,
-                                  password = PASSWORD,
-                                  mongo_host = MONGO_HOST,
-                                  mongo_port = MONGO_PORT):
+    Returns
+    -------
+    connection
+        connection to the database
+    """
     
     connection_string = 'mongodb://{}:{}@{}:{}/'.format(username,
                                                         password,
@@ -96,6 +80,25 @@ def connect_to_mouseqc_production(username = USERNAME,
 
 
 def get_records_collections(mongo_connection):
+    """connect to the relevant qc records collections
+
+    Parameters
+    ----------
+    mongo_connection : database connection
+        read only connection to the production
+        qc database
+
+    Returns
+    -------
+    connections
+        connections to the following collections:
+         - qc_logs
+         - metrics_records
+         - images_records
+         - report_generation_status
+         - module_group_status
+         - report_review_status
+    """
     records_db = mongo_connection['records']
     qc_metadata_db = mongo_connection['qc_metadata']
 
@@ -107,15 +110,43 @@ def get_records_collections(mongo_connection):
     module_group_status = qc_metadata_db['qc_module_group_status']
     report_review_status = qc_metadata_db['qc_submit_status']
 
-    return qc_logs, metrics_records, images_records, report_generation_status, module_group_status, report_review_status
+    return qc_logs, metrics_records, images_records,\
+           report_generation_status, module_group_status, report_review_status
 
 
 def get_report_components_collections(mongo_connection):
+    """connect to the relevant qc report components collections
+
+    Parameters
+    ----------
+    mongo_connection : database connection
+        read only connection to the production
+        qc database
+
+    Returns
+    -------
+    database connections
+        connections to the following collections:
+        - metrics
+        - controlled_language_tags
+    """
     report_components_db = mongo_connection['report_components']
     
     metrics = report_components_db['metrics']
     controlled_language_tags = report_components_db['controlled_language_tags']
     return metrics, controlled_language_tags
+
+
+############################
+#    CONNECTION HERE SO QUERY FUNCTIONS WORK
+###########################
+mongo_connection = connect_to_mouseqc_production()
+
+qc_logs, metrics_records,\
+images_records, report_generation_status,\
+module_group_status, report_review_status = get_records_collections(mongo_connection)
+
+metrics, controlled_language_tags = get_report_components_collections(mongo_connection)
 
 
 #####################################################################
