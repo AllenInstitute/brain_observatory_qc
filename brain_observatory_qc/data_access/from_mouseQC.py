@@ -36,7 +36,32 @@ QC_STATUS_NA_LIST = ["incomplete", "ready", "error"]
 MANUAL_OVERRIDE_LIST = ['manual_override_pass',
                         'manual_override_flag',
                         'manual_override_fail']
+############################
+#    IMPACTED DATA
+############################
 
+OPHYS_SESSION_IMPACTED_DATA = ["physio_sync",
+                               "eye_tracking",
+                               "face_tracking",
+                               "body_tracking",
+                               "running_wheel",
+                               "water_delivery",
+                               "lick_detection",
+                               "visual_stimulus",
+                               "metadata",
+                               "columnar_zstack",
+                               "mouse_stress",
+                               "mouse_health",
+                               "brain_health",
+                               "stimulus_sequence_progression",
+                               "task_performance",
+                               "mouse_behavior"]
+
+OPHYS_EXPERIMENT_IMPACTED_DATA = ["fov_centered_zstack",
+                                  "physiology_recording",
+                                  "metadata",
+                                  "brain_health",
+                                  "FOV_matching"]
 #####################################################################
 #
 #           CONNECT TO MONGODB
@@ -159,7 +184,19 @@ metrics, controlled_language_tags = get_report_components_collections(mongo_conn
 ############################
 #    Report Status Queries
 ############################
-def get_report_generation_status(id_list)-> pd.DataFrame:
+def get_report_generation_status(id_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     gen_status = report_generation_status.aggregate([
         {'$match': {
             'data_id': {'$in': id_list}, 
@@ -175,7 +212,19 @@ def get_report_generation_status(id_list)-> pd.DataFrame:
     return gen_df
 
 
-def get_report_review_status(id_list)-> pd.DataFrame:
+def get_report_review_status(id_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     rvw_status = report_review_status.aggregate([
         {'$match': {
             'data_id': {'$in': id_list}, 
@@ -192,11 +241,47 @@ def get_report_review_status(id_list)-> pd.DataFrame:
     return rvw_df
 
 
+def gen_report_status_df_for_ids(id_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    id_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
+    gen_status_df = get_report_generation_status(id_list)
+    rev_status_df = get_report_review_status(id_list)
+    report_status_df = gen_status_df.merge(rev_status_df,
+                                           how = "left",
+                                           left_on="lims_id",
+                                           right_on = "lims_id")
+    return report_status_df
+
 ############################
 #    Session Info Queries
 ############################
 
 def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
+    """queries the production database for all ophys session ids
+    within a date range
+
+    Parameters
+    ----------
+    start_date : _type_
+        _description_
+    end_date : _type_
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe with a date_time column and ophys_session_id column
+    """
     session_ids = metrics_records.aggregate([
         {'$match': {
             'lims_ophys_session.date_of_acquisition': {
@@ -215,7 +300,19 @@ def get_session_ids_for_date_range(start_date, end_date)-> pd.DataFrame:
     return ids_df
 
 
-def get_experiment_ids_for_session_ids(ophys_session_list):
+def get_experiment_ids_for_session_ids(ophys_session_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    ophys_session_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     exps_for_sess = metrics_records.aggregate([{
         '$match': {
             'data_id': {'$in': ophys_session_list},
@@ -242,6 +339,20 @@ def get_experiment_ids_for_session_ids(ophys_session_list):
 
 
 def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    start_date : _type_
+        _description_
+    end_date : _type_
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     timed_records = metrics_records.aggregate([
     {'$match': {
             'lims_ophys_session.date_of_acquisition': {
@@ -275,6 +386,20 @@ def session_records_within_dates(start_date, end_date)-> pd.DataFrame:
 
 
 def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
+    """_summary_
+
+    Parameters
+    ----------
+    end_date_str : _type_, optional
+        _description_, by default None
+    range_in_days : int, optional
+        _description_, by default 21
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     
     start_date, end_date = set_date_range(end_date_str, range_in_days)
     
@@ -299,7 +424,19 @@ def gen_session_qc_info_for_date_range(end_date_str=None, range_in_days=21):
     return session_report_status_df
 
 
-def get_records_for_session_ids(session_ids_list)-> pd.DataFrame:
+def get_records_for_session_ids(session_ids_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    session_ids_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     session_records = metrics_records.aggregate([
     {'$match': {
             'lims_ophys_session.id':{'$in': session_ids_list}}}, 
@@ -330,7 +467,19 @@ def get_records_for_session_ids(session_ids_list)-> pd.DataFrame:
     return sessions_df
 
 
-def gen_session_qc_info_for_ids(session_ids_list):
+def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    session_ids_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
 
     session_records_df = get_records_for_session_ids(session_ids_list)
     
@@ -357,7 +506,7 @@ def gen_session_qc_info_for_ids(session_ids_list):
 ############################
 
 
-def get_experiment_records_for_ids(experiment_ids_list):
+def get_experiment_records_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     exp_info = metrics_records.aggregate([
         {'$match': {
             'lims_ophys_experiment.id': {'$in': experiment_ids_list}}}, 
@@ -376,7 +525,19 @@ def get_experiment_records_for_ids(experiment_ids_list):
     return exp_df
 
 
-def gen_experiment_qc_info(experiment_ids_list):
+def gen_experiment_qc_info(experiment_ids_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    experiment_ids_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
 
     exp_records_df = get_experiment_records_for_ids(experiment_ids_list)
     
@@ -464,7 +625,19 @@ def build_CLtag_outcomes_table():
     return outcomes_df
 
 
-def get_tags_for_ids(ids_list):
+def get_tags_for_ids(ids_list:list)-> pd.DataFrame:
+    """_summary_
+
+    Parameters
+    ----------
+    ids_list : list
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        _description_
+    """
     # get tag qc outcomes
     clt_outcomes = build_CLtag_outcomes_table()
     # get impacted data
@@ -523,7 +696,7 @@ def get_other_tags_for_ids(ids_list):
     return other_tags_df
 
 
-def get_manual_overrides_for_ids(ids_list):
+def get_manual_overrides_for_ids(ids_list:list)-> pd.DataFrame:
     manual_overrides = qc_logs.aggregate([
         {'$match': {
             'data_id': {'$in': ids_list},
@@ -541,11 +714,181 @@ def get_manual_overrides_for_ids(ids_list):
     overrides_df = pd.DataFrame(list(manual_overrides))
     return overrides_df
 
-def get_all_tags_for_ids(ids_list):
+def get_all_tags_for_ids(ids_list:list)->tuple:
     tags_df = get_tags_for_ids(ids_list)
     other_tags_df = get_other_tags_for_ids(ids_list)
     overrides_df = get_manual_overrides_for_ids(ids_list)
     return tags_df, other_tags_df, overrides_df
+
+############################
+#   Data streams & Data context
+############################
+
+def get_CLT_data_contexts()-> pd.DataFrame:
+    """queries all controlled language tags and pulls
+    all unique entries for data context
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the data context entries
+        associated with the controlled language tags
+    """
+    contexts = controlled_language_tags.aggregate([
+    {
+        '$unwind': {
+            'path': '$impacted_data', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$impacted_data.data_context'}}, 
+        {'$project': {
+            '_id': 0, 
+            'data_context': '$_id'}}, 
+        {'$unwind': {
+            'path': '$data_context', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$data_context'}},
+        {'$project': {
+            '_id': 0, 
+            'data_context': '$_id'}}
+    ])
+    contexts_df = pd.DataFrame(list(contexts))
+    return contexts_df
+
+
+def get_metric_data_contexts()-> pd.DataFrame:
+    """queries all metrics and pulls
+    all unique entries for data context
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the data context entries
+        associated with the metrics
+    """
+    contexts = metrics.aggregate([
+    {
+        '$unwind': {
+            'path': '$impacted_data', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$impacted_data.data_context'}}, 
+        {'$project': {
+            '_id': 0, 
+            'data_context': '$_id'}}, 
+        {'$unwind': {
+            'path': '$data_context', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$data_context'}},
+        {'$project': {
+            '_id': 0, 
+            'data_context': '$_id'}}
+    ])
+    contexts_df = pd.DataFrame(list(contexts))
+    return contexts_df
+
+
+def get_active_data_contexts()-> pd.DataFrame:
+    """pulls all unique data context entries
+    from both controlled language tags and metrics 
+
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the data context entries
+        associated with the controlled language tags and metrics
+    """
+    CLT_contexts = get_CLT_data_contexts()
+    metric_contexts = get_metric_data_contexts()
+    all_contexts = CLT_contexts.append(metric_contexts).reset_index(drop=True)
+    all_contexts = all_contexts.drop_duplicates()
+    return all_contexts
+
+
+def get_CLT_data_streams():
+    """queries all controlled language tags and pulls
+    all unique entries for data streams
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the datastream entries
+        associated with the controlled language tags
+    """
+    streams = controlled_language_tags.aggregate([
+    {
+        '$unwind': {
+            'path': '$impacted_data', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$impacted_data.data_steams'}}, 
+        {'$project': {
+            '_id': 0, 
+            'data_streams': '$_id'}}, 
+        {'$unwind': {
+            'path': '$data_streams', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$data_streams'}},
+        {'$project': {
+            '_id': 0, 
+            'data_streams': '$_id'}}
+    ])
+    streams_df = pd.DataFrame(list(streams))
+    return streams_df
+
+
+def get_metric_data_streams():
+    """queries all metrics and pulls
+    all unique entries for data streams
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the data stream entries
+        associated with metrics
+    """
+    streams = metrics.aggregate([
+    {
+        '$unwind': {
+            'path': '$impacted_data', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$impacted_data.data_steams'}}, 
+        {'$project': {
+            '_id': 0, 
+            'data_streams': '$_id'}}, 
+        {'$unwind': {
+            'path': '$data_streams', 
+            'preserveNullAndEmptyArrays': False}}, 
+        {'$group': {
+            '_id': '$data_streams'}},
+        {'$project': {
+            '_id': 0, 
+            'data_streams': '$_id'}}
+    ])
+    streams_df = pd.DataFrame(list(streams))
+    return streams_df
+
+
+def get_active_data_streams():
+    """pulls all unique data stream entries
+    from both controlled language tags and metrics
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of all the data stream entries
+        associated with the controlled language tags and metrics
+    """
+    CLT_streams = get_CLT_data_streams()
+    metric_streams = get_metric_data_streams()
+    all_streams = CLT_streams.append(metric_streams).reset_index(drop=True)
+    all_streams = all_streams.drop_duplicates()
+    return all_streams
 
 
 #####################################################################
@@ -556,6 +899,18 @@ def get_all_tags_for_ids(ids_list):
 
 
 def query_results_to_df(query_results)-> pd.DataFrame:
+    """takes mongodb query results and puts them in a dataframe
+
+    Parameters
+    ----------
+    query_results : _type_
+        _description_
+
+    Returns
+    -------
+    pd.DataFrame
+        a dataframe of the query results
+    """
     df = pd.DataFrame(list(query_results))
     df = df.drop(['_id'], axis=1)
     return df
@@ -588,38 +943,61 @@ def set_date_range(end_date_str=None, range_in_days=21):
 
     return start_date, end_date
 
-
 def get_date_from_dttime(datetime_obj):
+    """_summary_
+
+    Parameters
+    ----------
+    datetime_obj : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
     # use if loading directly from mongodb
     return datetime_obj.date() 
 
 
-def convert_str_to_dttime(date_str):
+def convert_str_to_dttime(date_str:str)-> datetime:
+    """_summary_
+
+    Parameters
+    ----------
+    date_str : string
+        _description_
+
+    Returns
+    -------
+    date time object
+        _description_
+    """
     return datetime.strptime(date_str, '%m-%d-%Y')
 
 
-def generate_project_group(project_code:str):
+def generate_project_group(project_code:str)-> str:
     for key, value in PROJECT_GROUPS_DICT.items():
         if project_code in value:
             return key
     return "Cannot find project group for {}".format(project_code)
 
 
-def generate_qc_review_status(qc_submit_status):
+def generate_qc_review_status(qc_submit_status:str)-> str:
     for key, value in QC_SUBMIT_STATUS_DICT.items():
         if qc_submit_status in value:
             return key
     return "Cannot find review status for {}".format(qc_submit_status)
 
 
-def manual_override_qc_outcome(manual_override_tag):
+def manual_override_qc_outcome(manual_override_tag:str)-> str:
     for key, value in MANUAL_OVERRIDE_OUTCOMES_DICT.items():
         if manual_override_tag in value:
             return key
     return "Cannot find qc outcome for {}".format(manual_override_tag)
 
 
-def clean_session_records_df(sessions_df):
+def clean_session_records_df(sessions_df:pd.DataFrame)-> pd.DataFrame:
     sessions_df['date'] = sessions_df['date_time'].apply(get_date_from_dttime)
     sessions_df["project_group"] = sessions_df["project"].apply(generate_project_group)
     return sessions_df
