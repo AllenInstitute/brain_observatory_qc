@@ -487,6 +487,7 @@ def get_report_generation_status(id_list:list)-> pd.DataFrame:
     gen_df = query_results_to_df(gen_status)
     gen_df = gen_df.rename(columns={"status" : "generation_status"})
     gen_df.loc[gen_df["generation_status"] == "ready", "generation_status"] = "complete"
+    gen_df = replace_all_nan_with_missing(gen_df)
     return gen_df
 
 
@@ -585,6 +586,7 @@ def gen_review_status_and_qc_outcomes(id_list:list)-> pd.DataFrame:
     # map qc outcome from db to pass, flag, fail, error
     rvw_df["qc_outcome"] = rvw_df["qc_status"].apply(map_qc_outcome_status)
     rvw_df = rvw_df.drop(columns=["qc_status"])
+    rvw_df = replace_all_nan_with_missing(rvw_df)
     return rvw_df
 
 
@@ -612,6 +614,7 @@ def generate_qc_status_df_for_ids(id_list:list)-> pd.DataFrame:
                                               how = "left",
                                               left_on="data_id",
                                               right_on = "data_id")
+    report_status_df = replace_all_nan_with_missing(report_status_df)
     return report_status_df
 
 
@@ -754,6 +757,7 @@ def get_manual_overrides_for_ids(ids_list:list)-> pd.DataFrame:
     overrides_df = pd.DataFrame(list(manual_overrides))
     return overrides_df
 
+
 def get_all_tags_for_ids(ids_list:list)->tuple:
     """gets all controlled langauge tags, other tags and manual override
     tags for the listed ids
@@ -868,6 +872,8 @@ def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
 #          MAIN FUNCTIONS
 #
 #####################################################################
+
+
 def gen_session_qc_info_for_date_range(end_date_str:int = None, 
                                        range_in_days:int = 21)-> pd.DataFrame:
     """gets metadata and qc status information for ophys sessions
@@ -922,10 +928,11 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
                                                               how = "left",
                                                               left_on= "ophys_session_id",
                                                               right_on= "ophys_session_id")
+    session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
     return session_report_status_df
 
 
-def gen_session_qc_info(session_ids_list:list)-> pd.DataFrame:
+def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
     """table with basic information/metadata and qc status for ophys sessions
 
     Parameters
@@ -969,10 +976,11 @@ def gen_session_qc_info(session_ids_list:list)-> pd.DataFrame:
                                                               how = "left",
                                                               left_on= "ophys_session_id",
                                                               right_on= "ophys_session_id")
+    session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
     return session_report_status_df
 
 
-def gen_experiment_qc_info(experiment_ids_list:list)-> pd.DataFrame:
+def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     """gets basic information for ophys experiments
     and the qc status for the experiments
 
@@ -985,12 +993,13 @@ def gen_experiment_qc_info(experiment_ids_list:list)-> pd.DataFrame:
     -------
     pd.DataFrame
        dataframe with the qc info for the experiments. Includes columns:
-        ophys_experiment_id,
-        ophys_session_id,
-        area,
-        depth,
-        generation_status,
-        review_status
+       ophys_experiment_id
+       ophys_session_id
+       area
+       depth
+       generation_status
+       review_status
+       qc_outcome
     """
 
     exp_records_df = get_experiment_metadata_for_ids(experiment_ids_list)
@@ -1010,6 +1019,7 @@ def gen_experiment_qc_info(experiment_ids_list:list)-> pd.DataFrame:
                                                       how = "left",
                                                       left_on= "ophys_experiment_id",
                                                       right_on= "ophys_experiment_id")
+    exp_report_status_df = replace_all_nan_with_missing(exp_report_status_df)
     return exp_report_status_df
 
 
@@ -1475,6 +1485,7 @@ def clean_session_records_df(sessions_df:pd.DataFrame)-> pd.DataFrame:
     sessions_df["project_group"] = sessions_df["project"].apply(generate_project_group)
     return sessions_df
 
+
 def replace_all_nan_with_missing(df):
     """
     Replace all NaN entries in a DataFrame with the string 'missing'.
@@ -1485,4 +1496,5 @@ def replace_all_nan_with_missing(df):
     Returns:
     pd.DataFrame: The DataFrame with all NaN values replaced.
     """
-    return df.fillna('missing')
+    df = df.fillna('missing')
+    return df
