@@ -110,9 +110,13 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
                                        id_col: str = "data_id",
+                                       color_mapping:dict=pass_flag_fail_palette,
                                        save_path: str = None,
+                                       xlabel:str="Impacted Data",
+                                       ylabel:str="Data ID",
+                                       title:str="Impacted Data QC Outcomes",
                                        show_labels: bool = True):
-    """ Plot a matrix of the QC outcomes for each impacted data stream or context.
+    """Plot a matrix of the QC outcomes for each impacted data stream or context.
     Input dataframe should be limited to sessions/exeriments that have COMPLETED
     QC Generation and Review.
 
@@ -122,47 +126,73 @@ def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame,
         table with a column for data_id and columns for each impacted
         data (data streams, data context) with values of "pass", "flag", "fail"
     id_col : str, optional
-        name of column that has the data id (i.e. ophys session id, etc),
+        name of column that has the data id (i.e. "ophys_session_id", etc),
         by default "data_id"
+    color_mapping : dict, optional
+        keys are data outcomes like "pass", "flag" etc. 
+        values are colors for those outcomes, 
+        by default pass_flag_fail_palette
     save_path : str, optional
         location to save the plot, by default None
+    xlabel : str, optional
+        label for x axis of plot, by default "Impacted Data"
+    ylabel : str, optional
+        label for y axis of plot, by default "Data ID"
+    title : str, optional
+        plot title, by default "Impacted Data QC Outcomes"
     show_labels : bool, optional
         whether to show labels on the patches, by default True
     """
     plot_status_by_id_matrix(data_stream_outcomes_df,
                              id_col=id_col,
-                             color_mapping=pass_flag_fail_palette,
+                             color_mapping=color_mapping,
                              save_path=save_path,
-                             xlabel="Impacted Data",
-                             ylabel="Data ID",
-                             title="Impacted Data QC Outcomes",
+                             xlabel=xlabel,
+                             ylabel=ylabel,
+                             title=title,
                              show_labels=show_labels)
 
 
 def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame, 
-                                 id_col:str = "data_id",
-                                 save_path:str=None,
-                                 show_labels: bool = True):
+                                id_col: str = "data_id",
+                                color_mapping:dict=qc_gen_sub_status_palette,
+                                save_path: str = None,
+                                xlabel:str="QC Status",
+                                ylabel:str="Data ID",
+                                title:str="QC Generation & Submission Status",
+                                show_labels: bool = True):
     """ Plot a matrix of the QC generation and submission status for each
      dataset (session, experiment etc.)
 
-        Parameters
-        ----------
-        submit_status_df : pd.DataFrame
-            table with the following columns:
-                - generation_status
-                - review_status
-                - qc_outcome
-        id_col : str, optional
-           name of column for data unit, examples: "ophys_session_id", by default "data_id"
-        save_path : str, optional
-            location to save the plot, by default None
+    Parameters
+    ----------
+    submit_status_df : pd.DataFrame
+        table with the following columns:
+            - generation_status
+            - review_status
+            - qc_outcome
+    id_col : str, optional
+        name of column for data unit, examples: "ophys_session_id", by default "data_id"
+    color_mapping : dict, optional
+        keys are data outcomes like "pass", "flag" etc. 
+        values are colors for those outcomes, 
+        by default pass_flag_fail_palette
+    save_path : str, optional
+        location to save the plot, by default None
+    xlabel : str, optional
+        label for x axis of plot, by default "QC Status"
+    ylabel : str, optional
+        label for y axis of plot, by default "Data ID"
+    title : str, optional
+        plot title, by default "QC Generation & Submission Status"
+    show_labels : bool, optional
+        whether to show labels on the patches, by default True
     """
     plot_status_by_id_matrix(submit_status_df,
                             id_col=id_col,
-                            color_mapping=qc_gen_sub_status_palette,
+                            color_mapping=color_mapping,
                             save_path=save_path,
-                            xlabel="QC Status",
-                            ylabel="Data ID",
-                            title="QC Generation & Submission Status",
+                            xlabel=xlabel,
+                            ylabel=ylabel,
+                            title=title,
                             show_labels=show_labels)
