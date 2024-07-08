@@ -386,12 +386,31 @@ def get_experiment_metadata_for_ids(experiment_ids_list:list)-> pd.DataFrame:
             'ophys_experiment_id': '$lims_ophys_experiment.id', 
             'ophys_session_id'   : '$lims_ophys_experiment.ophys_session.id', 
             'area'               : '$lims_ophys_experiment.area', 
-            'depth'              : '$lims_ophys_experiment.depth'}}, 
+            'depth'              : '$lims_ophys_experiment.depth'}},
+        {'$lookup': {
+            'from'        : 'metrics', 
+            'localField'  : 'ophys_session_id', 
+            'foreignField': 'lims_ophys_session.id', 
+            'as'          : 'session_info'}},
+        {'$unwind': {
+            'path': '$session_info', 
+            'preserveNullAndEmptyArrays': False}},
+        {'$addFields': {
+            'datetime': '$session_info.lims_ophys_session.date_of_acquisition', 
+            'genotype': '$session_info.lims_ophys_session.genotype', 
+            'mouse_id': '$session_info.lims_ophys_session.external_specimen_name', 
+            'project' : '$session_info.lims_ophys_session.project', 
+            'stimulus': '$session_info.lims_ophys_session.stimulus_name'}},
         {'$project': {
+            'genotype': 1, 
+            'mouse_id': 1, 
+            'project' : 1, 
+            'stimulus': 1, 
             'ophys_experiment_id': 1, 
             'ophys_session_id'   : 1, 
-            'area'               : 1, 
-            'depth'              : 1}}
+            'area'    : 1, 
+            'depth'   : 1, 
+            'datetime': 1}}
     ])
     exp_df = query_results_to_df(exp_info)
     return exp_df
@@ -893,19 +912,19 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
     pd.DataFrame
         dataframe of basic info and qc status for ophys sessions
         columns:
-            ophys_session_id
-            genotype
-            mouse_id
-            operator
-            rig
-            project
-            date_time
-            stimulus
-            date
-            project_group
-            generation_status
-            review_status
-            qc_outcome
+            project_group:     str
+            project:           str
+            mouse_id:          str
+            genotype:          str
+            date:              datetime.date
+            ophys_session_id:  int64
+            stimulus:          str
+            generation_status: str
+            review_status:     str
+            qc_outcome:        str
+            operator:          str
+            rig:               str
+            date_time:         datetime64[ns]
     """
     
     start_date, end_date = set_date_range(end_date_str, range_in_days)
@@ -928,7 +947,26 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
                                                               how = "left",
                                                               left_on= "ophys_session_id",
                                                               right_on= "ophys_session_id")
+    
+    # clean up final dataframe
     session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
+    session_report_status_df.sort_values(by=["project_group",
+                                             "mouse_id","date"], inplace=True)
+    session_report_status_df = session_report_status_df[["project_group",
+                                                         "project",
+                                                         "mouse_id",
+                                                         "genotype",
+                                                         "date",
+                                                         "ophys_session_id",
+                                                         "stimulus",
+                                                         "generation_status",
+                                                         "review_status",
+                                                         "qc_outcome",
+                                                         "operator",
+                                                         "rig",
+                                                         "date_time"]]
+    session_report_status_df.reset_index(drop=True, inplace=True)
+
     return session_report_status_df
 
 
@@ -945,19 +983,19 @@ def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
     pd.DataFrame
         dataframe of basic info and qc status for ophys sessions
         columns:
-            ophys_session_id
-            genotype
-            mouse_id
-            operator
-            rig
-            project
-            date_time
-            stimulus
-            date
-            project_group
-            generation_status
-            review_status
-            qc_outcome
+            project_group:     str
+            project:           str
+            mouse_id:          str
+            genotype:          str
+            date:              datetime.date
+            ophys_session_id:  int64
+            stimulus:          str
+            generation_status: str
+            review_status:     str
+            qc_outcome:        str
+            operator:          str
+            rig:               str
+            date_time:         datetime64[ns]
     """
     session_records_df = get_metadata_for_session_ids(session_ids_list)
     
@@ -976,8 +1014,57 @@ def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
                                                               how = "left",
                                                               left_on= "ophys_session_id",
                                                               right_on= "ophys_session_id")
+    
+    # clean up final dataframe
     session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
+    session_report_status_df.sort_values(by=["project_group",
+                                             "mouse_id",
+                                             "date"], inplace=True)
+    session_report_status_df = session_report_status_df[["project_group",
+                                                         "project",
+                                                         "mouse_id",
+                                                         "genotype",
+                                                         "date",
+                                                         "ophys_session_id",
+                                                         "stimulus",
+                                                         "generation_status",
+                                                         "review_status",
+                                                         "qc_outcome",
+                                                         "operator",
+                                                         "rig",
+                                                         "date_time"]]
+    session_report_status_df.reset_index(drop=True, inplace=True)
     return session_report_status_df
+
+
+def summarize_mouse_df(df:pd.DataFrame)-> pd.DataFrame:
+    """ takes the session_qc_info_df and returns the
+    last entry for each mouse
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        session_qc_info_df
+
+    Returns
+    -------
+    pd.DataFrame
+        table with the following columns:
+            mouse_id: str,
+            genotype: str,
+            date:      datetime.date,
+            stimulus:  str
+    """
+    # Ensure the dataframe is sorted by mouse_id and date_time
+    df = df.sort_values(by=['mouse_id', 'date_time'])
+    
+    # Get the last entry for each mouse
+    last_entries = df.groupby('mouse_id').last().reset_index()
+    
+    # Select only the necessary columns
+    result = last_entries[['mouse_id', 'genotype', 'date', 'stimulus']]
+    
+    return result
 
 
 def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
@@ -993,13 +1080,18 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     -------
     pd.DataFrame
        dataframe with the qc info for the experiments. Includes columns:
-       ophys_experiment_id
-       ophys_session_id
-       area
-       depth
-       generation_status
-       review_status
-       qc_outcome
+        - mouse_id:            str,
+        - genotype:            str,
+        - ophys_session_id:    int64,
+        - ophys_experiment_id: int64,
+        - area:                str,
+        - depth:               int64,
+        - generation_status:   str,
+        - review_status:       str,
+        - qc_outcome:          str,
+        - stimulus:            str,
+        - datetime:            datetime64[ns],
+        - project:             str
     """
 
     exp_records_df = get_experiment_metadata_for_ids(experiment_ids_list)
@@ -1019,7 +1111,25 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
                                                       how = "left",
                                                       left_on= "ophys_experiment_id",
                                                       right_on= "ophys_experiment_id")
+    # clean up final dataframe
     exp_report_status_df = replace_all_nan_with_missing(exp_report_status_df)
+    exp_report_status_df.sort_values(by=["ophys_session_id",
+                                         "area",
+                                         "depth"], inplace=True)
+    exp_report_status_df.reset_index(drop=True, inplace=True)
+    exp_report_status_df = exp_report_status_df[["mouse_id",
+                                                 "genotype",
+                                                 "ophys_session_id",
+                                                 "ophys_experiment_id",
+                                                 "area",
+                                                 "depth",
+                                                 "generation_status",
+                                                 "review_status",
+                                                 "qc_outcome",
+                                                 "stimulus",
+                                                 "datetime",
+                                                 "project"]]
+
     return exp_report_status_df
 
 
