@@ -214,6 +214,8 @@ module_group_status, report_review_status = get_records_collections(mongo_connec
 metrics, controlled_language_tags = get_report_components_collections(mongo_connection)
 
 
+TODAY = datetime.date.today() # today's date
+
 #####################################################################
 #
 #         QUERY BASIC INFORMATION/ METADATA
@@ -894,7 +896,9 @@ def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
 
 
 def gen_session_qc_info_for_date_range(end_date_str:int = None, 
-                                       range_in_days:int = 21)-> pd.DataFrame:
+                                       range_in_days:int = 21,
+                                       csv_name: str = "session_qc_info_{}.csv".format(TODAY),
+                                       csv_path: str = None)-> pd.DataFrame:
     """gets metadata and qc status information for ophys sessions
     within a date range. 
 
@@ -906,6 +910,11 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
         last date, by default None- will use today's date
     range_in_days : int, optional
         number of days before the end date, by default 21
+    csv_name : str, optional
+        name of the csv file, 
+        by default "session_qc_info_{todays date}.csv"
+    csv_path : str, optional
+        path to save the csv file, by default None
 
     Returns
     -------
@@ -929,48 +938,55 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
     
     start_date, end_date = set_date_range(end_date_str, range_in_days)
     
-    session_records_df = session_metadata_within_dates(start_date, end_date)
-    sessions_list = session_records_df["ophys_session_id"].tolist()
+    metadata_df = session_metadata_within_dates(start_date, end_date)
+    sessions_list = metadata_df["ophys_session_id"].tolist()
     
-    gen_status_df = get_report_generation_status(sessions_list)
-    gen_status_df = gen_status_df.rename(columns={"data_id":"ophys_session_id"})
+    qc_gen_status_df = get_report_generation_status(sessions_list)
+    qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_session_id"})
     
-    rev_status_df = gen_review_status_and_qc_outcomes(sessions_list)
-    rev_status_df = rev_status_df.rename(columns={"data_id":"ophys_session_id"})
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(sessions_list)
+    qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_session_id"})
     
-    session_report_status_df = session_records_df.merge(gen_status_df,
-                                                        how = "left",
-                                                        left_on="ophys_session_id",
-                                                        right_on = "ophys_session_id")
+    session_qc_info_df = metadata_df.merge(qc_gen_status_df,
+                                           how = "left",
+                                           left_on="ophys_session_id",
+                                           right_on = "ophys_session_id")
     
-    session_report_status_df = session_report_status_df.merge(rev_status_df,
-                                                              how = "left",
-                                                              left_on= "ophys_session_id",
-                                                              right_on= "ophys_session_id")
+    session_qc_info_df = session_qc_info_df.merge(qc_rev_status_df,
+                                                  how = "left",
+                                                  left_on= "ophys_session_id",
+                                                  right_on= "ophys_session_id")
     
     # clean up final dataframe
-    session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
-    session_report_status_df.sort_values(by=["project_group",
+    session_qc_info_df = replace_all_nan_with_missing(session_qc_info_df)
+    session_qc_info_df.sort_values(by=["project_group",
                                              "mouse_id","date"], inplace=True)
-    session_report_status_df = session_report_status_df[["project_group",
-                                                         "project",
-                                                         "mouse_id",
-                                                         "genotype",
-                                                         "date",
-                                                         "ophys_session_id",
-                                                         "stimulus",
-                                                         "generation_status",
-                                                         "review_status",
-                                                         "qc_outcome",
-                                                         "operator",
-                                                         "rig",
-                                                         "date_time"]]
-    session_report_status_df.reset_index(drop=True, inplace=True)
+    session_qc_info_df = session_qc_info_df[["project_group",
+                                             "project",
+                                             "mouse_id",
+                                             "genotype",
+                                             "date",
+                                             "ophys_session_id",
+                                             "stimulus",
+                                             "generation_status",
+                                             "review_status",
+                                             "qc_outcome",
+                                             "operator",
+                                             "rig",
+                                             "date_time"]]
+    session_qc_info_df.reset_index(drop=True, inplace=True)
 
-    return session_report_status_df
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        session_qc_info_df.to_csv(full_path, index=False)
+
+    return session_qc_info_df
 
 
-def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
+def gen_session_qc_info_for_ids(session_ids_list:list,
+                                csv_name: str = "session_qc_info_{}.csv".format(TODAY),
+                                csv_path: str = None)-> pd.DataFrame:
     """table with basic information/metadata and qc status for ophys sessions
 
     Parameters
@@ -997,47 +1013,56 @@ def gen_session_qc_info_for_ids(session_ids_list:list)-> pd.DataFrame:
             rig:               str
             date_time:         datetime64[ns]
     """
-    session_records_df = get_metadata_for_session_ids(session_ids_list)
+    metadata_df = get_metadata_for_session_ids(session_ids_list)
     
-    gen_status_df = get_report_generation_status(session_ids_list)
-    gen_status_df = gen_status_df.rename(columns={"data_id":"ophys_session_id"})
+    qc_gen_status_df = get_report_generation_status(session_ids_list)
+    qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_session_id"})
     
-    rev_status_df = gen_review_status_and_qc_outcomes(session_ids_list)
-    rev_status_df = rev_status_df.rename(columns={"data_id":"ophys_session_id"})
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(session_ids_list)
+    qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_session_id"})
     
-    session_report_status_df = session_records_df.merge(gen_status_df,
-                                                        how = "left",
-                                                        left_on="ophys_session_id",
-                                                        right_on = "ophys_session_id")
+    session_qc_info_df = metadata_df.merge(qc_gen_status_df,
+                                           how      = "left",
+                                           left_on  ="ophys_session_id",
+                                           right_on = "ophys_session_id")
     
-    session_report_status_df = session_report_status_df.merge(rev_status_df,
-                                                              how = "left",
-                                                              left_on= "ophys_session_id",
-                                                              right_on= "ophys_session_id")
+    session_qc_info_df = session_qc_info_df.merge(qc_rev_status_df,
+                                                  how      = "left",
+                                                  left_on  = "ophys_session_id",
+                                                  right_on = "ophys_session_id")
     
     # clean up final dataframe
-    session_report_status_df = replace_all_nan_with_missing(session_report_status_df)
-    session_report_status_df.sort_values(by=["project_group",
+    session_qc_info_df = replace_all_nan_with_missing(session_qc_info_df)
+    session_qc_info_df.sort_values(by=["project_group",
+                                       "mouse_id",
+                                       "date"], inplace=True)
+    
+    session_qc_info_df = session_qc_info_df[["project_group",
+                                             "project",
                                              "mouse_id",
-                                             "date"], inplace=True)
-    session_report_status_df = session_report_status_df[["project_group",
-                                                         "project",
-                                                         "mouse_id",
-                                                         "genotype",
-                                                         "date",
-                                                         "ophys_session_id",
-                                                         "stimulus",
-                                                         "generation_status",
-                                                         "review_status",
-                                                         "qc_outcome",
-                                                         "operator",
-                                                         "rig",
-                                                         "date_time"]]
-    session_report_status_df.reset_index(drop=True, inplace=True)
-    return session_report_status_df
+                                             "genotype",
+                                             "date",
+                                             "ophys_session_id",
+                                             "stimulus",
+                                             "generation_status",
+                                             "review_status",
+                                             "qc_outcome",
+                                             "operator",
+                                             "rig",
+                                             "date_time"]]
+    session_qc_info_df.reset_index(drop=True, inplace=True)
+    
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        session_qc_info_df.to_csv(full_path, index=False)
+
+    return session_qc_info_df
 
 
-def summarize_mouse_df(df:pd.DataFrame)-> pd.DataFrame:
+def summarize_mouse_df(df:pd.DataFrame,
+                       csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
+                       csv_path: str = None)-> pd.DataFrame:
     """ takes the session_qc_info_df and returns the
     last entry for each mouse
 
@@ -1062,12 +1087,22 @@ def summarize_mouse_df(df:pd.DataFrame)-> pd.DataFrame:
     last_entries = df.groupby('mouse_id').last().reset_index()
     
     # Select only the necessary columns
-    result = last_entries[['mouse_id', 'genotype', 'date', 'stimulus']]
+    result = last_entries[['mouse_id',
+                           'genotype',
+                           'date',
+                           'stimulus']]
+    
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        result.to_csv(full_path, index=False)
     
     return result
 
 
-def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
+def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
+                                   csv_name: str = "experiment_qc_info_{}.csv".format(TODAY),
+                                   csv_path: str = None)-> pd.DataFrame:
     """gets basic information for ophys experiments
     and the qc status for the experiments
 
@@ -1079,7 +1114,8 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     Returns
     -------
     pd.DataFrame
-       dataframe with the qc info for the experiments. Includes columns:
+       dataframe with the qc info for the experiments.
+       Includes columns:
         - mouse_id:            str,
         - genotype:            str,
         - ophys_session_id:    int64,
@@ -1094,46 +1130,53 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list)-> pd.DataFrame:
         - project:             str
     """
 
-    exp_records_df = get_experiment_metadata_for_ids(experiment_ids_list)
+    metadata_df = get_experiment_metadata_for_ids(experiment_ids_list)
     
-    gen_status_df = get_report_generation_status(experiment_ids_list)
-    gen_status_df = gen_status_df.rename(columns={"data_id":"ophys_experiment_id"})
+    qc_gen_status_df = get_report_generation_status(experiment_ids_list)
+    qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_experiment_id"})
     
-    rev_status_df = gen_review_status_and_qc_outcomes(experiment_ids_list)
-    rev_status_df = rev_status_df.rename(columns={"data_id":"ophys_experiment_id"})
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(experiment_ids_list)
+    qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_experiment_id"})
     
-    exp_report_status_df = exp_records_df.merge(gen_status_df,
-                                                how = "left",
-                                                left_on="ophys_experiment_id",
-                                                right_on = "ophys_experiment_id")
+    exp_qc_info_df = metadata_df.merge(qc_gen_status_df,
+                                       how      = "left",
+                                       left_on  = "ophys_experiment_id",
+                                       right_on = "ophys_experiment_id")
     
-    exp_report_status_df = exp_report_status_df.merge(rev_status_df,
-                                                      how = "left",
-                                                      left_on= "ophys_experiment_id",
-                                                      right_on= "ophys_experiment_id")
+    exp_qc_info_df = exp_qc_info_df.merge(qc_rev_status_df,
+                                          how      = "left",
+                                          left_on  = "ophys_experiment_id",
+                                          right_on = "ophys_experiment_id")
     # clean up final dataframe
-    exp_report_status_df = replace_all_nan_with_missing(exp_report_status_df)
-    exp_report_status_df.sort_values(by=["ophys_session_id",
-                                         "area",
-                                         "depth"], inplace=True)
-    exp_report_status_df.reset_index(drop=True, inplace=True)
-    exp_report_status_df = exp_report_status_df[["mouse_id",
-                                                 "genotype",
-                                                 "ophys_session_id",
-                                                 "ophys_experiment_id",
-                                                 "area",
-                                                 "depth",
-                                                 "generation_status",
-                                                 "review_status",
-                                                 "qc_outcome",
-                                                 "stimulus",
-                                                 "datetime",
-                                                 "project"]]
+    exp_qc_info_df = replace_all_nan_with_missing(exp_qc_info_df)
+    exp_qc_info_df.sort_values(by=["ophys_session_id",
+                                   "area",
+                                   "depth"], inplace=True)
+    exp_qc_info_df.reset_index(drop=True, inplace=True)
+    exp_qc_info_df = exp_qc_info_df[["mouse_id",
+                                     "genotype",
+                                     "ophys_session_id",
+                                     "ophys_experiment_id",
+                                     "area",
+                                     "depth",
+                                     "generation_status",
+                                     "review_status",
+                                     "qc_outcome",
+                                     "stimulus",
+                                     "datetime",
+                                     "project"]]
+    
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        exp_qc_info_df.to_csv(full_path, index=False)
 
-    return exp_report_status_df
+    return exp_qc_info_df
 
 
-def gen_session_impacted_data_outcome_df(ophys_session_ids:list)-> pd.DataFrame:
+def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
+                                         csv_name: str = "session_impacted_data_{}.csv".format(TODAY),
+                                         csv_path: str = None)-> pd.DataFrame:
     """the main function to generate the impacted data for a list of session ids
     that have completed the qc review process. 
 
@@ -1174,10 +1217,17 @@ def gen_session_impacted_data_outcome_df(ophys_session_ids:list)-> pd.DataFrame:
                                                     impacted_data)
     
     session_impacted_data_df = session_impacted_data_df.rename(columns={"data_id":"ophys_session_id"})
+    
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        session_impacted_data_df.to_csv(full_path, index=False)
     return session_impacted_data_df
 
 
-def gen_experiment_impacted_data_outcome_df(ophys_experiment_ids:list)-> pd.DataFrame:
+def gen_experiment_impacted_data_outcome_df(ophys_experiment_ids:list,
+                                            csv_name: str = "experiment_impacted_data_{}.csv".format(TODAY),
+                                            csv_path: str = None)-> pd.DataFrame:
     """the main function to generate the impacted data for a list of
     experiment ids that have completed the qc review process
 
@@ -1199,12 +1249,17 @@ def gen_experiment_impacted_data_outcome_df(ophys_experiment_ids:list)-> pd.Data
             "brain_health",
             "FOV_matching"
     """
-    qc_outcome_df = gen_experiment_qc_info(ophys_experiment_ids)
+    qc_outcome_df = gen_experiment_qc_info_for_ids(ophys_experiment_ids)
     tags_df, _, _ = get_all_tags_for_ids(ophys_experiment_ids)
     impacted_data = OPHYS_EXPERIMENT_IMPACTED_DATA
     experiment_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
                                                        tags_df,
                                                        impacted_data)
+    # Save as CSV if a path is provided
+    if csv_path:
+        full_path = os.path.join(csv_path, csv_name)
+        experiment_impacted_data_df.to_csv(full_path, index=False)
+
     return experiment_impacted_data_df
 
 
