@@ -533,11 +533,14 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
 
-    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    LEFT JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
 
-    JOIN visual_behavior_experiment_containers vbec
+    LEFT JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
+
+    LEFT JOIN visual_behavior_supercontainers vbs
+    ON os.visual_behavior_supercontainer_id = vbs.id
 
     LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
