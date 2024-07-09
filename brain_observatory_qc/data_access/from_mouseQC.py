@@ -214,7 +214,7 @@ module_group_status, report_review_status = get_records_collections(mongo_connec
 metrics, controlled_language_tags = get_report_components_collections(mongo_connection)
 
 
-TODAY = datetime.date.today() # today's date
+TODAY = datetime.today().date() # today's date
 
 #####################################################################
 #
@@ -823,8 +823,6 @@ def get_all_tags_for_ids(ids_list:list)->tuple:
 ##################################
 
 
-
-
 def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
                          tags_df:pd.DataFrame,
                          impacted_data:list,
@@ -1087,7 +1085,9 @@ def summarize_mouse_df(df:pd.DataFrame,
     last_entries = df.groupby('mouse_id').last().reset_index()
     
     # Select only the necessary columns
-    result = last_entries[['mouse_id',
+    result = last_entries[['project_group',
+                           'project',
+                           'mouse_id',
                            'genotype',
                            'date',
                            'stimulus']]
@@ -1172,6 +1172,75 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
         exp_qc_info_df.to_csv(full_path, index=False)
 
     return exp_qc_info_df
+
+def gen_tags_df_for_ids(ophys_session_ids:list,
+                        ophys_experiment_ids:list)-> tuple:
+    """gets all controlled langauge tags, other tags and manual override
+    tags for the listed ids, and whether those are experiments or sessions
+
+    Parameters
+    ----------
+    ophys_session_ids : list
+        session ids
+    ophys_experiment_ids : list
+        experiment ids
+
+    Returns
+    -------
+    tuple: tags_df, other_tags_df, overrides_df
+    pd.DataFrame
+        tags_df: table with the following columns:
+            data_id:       int64,
+            qc_tag:        str,
+            qc_outcome:    str,
+            impacted_data: str
+            report_type:   str
+
+    pd.DataFrame
+        other_tags_df: table with the following columns:
+            data_id:     int64,
+            qc_tag:      str,
+            module:      str,
+            note:        str,
+            report_type: str
+
+    pd.DataFrame
+        overrides_df: table with the following columns:
+            data_id:     int64,
+            qc_tag:      str,
+            module:      str,
+            report_type: str
+    """
+
+    session_tags_df, \
+    session_other_tags_df, \
+    session_overrides_df = get_all_tags_for_ids(ophys_session_ids)
+    
+    session_tags_df["report_type"] = "session"
+    session_other_tags_df["report_type"] = "session"
+    session_overrides_df["report_type"] = "session"
+
+    experiment_tags_df, \
+    experiment_other_tags_df, \
+    experiment_overrides_df = get_all_tags_for_ids(ophys_experiment_ids)
+    
+    experiment_tags_df["report_type"] = "experiment"
+    experiment_other_tags_df["report_type"] = "experiment"
+    experiment_overrides_df["report_type"] = "experiment"
+
+    tags_df = pd.concat([session_tags_df, \
+                         experiment_tags_df],\
+                        ignore_index=True)
+    
+    other_tags_df = pd.concat([session_other_tags_df, \
+                               experiment_other_tags_df],\
+                              ignore_index=True)
+    
+    overrides_df = pd.concat([session_overrides_df,\
+                              experiment_overrides_df],\
+                             ignore_index=True)
+    
+    return tags_df, other_tags_df, overrides_df
 
 
 def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
