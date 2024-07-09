@@ -1,8 +1,13 @@
+import os
+import matplotlib
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from datetime import datetime
 import matplotlib.pyplot as plt
 
+
+TODAY = datetime.today().date() # today's date
 pass_flag_fail_palette = {
     'pass'   : '#4CAF50', # Green
     'flag'   : '#FFC107', # Amber
@@ -18,6 +23,47 @@ qc_gen_sub_status_palette = {
      "flag"      :"#ffffb3",  # light yellow
      "fail"      :"#fb8072"   # light red
 }
+
+
+######################################
+#
+#          GENERIC PLOTTING FUNCTIONS
+######################################
+def create_qc_tag_bar_plot(df:pd.DataFrame, 
+                           ax:matplotlib.axes.Axes, 
+                           title:str):
+    """Create a qc tag frequency bar plot for the given DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        qc tags df: table with the following columns:
+            - data_id: int64
+            - qc_tag: str
+            - qc_outcome: str - flag or fail
+            - impacted_data: str
+            - report_type: str - session or experiment
+    ax : matplotlib.axes.Axes
+       Axes object to draw the plot on.
+    title : str
+        Title for the plot.
+    """
+    # Get frequency of each qc_tag
+    freq_df = df['qc_tag'].value_counts().reset_index()
+    freq_df.columns = ['qc_tag', 'frequency']
+
+    # Merge frequency with the original DataFrame to get qc_outcome
+    merged_df = pd.merge(freq_df, df[['qc_tag', 'qc_outcome']], on='qc_tag', how='left').drop_duplicates()
+
+    # Order by frequency
+    merged_df = merged_df.sort_values('frequency', ascending=False)
+
+    # Create a bar plot
+    sns.barplot(x='frequency', y='qc_tag', hue='qc_outcome', data=merged_df,
+                palette={'fail': 'red', 'flag': 'yellow'}, dodge=False, ax=ax)
+    ax.set_title(title)
+    ax.set_xlabel('Frequency')
+    ax.set_ylabel('QC Tag')
 
 
 def plot_status_by_id_matrix(df: pd.DataFrame,
@@ -107,6 +153,50 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
     else:
         plt.show()
     
+######################################
+#
+#          MAIN PLOTTING FUNCTIONS
+######################################
+def plot_qc_tag_frequency(df,
+                          save_path:str=None,
+                          save_name:str="qc_tag_frequency_{}.png".format(TODAY)):
+    """_summary_
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        qc_tags_df: table with the following columns:
+            - data_id: int64
+            - qc_tag: str
+            - qc_outcome: str - flag or fail
+            - impacted_data: str
+            - report_type: str - session or experiment
+    save_path : str, optional
+        Directory path to save the plot, by default None
+    save_name : str, optional
+        _description_, by default None
+    """
+    # Split the DataFrame by report_type
+    session_df = df[df['report_type'] == 'session']
+    experiment_df = df[df['report_type'] == 'experiment']
+
+    # Plot settings
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8), sharey=False)
+
+    # Create plots for session and experiment data
+    create_qc_tag_bar_plot(session_df, axs[0], 'Session QC Tag Frequency')
+    create_qc_tag_bar_plot(experiment_df, axs[1], 'Experiment QC Tag Frequency')
+
+    plt.tight_layout()
+
+    # Save the plot if a save path and name are provided
+    if save_path and save_name:
+        save_file = os.path.join(save_path, save_name)
+        plt.savefig(save_file)
+        print(f'Saved plot to {save_file}')
+
+    plt.show()
+
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
                                        id_col: str = "data_id",
