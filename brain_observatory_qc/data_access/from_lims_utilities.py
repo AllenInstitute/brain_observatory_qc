@@ -542,9 +542,6 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     LEFT JOIN visual_behavior_supercontainers vbs
     ON os.visual_behavior_supercontainer_id = vbs.id
 
-    LEFT JOIN visual_behavior_supercontainers vbs
-    ON os.visual_behavior_supercontainer_id = vbs.id
-
     JOIN projects 		ON projects.id = os.project_id
     JOIN specimens 		ON specimens.id = os.specimen_id
     JOIN structures 	ON structures.id = oe.targeted_structure_id
