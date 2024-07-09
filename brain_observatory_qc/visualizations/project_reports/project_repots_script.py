@@ -1,46 +1,67 @@
-import os
-import time
-import pymongo
 import pandas as pd
-from pymongo import MongoClient
-from datetime import datetime, timedelta,  timezone
+from fpdf import FPDF
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
 
 import brain_observatory_qc.data_access.from_mouseQC as mqc
 import brain_observatory_qc.visualizations.plotting_functions as qc_plots
 
+#################
+# SET CONSTANTS
+#################
+NUM_DAYS = 30 # Number of days to look back for data
+
+
+CSV_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\csvs"
+PLOT_SAVE_PATH = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\plots"
+PDF_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\reports"
+# #################
+# # CONNECT TO MONGO HOST 
+# #################
+# mongo_connection = mqc.connect_to_mouseqc_production()
+
+# qc_logs, metrics_records,\
+# images_records, report_generation_status,\
+# module_group_status, report_review_status = mqc.get_records_collections(mongo_connection)
+
+# metrics, controlled_language_tags = mqc.get_report_components_collections(mongo_connection)
 
 #################
-# CONNECT TO MONGO HOST 
-#################
-mongo_connection = mqc.connect_to_mouseqc_production()
-
-qc_logs, metrics_records,\
-images_records, report_generation_status,\
-module_group_status, report_review_status = mqc.get_records_collections(mongo_connection)
-
-metrics, controlled_language_tags = mqc.get_report_components_collections(mongo_connection)
-
-#################
-# GET EXPERIMENT & SESSION IDS IN DATE RANGE 
+# Get SESSIONS & EXPERIMENTS FOR DATE RANGE
 #################
 
-# date range for report - defaults to 21 days from today
-start_date, end_date = mqc.set_date_range()
+# Sessions & Experiments from last 21 days
+sessions_df = mqc.gen_session_qc_info_for_date_range(range_in_days = NUM_DAYS,
+                                                     csv_path      = CSV_SAVE_PATH)
+__, experiment_ids_list = mqc.get_experiment_ids_for_session_ids(sessions_df["ophys_session_id"].tolist())
+experiments_df = mqc.gen_experiment_qc_info_for_ids(experiment_ids_list,
+                                                    csv_path = CSV_SAVE_PATH)
 
-# get sessions for date range
-session_ids_df = mqc.get_session_ids_for_date_range(start_date, end_date)
-session_ids_list = session_ids_df["ophys_session_id"].tolist()
-
-# get all experiment ids for sessions within date range
-exp_ids_df = mqc.get_experiment_ids_for_session_ids(session_ids_list)
-exp_ids_list = exp_ids_df["ophys_experiment_id"].tolist()
-
+# Mouse summary for all mice within that date range
+mouse_df = mqc.summarize_mouse_df(sessions_df,
+                                  csv_path = CSV_SAVE_PATH)
 
 #################
-# GET TAGS 
+# PLOT QC STATUS FOR SESSIONS & EXPERIMENTS
 #################
-# SESSION tags: 
-session_tags_df, sess_other_tags_df, sess_overrides_df = mqc.get_all_tags_for_ids(session_ids_list)
-exp_tags_df, exp_other_tags_df, exp_overrides_df = mqc.get_all_tags_for_ids(exp_ids_list)
+sess_qc_status = sessions_df[["ophys_session_id", "generation_status", "review_status", "qc_outcome"]]
+exp_qc_status = experiments_df[["mouse_id","ophys_experiment_id", "generation_status", "review_status", "qc_outcome"]]
 
-# EXPERIMENT tags: 
+qc_plots.plot_qc_submit_status_matrix(sess_qc_status,
+                                      "ophys_session_id",
+                                      ylabel ="Session ID")
+
+qc_plots.plot_qc_submit_status_matrix(exp_qc_status,
+                                      "ophys_experiment_id",
+                                      ylabel ="Experiment ID",
+                                      show_labels=False)
+
+#################
+# PLOT IMPACTED DATA FOR COMPLETED QC
+#################
+completed_sess_list = sess_qc_status.loc[sess_qc_status["review_status"]=="complete", 
+                                         "ophys_session_id"].tolist()
+completed_exp_list  = sess_qc_status.loc[sess_qc_status["review_status"]=="complete", 
+                                         "ophys_session_id"].tolist()
