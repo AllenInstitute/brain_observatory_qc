@@ -731,9 +731,9 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
     general_info["container_workflow_state"] = "NA"
     general_info["container_storage_directory"] = "NA"
     general_info["supercontainer_storage_directory"] = "NA"
-
-
     return general_info
+
+
 #####################################################################
 #
 #           FILEPATHS & STORAGE DIRECTORIES
@@ -759,6 +759,8 @@ def correct_LIMS_storage_directory_filepaths(df: pd.DataFrame) -> pd.DataFrame:
     """
     
     storage_directory_columns_list = [col for col in df.columns if 'storage_directory' in col]
+    if "supercontainer_storage_directory" in storage_directory_columns_list:
+        storage_directory_columns_list.remove('supercontainer_storage_directory')
     for column in storage_directory_columns_list:
         df = utils.correct_dataframe_filepath(df, column)
     return df
