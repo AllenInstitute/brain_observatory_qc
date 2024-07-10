@@ -300,27 +300,12 @@ def correct_filepath(filepath):
     string
         filepath adjusted for users operating system
     """
-    filepath = filepath.replace('/allen', '//allen')
-    corrected_path = Path(filepath)
+    if filepath is None or filepath=="NA" or filepath=="":
+        corrected_path = filepath
+    else:
+        filepath = filepath.replace('/allen', '//allen')
+        corrected_path = Path(filepath)
     return corrected_path
-
-
-def apply_filepath_correction(filepath):
-    """Check if the filepath is empty or 'NA' and apply correction if necessary.
-
-    Parameters
-    ----------
-    filepath : string
-        Given filepath
-
-    Returns
-    -------
-    string
-        Corrected filepath or the original value if it's empty or 'NA'
-    """
-    if pd.isna(filepath) or filepath == "NA" or filepath == "":
-        return filepath
-    return correct_filepath(filepath)
 
 
 def correct_dataframe_filepath(dataframe, column_string):
@@ -342,7 +327,7 @@ def correct_dataframe_filepath(dataframe, column_string):
         returns the input dataframe with the filepath in the given
         column 'corrected' for the users operating system, in place
     """
-    dataframe[column_string] = dataframe[column_string].apply(lambda x: apply_filepath_correction(x))
+    dataframe[column_string] = dataframe[column_string].apply(lambda x: correct_filepath(x))
     return dataframe
 
 
