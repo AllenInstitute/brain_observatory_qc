@@ -1,6 +1,7 @@
 
 import os
 import warnings
+import numpy as np
 import pandas as pd
 from psycopg2 import extras
 
@@ -215,7 +216,7 @@ def get_value_from_table(search_key, search_value, target_table, target_key):
 #####################################################################
 
 
-def check_experiment_for_container(ophys_experiment_id: int) -> bool:
+def experiment_missing_container(ophys_experiment_id: int) -> bool:
     """queries the LIMS database to determine if an experiment has an
      associated container
 
@@ -241,7 +242,7 @@ def check_experiment_for_container(ophys_experiment_id: int) -> bool:
     ophys_experiment_id = {}
     '''.format(ophys_experiment_id)
     container_id = mixin.select(query)
-    return container_id is not None
+    return container_id.empty
 
 
 def check_session_for_supercontainer(ophys_session_id: int) -> bool:
@@ -269,7 +270,8 @@ def check_session_for_supercontainer(ophys_session_id: int) -> bool:
     id = {}
     '''.format(ophys_session_id)
     supercontainer_id = mixin.select(query)
-    return supercontainer_id is not None
+    return supercontainer_id.empty
+
 
 
 
@@ -652,8 +654,11 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
             ophys_session_id
             behavior_session_id
             foraging_id
+            ophys_container_id
+            supercontainer_id
             experiment_workflow_state
             session_workflow_state
+            container_workflow_state
             specimen_id
             donor_id
             specimen_name
@@ -666,6 +671,8 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
             experiment_storage_directory
             behavior_storage_directory
             session_storage_directory
+            container_storage_directory
+            supercontainer_storage_directory
             specimen_storage_directory
     """
     conditions.validate_key_in_dict_keys(id_type,
@@ -678,7 +685,7 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
     oe.id 								 AS ophys_experiment_id,
     oe.ophys_session_id,
     bs.id 								 AS behavior_session_id,
-    os.foraging_id
+    os.foraging_id,
     oe.workflow_state 	 AS experiment_workflow_state,
     os.workflow_state 	 AS session_workflow_state,
     os.specimen_id,
@@ -690,7 +697,6 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
     imaging_depths.depth,
     equipment.name 		AS equipment_name,
     projects.code 		AS project,
-
     oe.storage_directory 		AS experiment_storage_directory,
     bs.storage_directory 		AS behavior_storage_directory,
     os.storage_directory 		AS session_storage_directory,
@@ -720,6 +726,12 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
 
     # ensure operating system compatible filepaths
     general_info = correct_LIMS_storage_directory_filepaths(general_info)
+    general_info["ophys_container_id"] = np.nan
+    general_info["supercontainer_id"] = np.nan
+    general_info["container_workflow_state"] = "NA"
+    general_info["container_storage_directory"] = "NA"
+    general_info["supercontainer_storage_directory"] = "NA"
+
 
     return general_info
 #####################################################################
@@ -729,29 +741,27 @@ def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: i
 #####################################################################
 
 
-def correct_LIMS_storage_directory_filepaths(dataframe: pd.DataFrame) -> pd.DataFrame:
-    """_summary_
+def correct_LIMS_storage_directory_filepaths(df: pd.DataFrame) -> pd.DataFrame:
+    """corrects filepaths in a dataframe to be compatible with the
+    operating system.
+    
+    Columns with "storage_directory" in the name will be corrected.
 
     Parameters
     ----------
-    dataframe : pd.DataFrame
-        _description_
+    df : pd.DataFrame
+        input dataframe.
 
     Returns
     -------
     pd.DataFrame
         _description_
     """
-    storage_directory_columns_list = ['specimen_storage_directory',
-                                      'experiment_storage_directory',
-                                      'behavior_storage_directory',
-                                      'session_storage_directory',
-                                      'container_storage_directory'
-                                      ]
-
+    
+    storage_directory_columns_list = [col for col in df.columns if 'storage_directory' in col]
     for column in storage_directory_columns_list:
-        dataframe = utils.correct_dataframe_filepath(dataframe, column)
-    return dataframe
+        df = utils.correct_dataframe_filepath(df, column)
+    return df
 
 
 def get_specimen_storage_directory(specimen_id: int) -> str:
