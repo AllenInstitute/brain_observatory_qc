@@ -207,6 +207,72 @@ def get_value_from_table(search_key, search_value, target_table, target_key):
     else:
         return None
 
+
+#####################################################################
+#
+#           CHECK FOR CONTAINERS
+#
+#####################################################################
+
+
+def check_experiment_for_container(ophys_experiment_id: int) -> bool:
+    """queries the LIMS database to determine if an experiment has an
+     associated container
+
+
+    Parameters
+    ----------
+    ophys_experiment_id : int
+        ohys experiment ID
+
+    Returns
+    -------
+    bool
+        True if the experiment has a container, False otherwise
+    """
+    query = '''
+    SELECT
+    visual_behavior_experiment_container_id
+
+    FROM
+    ophys_experiments_visual_behavior_experiment_containers
+
+    WHERE
+    ophys_experiment_id = {}
+    '''.format(ophys_experiment_id)
+    container_id = mixin.select(query)
+    return container_id is not None
+
+
+def check_session_for_supercontainer(ophys_session_id: int) -> bool:
+    """queries the LIMS database to determine if a session has an
+        associated supercontainer
+
+    Parameters
+    ----------
+    ophys_session_id : int
+        session ID
+
+    Returns
+    -------
+    bool
+        True if the session has a supercontainer, False otherwise
+    """
+    query = '''
+    SELECT
+    visual_behavior_supercontainer_id
+
+    FROM
+    ophys_sessions
+
+    WHERE
+    id = {}
+    '''.format(ophys_session_id)
+    supercontainer_id = mixin.select(query)
+    return supercontainer_id is not None
+
+
+
 #####################################################################
 #
 #           GET IDS & ID TYPES
@@ -345,7 +411,7 @@ def get_all_imaging_ids_for_imaging_id(id_type: str, id_number: int) -> pd.DataF
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
 
-    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    LEFT JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
 
     LEFT JOIN visual_behavior_supercontainers vbs
@@ -533,10 +599,10 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     JOIN behavior_sessions bs
     ON bs.foraging_id = os.foraging_id
 
-    LEFT JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
+    JOIN ophys_experiments_visual_behavior_experiment_containers oevbec
     ON oe.id = oevbec.ophys_experiment_id
 
-    LEFT JOIN visual_behavior_experiment_containers vbec
+    JOIN visual_behavior_experiment_containers vbec
     ON vbec.id = oevbec.visual_behavior_experiment_container_id
 
     LEFT JOIN visual_behavior_supercontainers vbs
@@ -561,6 +627,101 @@ def get_general_info_for_LIMS_imaging_id(id_type: str, id_number: int) -> pd.Dat
     return general_info
 
 
+def get_general_info_for_LIMS_imaging_id_no_container(id_type: str, id_number: int) -> pd.DataFrame:
+    """combines columns from several different lims tables to provide
+    some basic overview information.
+
+    Parameters
+    ----------
+    id_type : string
+        the type of lims_id that is being entered. (i.e :ophys_experiment_id)
+        Acceptable id_types are found in the keys in the GEN_INFO_QUERY_DICT.
+        Current options are:
+            "ophys_experiment_id"
+            "ophys_session_id"
+            "behavior_session_id"
+    id_number : int
+        the id number for the unique experiment, ophys_session,
+        behavior_session etc. Usually a 9 digit number.
+
+    Returns
+    -------
+    pd.DataFrame
+        table with the following columns:
+            ophys_experiment_id
+            ophys_session_id
+            behavior_session_id
+            foraging_id
+            experiment_workflow_state
+            session_workflow_state
+            specimen_id
+            donor_id
+            specimen_name
+            date_of_acquisition
+            session_type
+            targeted_structure
+            depth
+            equipment_name
+            project
+            experiment_storage_directory
+            behavior_storage_directory
+            session_storage_directory
+            specimen_storage_directory
+    """
+    conditions.validate_key_in_dict_keys(id_type,
+                                         GEN_INFO_QUERY_DICT,
+                                         "GEN_INFO_QUERY_DICT")
+    
+    validate_LIMS_id_type(id_type, id_number)
+    query = '''
+    SELECT
+    oe.id 								 AS ophys_experiment_id,
+    oe.ophys_session_id,
+    bs.id 								 AS behavior_session_id,
+    os.foraging_id
+    oe.workflow_state 	 AS experiment_workflow_state,
+    os.workflow_state 	 AS session_workflow_state,
+    os.specimen_id,
+    specimens.donor_id,
+    specimens.name 		AS specimen_name,
+    os.date_of_acquisition,
+    os.stimulus_name 	AS session_type,
+    structures.acronym  AS targeted_structure,
+    imaging_depths.depth,
+    equipment.name 		AS equipment_name,
+    projects.code 		AS project,
+
+    oe.storage_directory 		AS experiment_storage_directory,
+    bs.storage_directory 		AS behavior_storage_directory,
+    os.storage_directory 		AS session_storage_directory,
+    specimens.storage_directory AS specimen_storage_directory
+
+    FROM
+    ophys_experiments oe
+
+    JOIN ophys_sessions os
+    ON os.id = oe.ophys_session_id
+
+    JOIN behavior_sessions bs
+    ON bs.foraging_id = os.foraging_id
+
+    JOIN projects 		ON projects.id = os.project_id
+    JOIN specimens 		ON specimens.id = os.specimen_id
+    JOIN structures 	ON structures.id = oe.targeted_structure_id
+    JOIN imaging_depths ON imaging_depths.id = oe.imaging_depth_id
+    JOIN equipment 		ON equipment.id = os.equipment_id
+
+    WHERE
+    {} = {}
+    '''.format(GEN_INFO_QUERY_DICT[id_type]["query_abbrev"],
+               id_number)
+
+    general_info = mixin.select(query)
+
+    # ensure operating system compatible filepaths
+    general_info = correct_LIMS_storage_directory_filepaths(general_info)
+
+    return general_info
 #####################################################################
 #
 #           FILEPATHS & STORAGE DIRECTORIES
