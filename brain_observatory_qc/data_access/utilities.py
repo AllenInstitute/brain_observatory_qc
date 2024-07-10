@@ -305,6 +305,24 @@ def correct_filepath(filepath):
     return corrected_path
 
 
+def apply_filepath_correction(filepath):
+    """Check if the filepath is empty or 'NA' and apply correction if necessary.
+
+    Parameters
+    ----------
+    filepath : string
+        Given filepath
+
+    Returns
+    -------
+    string
+        Corrected filepath or the original value if it's empty or 'NA'
+    """
+    if pd.isna(filepath) or filepath == "NA" or filepath == "":
+        return filepath
+    return correct_filepath(filepath)
+
+
 def correct_dataframe_filepath(dataframe, column_string):
     """applies the correct_filepath function to a given dataframe
     column, replacing the filepath in that column in place
@@ -324,7 +342,7 @@ def correct_dataframe_filepath(dataframe, column_string):
         returns the input dataframe with the filepath in the given
         column 'corrected' for the users operating system, in place
     """
-    dataframe[column_string] = dataframe[column_string].apply(lambda x: correct_filepath(x))
+    dataframe[column_string] = dataframe[column_string].apply(lambda x: apply_filepath_correction(x))
     return dataframe
 
 
