@@ -896,29 +896,40 @@ def get_general_info_for_ophys_experiment_id(ophys_experiment_id: int) -> pd.Dat
     Returns
     -------
     DataFrame
-        dataframe with the following columns:
-            ophys_experiment_id
-            ophys_session_id
-            behavior_session_id
-            foraging_id
-            ophys_container_id
-            supercontainer_id
-            experiment_workflow_state
-            session_workflow_state
-            container_workflow_state
-            specimen_id
-            donor_id
-            specimen_name
-            date_of_acquisition
-            session_type
-            targeted_structure
-            depth
-            equipment_name
-            project
-            experiment_storage_directory
-            session_storage_directory
+        table with the following columns:
+            'ophys_experiment_id',
+            'ophys_session_id',
+            'behavior_session_id',
+            'foraging_id',
+            'ophys_container_id',
+            'supercontainer_id',
+            'experiment_workflow_state',
+            'session_workflow_state',
+            'container_workflow_state',
+            'specimen_id',
+            'donor_id',
+            'specimen_name',
+            'date_of_acquisition',
+            'session_type',
+            'targeted_structure',
+            'depth',
+            'equipment_name',
+            'project',
+            'experiment_storage_directory',
+            'behavior_storage_directory',
+            'session_storage_directory',
+            'container_storage_directory',
+            'supercontainer_storage_directory',
+            'specimen_storage_directory'
     """
-    general_info = lims_utils.get_general_info_for_LIMS_imaging_id("ophys_experiment_id", ophys_experiment_id)
+    
+    
+    missing_container = lims_utils.experiment_missing_container(ophys_experiment_id)
+    if missing_container == False:
+        general_info = lims_utils.get_general_info_for_LIMS_imaging_id("ophys_experiment_id", ophys_experiment_id)
+    else:
+        general_info = lims_utils.get_general_info_for_LIMS_imaging_id_no_container("ophys_experiment_id", ophys_experiment_id)
+
     return general_info
 
 
