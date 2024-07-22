@@ -304,9 +304,81 @@ def get_experiment_ids_for_session_ids(ophys_session_list:list)-> tuple:
     return exp_id_df, exp_id_list
 
 
+def get_session_ids_for_mouse_ids(mouse_ids_list:list)-> pd.DataFrame:
+    """gets all ophys session ids for a list of mouse ids
+
+    Parameters
+    ----------
+    mouse_ids_list : list
+        list of mouse ids
+
+    Returns
+    -------
+    pd.DataFrame
+        table with the following columns:
+            ophys_session_id
+            date
+            mouse_id
+    """
+    session_ids = metrics_records.aggregate([
+        {'$match': {
+            'lims_ophys_session.external_specimen_name': {'$in': mouse_ids_list}}}, 
+        {'$addFields': {
+            'date'            :'$lims_ophys_session.date_of_acquisition',
+            'ophys_session_id': '$lims_ophys_session.id',
+            'mouse_id'        : '$lims_ophys_session.external_specimen_name'}}, 
+        {'$project': {
+            'ophys_session_id': 1, 
+            'date'            : 1, 
+            'mouse_id'        : 1}}
+    ])
+    
+    ids_df = query_results_to_df(session_ids)
+    ids_df = ids_df.rename(columns={"date": "date_time"})
+    return ids_df
+
+
+def get_experiment_ids_for_mouse_ids(mouse_ids_list:list)-> pd.DataFrame:
+    """gets all ophys experiment ids for a list of mouse ids
+
+    Parameters
+    ----------
+    mouse_ids_list : list
+        list of mouse ids
+
+    Returns
+    -------
+    pd.DataFrame
+        table with the following columns:
+            ophys_session_id,
+            ophys_experiment_id,
+            mouse_id
+            date
+    """
+    exps_for_mice = metrics_records.aggregate([
+        {'$match': {
+            'lims_ophys_session.external_specimen_name': {'$in': mouse_ids_list}}}, 
+        {'$addFields': {
+            'ophys_session_id'   : '$lims_ophys_session.id', 
+            'ophys_experiment_id': '$lims_ophys_session.ophys_experiment_ids',
+            'mouse_id'           : '$lims_ophys_session.external_specimen_name',
+            'date'               : '$lims_ophys_session.date_of_acquisition'}}, 
+        {'$project': {
+            'ophys_session_id'   : 1, 
+            'ophys_experiment_id': 1, 
+            'mouse_id'           : 1,
+            'date'               : 1}},
+        {'$unwind': {
+            'path': '$ophys_experiment_id', 
+            'preserveNullAndEmptyArrays': True}}
+        ])
+    exp_id_df = query_results_to_df(exps_for_mice)
+    return exp_id_df
+
+
 ##################################
 #  GET METADATA 
-#
+#  Session & Experiment
 ##################################
 
 
@@ -1058,9 +1130,9 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
     return session_qc_info_df
 
 
-def summarize_mouse_df(df:pd.DataFrame,
-                       csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
-                       csv_path: str = None)-> pd.DataFrame:
+def current_mice_df(df:pd.DataFrame,
+                              csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
+                              csv_path: str = None)-> pd.DataFrame:
     """ takes the session_qc_info_df and returns the
     last entry for each mouse
 
@@ -1073,10 +1145,12 @@ def summarize_mouse_df(df:pd.DataFrame,
     -------
     pd.DataFrame
         table with the following columns:
+            project_group: str,
+            project:  str,
             mouse_id: str,
             genotype: str,
-            date:      datetime.date,
-            stimulus:  str
+            date:     datetime.date,
+            stimulus: str
     """
     # Ensure the dataframe is sorted by mouse_id and date_time
     df = df.sort_values(by=['mouse_id', 'date_time'])
@@ -1091,6 +1165,7 @@ def summarize_mouse_df(df:pd.DataFrame,
                            'genotype',
                            'date',
                            'stimulus']]
+    result = result.sort_values(by=['project_group', 'project', 'genotype']).reset_index(drop=True)
     
     # Save as CSV if a path is provided
     if csv_path:
@@ -1172,6 +1247,7 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
         exp_qc_info_df.to_csv(full_path, index=False)
 
     return exp_qc_info_df
+
 
 def gen_tags_df_for_ids(ophys_session_ids:list,
                         ophys_experiment_ids:list)-> tuple:
