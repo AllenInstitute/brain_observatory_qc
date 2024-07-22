@@ -17,6 +17,7 @@ NUM_DAYS = 30 # Number of days to look back for data
 CSV_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\csvs"
 PLOT_SAVE_PATH = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\plots"
 PDF_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\reports"
+
 # #################
 # # CONNECT TO MONGO HOST 
 # #################
@@ -39,9 +40,9 @@ __, experiment_ids_list = mqc.get_experiment_ids_for_session_ids(sessions_df["op
 experiments_df = mqc.gen_experiment_qc_info_for_ids(experiment_ids_list,
                                                     csv_path = CSV_SAVE_PATH)
 
-# Mouse summary for all mice within that date range
-mouse_df = mqc.summarize_mouse_df(sessions_df,
-                                  csv_path = CSV_SAVE_PATH)
+# latest session for all current mice
+mouse_df = mqc.current_mice_df(sessions_df,
+                               csv_path = CSV_SAVE_PATH)
 
 #################
 # PLOT QC STATUS FOR SESSIONS & EXPERIMENTS
@@ -58,6 +59,21 @@ qc_plots.plot_qc_submit_status_matrix(exp_qc_status,
                                       ylabel ="Experiment ID",
                                       show_labels=False)
 
+# MOUSE SPECIFIC QC GENERATION & SUBMISSION STATUS
+mouse_exp_qc_status = experiments_df[["mouse_id",
+                                      "ophys_experiment_id",
+                                      "generation_status",
+                                      "review_status",
+                                      "qc_outcome"]]
+
+for mouse_id, group_df in mouse_exp_qc_status.groupby('mouse_id'):
+    plot_title = "Mouse {} QC Generation & Submission Status".format(mouse_id)
+    qc_plots.plot_qc_submit_status_matrix(group_df,
+                                          "ophys_experiment_id",
+                                          ylabel = "Experiment ID",
+                                          title = plot_title,
+                                          show_labels = False)
+
 #################
 # PLOT IMPACTED DATA FOR COMPLETED QC
 #################
@@ -65,3 +81,24 @@ completed_sess_list = sess_qc_status.loc[sess_qc_status["review_status"]=="compl
                                          "ophys_session_id"].tolist()
 completed_exp_list  = sess_qc_status.loc[sess_qc_status["review_status"]=="complete", 
                                          "ophys_session_id"].tolist()
+
+qc_plots.plot_impacted_data_outcomes_matrix(completed_sess_list,
+                                             "ophys_session_id",
+                                             ylabel="Session ID")
+
+qc_plots.plot_impacted_data_outcomes_matrix(completed_exp_list, 
+                                             "ophys_experiment_id",
+                                             ylabel="Experiment ID")
+#################
+# TAG FREQUENCY PLOTS
+#################
+
+# Get all tags for sessions & experiments
+tags_df, other_tags_df, overrides_df = mqc.gen_tags_df_for_ids(completed_sess_list,
+                                                               completed_exp_list)
+qc_plots.plot_qc_tag_frequency(tags_df)
+
+
+#################
+# TAG FREQUENCY PLOTS
+#################
