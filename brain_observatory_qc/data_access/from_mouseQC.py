@@ -309,8 +309,8 @@ def get_session_ids_for_mouse_ids(mouse_ids_list:list)-> pd.DataFrame:
 
     Parameters
     ----------
-    mouse_ids_list : list
-        list of mouse ids
+    mouse_ids_list : list of strings
+        list of mouse ids 
 
     Returns
     -------
@@ -343,7 +343,7 @@ def get_experiment_ids_for_mouse_ids(mouse_ids_list:list)-> pd.DataFrame:
 
     Parameters
     ----------
-    mouse_ids_list : list
+    mouse_ids_list : list of strings
         list of mouse ids
 
     Returns
