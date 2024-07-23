@@ -59,7 +59,7 @@ qc_plots.plot_qc_submit_status_matrix(exp_qc_status,
                                       "ophys_experiment_id",
                                       ylabel ="Experiment ID",
                                       show_labels=False)
-sess_gen_failed = 
+
 # MOUSE SPECIFIC QC GENERATION & SUBMISSION STATUS
 mouse_exp_qc_status = experiments_df[["mouse_id",
                                       "ophys_experiment_id",
