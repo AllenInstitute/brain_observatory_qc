@@ -6,6 +6,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 
 import brain_observatory_qc.data_access.from_mouseQC as mqc
+from brain_observatory_qc.data_access.utilities import correct_filepath
 import brain_observatory_qc.visualizations.plotting_functions as qc_plots
 
 #################
@@ -14,9 +15,9 @@ import brain_observatory_qc.visualizations.plotting_functions as qc_plots
 NUM_DAYS = 30 # Number of days to look back for data
 
 
-CSV_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\csvs"
-PLOT_SAVE_PATH = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\plots"
-PDF_SAVE_PATH  = "\\allen\programs\mindscope\workgroups\learning\mouse-qc\reports"
+CSV_SAVE_PATH  = correct_filepath("\\allen\programs\mindscope\workgroups\learning\mouse-qc\csvs")
+PLOT_SAVE_PATH = correct_filepath("\\allen\programs\mindscope\workgroups\learning\mouse-qc\plots")
+PDF_SAVE_PATH  = correct_filepath("\\allen\programs\mindscope\workgroups\learning\mouse-qc\reports")
 
 # #################
 # # CONNECT TO MONGO HOST 
@@ -58,7 +59,7 @@ qc_plots.plot_qc_submit_status_matrix(exp_qc_status,
                                       "ophys_experiment_id",
                                       ylabel ="Experiment ID",
                                       show_labels=False)
-
+sess_gen_failed = 
 # MOUSE SPECIFIC QC GENERATION & SUBMISSION STATUS
 mouse_exp_qc_status = experiments_df[["mouse_id",
                                       "ophys_experiment_id",
