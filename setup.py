@@ -14,7 +14,8 @@ setup(name='brain_observatory_qc',
         'pytest',
         'allensdk',
         'pystackreg',
-        'dask'
+        'dask',
+        'fpdf'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',
