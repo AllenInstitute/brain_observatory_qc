@@ -123,6 +123,7 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
                              id_col: str,
                              color_mapping: dict,
                              save_path: str = None,
+                             save_name: str = None,
                              xlabel: str = None,
                              ylabel: str = None,
                              title: str = None,
@@ -200,11 +201,12 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
     labels = list(color_mapping.keys())
     ax.legend(handles, labels, title="Legend", bbox_to_anchor=(1.05, 1), loc='upper left')
 
-    # Save the plot if a save path is provided, otherwise show the plot
-    if save_path:
-        plt.savefig(save_path, bbox_inches='tight')
-    else:
-        plt.show()
+    if save_path and save_name:
+        save_file = os.path.join(save_path, save_name)
+        plt.savefig(save_file)
+        print(f'Saved plot to {save_file}')
+ 
+    plt.show()
 
 
 ######################################
@@ -300,6 +302,7 @@ def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame,
                                        id_col: str = "data_id",
                                        color_mapping:dict=pass_flag_fail_palette,
                                        save_path: str = None,
+                                       save_name: str = "impacted_data_qc_outcomes_matrix_{}.png".format(TODAY),
                                        xlabel:str="Impacted Data",
                                        ylabel:str="Data ID",
                                        title:str="Impacted Data QC Outcomes",
@@ -335,6 +338,7 @@ def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame,
                              id_col=id_col,
                              color_mapping=color_mapping,
                              save_path=save_path,
+                             save_name=save_name,
                              xlabel=xlabel,
                              ylabel=ylabel,
                              title=title,
@@ -345,6 +349,7 @@ def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame,
                                 id_col: str = "data_id",
                                 color_mapping:dict=qc_gen_sub_status_palette,
                                 save_path: str = None,
+                                save_name: str = "qc_submit_status_matrix_{}.png".format(TODAY),
                                 xlabel:str="QC Status",
                                 ylabel:str="Data ID",
                                 title:str="QC Generation & Submission Status",
@@ -380,6 +385,7 @@ def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame,
                             id_col=id_col,
                             color_mapping=color_mapping,
                             save_path=save_path,
+                            save_name=save_name,
                             xlabel=xlabel,
                             ylabel=ylabel,
                             title=title,
