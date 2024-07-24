@@ -1,11 +1,17 @@
+#################
+# IMPORTS
+#################
+
+import os
+import numpy as np
 import pandas as pd
-from fpdf import FPDF
-import seaborn as sns
-import matplotlib.pyplot as plt
+from datetime import datetime
 from matplotlib.backends.backend_pdf import PdfPages
 
 
+
 import brain_observatory_qc.data_access.from_mouseQC as mqc
+from brain_observatory_qc.reports.pdf_utils import PdfReport
 from brain_observatory_qc.data_access.utilities import correct_filepath
 import brain_observatory_qc.visualizations.plotting_functions as qc_plots
 
@@ -20,15 +26,11 @@ PLOT_SAVE_PATH = correct_filepath("\\allen\programs\mindscope\workgroups\learnin
 PDF_SAVE_PATH  = correct_filepath("\\allen\programs\mindscope\workgroups\learning\mouse-qc\reports")
 
 # #################
-# # CONNECT TO MONGO HOST 
+# SET UP PDF REPORT
 # #################
-# mongo_connection = mqc.connect_to_mouseqc_production()
+report_name="Ophys QC Summary {}-{}.pdf".format(datetime.datetime.now().strftime("%Y-%m-%d"),   )
+pdf = PdfReport("aind-ephys-rig-qc v" )
 
-# qc_logs, metrics_records,\
-# images_records, report_generation_status,\
-# module_group_status, report_review_status = mqc.get_records_collections(mongo_connection)
-
-# metrics, controlled_language_tags = mqc.get_report_components_collections(mongo_connection)
 
 #################
 # Get SESSIONS & EXPERIMENTS FOR DATE RANGE
