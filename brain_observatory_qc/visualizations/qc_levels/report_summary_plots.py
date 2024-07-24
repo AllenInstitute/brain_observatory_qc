@@ -15,6 +15,7 @@ pass_flag_fail_palette = {
     'missing': '#D3D3D3', # Light gray
 }
 
+# Submission status palette
 qc_gen_sub_status_palette = {
      "error"     :"#a6611a",  # brown
      "complete"  :"#940094",  # purple
@@ -24,6 +25,15 @@ qc_gen_sub_status_palette = {
      "fail"      :"#fb8072"   # light red
 }
 
+general_qc_status_palette = {
+    'error'     :'#a6611a',  # brown
+    'complete'  :'#940094',  # purple
+    'incomplete':'#4a0094',  # blue
+    'pass'   : '#4CAF50', # Green
+    'flag'   : '#FFC107', # Amber
+    'fail'   : '#F44336', # Red
+    'missing': '#D3D3D3', # Light gray
+}
 
 ######################################
 #
@@ -64,6 +74,49 @@ def create_qc_tag_bar_plot(df:pd.DataFrame,
     ax.set_title(title)
     ax.set_xlabel('Frequency')
     ax.set_ylabel('QC Tag')
+
+
+def create_qc_status_bar_plot(df:pd.DataFrame,
+                              status_col:str,
+                              ax:matplotlib.axes.Axes,
+                              title:str,
+                              palette:dict=general_qc_status_palette):
+    """Create a qc status frequency bar plot for the given DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        qc status df: table with following structure:
+            - session or experiment id
+            - column with qc status such as: 'generation_status', 'review_status', 'qc_outcome'
+    status_col : str
+        name of the column that contains the status values
+    ax : matplotlib.axes.Axes
+        Axes object to draw the plot
+    title : str
+        title for the plot
+    palette : dict, optional
+        dictionary with following structure: {status_string: color, status_string: color},
+        by default general_qc_status_palette
+    """
+    # Get frequency of each status
+    freq_df = df[status_col].value_counts().reset_index()
+    freq_df.columns = [status_col, 'frequency']
+
+    # Order by frequency
+    freq_df = freq_df.sort_values('frequency', ascending=False)
+
+    # Create a bar plot
+    sns.barplot(x=status_col,
+                y='frequency',
+                hue=status_col,
+                data=freq_df,
+                palette=palette,
+                dodge=False,
+                ax=ax)
+    ax.set_title(title)
+    ax.set_ylabel('Count')
+    ax.legend_.remove()
 
 
 def plot_status_by_id_matrix(df: pd.DataFrame,
@@ -152,7 +205,8 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
         plt.savefig(save_path, bbox_inches='tight')
     else:
         plt.show()
-    
+
+
 ######################################
 #
 #          MAIN PLOTTING FUNCTIONS
@@ -196,6 +250,50 @@ def plot_qc_tag_frequency(df,
         print(f'Saved plot to {save_file}')
 
     plt.show()
+
+def plot_qc_status_frequency(df,
+                             save_path:str=None,
+                             save_name:str="qc_status_frequency_{}.png".format(TODAY)):
+    """
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        qc status df: table with following structure:
+            - session or experiment id
+            - 'generation_status' 
+            - 'review_status'
+            - 'qc_outcome'
+    save_path : str, optional
+        Directory path to save the plot, by default None
+    save_name : str, optional
+        _description_, by default None
+    """
+
+    # Plot settings
+    fig, axs = plt.subplots(1, 3, figsize=(16, 8), sharey=False)
+
+    # Create plots for session and experiment data
+    create_qc_status_bar_plot(df, "generation_status", axs[0], 'Generation Status Frequency')
+    create_qc_status_bar_plot(df, "review_status", axs[1], 'Review Status Frequency')
+    create_qc_status_bar_plot(df, "qc_outcome", axs[2], 'QC Outcome Frequency')
+    
+    # add figure title 
+    data_type = identify_experiment_or_session(df)
+    fig.suptitle('{} qc status frequency'.format(data_type), 
+                 fontsize=16)
+
+
+    plt.tight_layout()
+
+    # Save the plot if a save path and name are provided
+    if save_path and save_name:
+        save_file = os.path.join(save_path, save_name)
+        plt.savefig(save_file)
+        print(f'Saved plot to {save_file}')
+
+    plt.show()
+
 
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
@@ -286,3 +384,53 @@ def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame,
                             ylabel=ylabel,
                             title=title,
                             show_labels=show_labels)
+
+
+######################################
+#
+#          UTILITY FUNCTIONS
+######################################
+
+def identify_experiment_or_session(df:pd.DataFrame, id_column:str=None)->str:
+    """Identify if the id column name contains the words 'session' or 'experiment'.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe with an id column with the type of id in the column name
+    id_column : str, optional
+        name of the id column, by default None (will use the first column in the dataframe)
+
+    Returns
+    -------
+    str
+        empty string if the id column does not contain 'session' or 'experiment'
+        otherwise returns 'session' or 'experiment'
+
+    Raises
+    ------
+    ValueError
+        if the provided id_column is not a string
+    ValueError
+        if the provided id_column does not exist in the DataFrame
+    """
+
+    # Ensure the id_column is a string
+    if id_column is not None and not isinstance(id_column, str):
+        raise ValueError("The id_column parameter must be a string.")
+    
+    if id_column is None:
+        id_column = df.columns[0]
+    
+    # Ensure the id_column exists in the DataFrame
+    if id_column not in df.columns:
+        raise ValueError(f"Column '{id_column}' does not exist in the DataFrame.")
+    
+    # Check if the column name contains 'session' or 'experiment'
+    result = ''
+    if 'experiment' in id_column.lower():
+        result = 'experiment'
+    elif 'session' in id_column.lower():
+        result = 'session'
+    
+    return result
