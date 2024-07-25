@@ -13,10 +13,10 @@ from datetime import datetime, timedelta,  timezone
 
 
 PROJECT_GROUPS_DICT = {
-    "learning_mfish": ['LearningmFISHDevelopment','LearningmFISHTask1A'],          # noqa: E241
-    "omFISH_V1_U01":  ['omFISHRbp4Meso','omFISHSstMeso', 'U01BFCT', 'omFISHGad2Meso'],               # noqa: E241, E501
-    "open_scope":     ['OpenScopeDendriteCoupling','OpenScopeSequenceLearning'],   # noqa: E241, E501
-    "hardware_dev":   ['MesoscopeDevelopment']                                     # noqa: E241, E501
+    "learning_mfish": ['LearningmFISHDevelopment','LearningmFISHTask1A'],               # noqa: E241
+    "omFISH_V1_U01":  ['omFISHRbp4Meso','omFISHSstMeso', 'U01BFCT', 'omFISHGad2Meso'],  # noqa: E241, E501
+    "open_scope":     ['OpenScopeDendriteCoupling','OpenScopeSequenceLearning'],        # noqa: E241, E501
+    "hardware_dev":   ['MesoscopeDevelopment']                                          # noqa: E241, E501
 }
 
 QC_SUBMIT_STATUS_DICT = {
@@ -1131,8 +1131,8 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
 
 
 def current_mice_df(df:pd.DataFrame,
-                              csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
-                              csv_path: str = None)-> pd.DataFrame:
+                    csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
+                    csv_path: str = None)-> pd.DataFrame:
     """ takes the session_qc_info_df and returns the
     last entry for each mouse
 

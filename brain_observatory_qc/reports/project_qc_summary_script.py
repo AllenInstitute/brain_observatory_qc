@@ -41,7 +41,7 @@ pdf = PdfReport(report_name)
 
 # Get all Sessions 
 all_sessions = mqc.gen_session_qc_info_for_date_range(range_in_days = NUM_DAYS,
-                                                     csv_path      = CSV_SAVE_PATH)
+                                                      csv_path = CSV_SAVE_PATH)
 # latest session for all current mice
 mouse_df = mqc.current_mice_df(all_sessions,
                                csv_path = CSV_SAVE_PATH)
@@ -92,7 +92,8 @@ for project_group, group_df in production_sessions.groupby('project_group'):
     plot_save_name = "{}_ophys_session_impacted_data_outcomes_{}-{}.png".format(project_group,
                                                                                 STRT_DATE,
                                                                                 TODAY)
-    qc_plots.plot_impacted_data_outcomes_matrix(completed_sess_list,
+    data_outcomes_df = mqc.gen_session_impacted_data_outcome_df(completed_sess_list)
+    qc_plots.plot_impacted_data_outcomes_matrix(data_outcomes_df,
                                              id_col = "ophys_session_id",
                                              save_name = plot_save_name,
                                              save_path = PLOT_SAVE_PATH,
@@ -142,7 +143,8 @@ for project_group, group_df in production_sessions.groupby('project_group'):
                                                                                    STRT_DATE,
                                                                                    TODAY)
     
-    qc_plots.plot_impacted_data_outcomes_matrix(completed_exp_list,
+    data_outcomes_df = mqc.gen_experiment_impacted_data_outcome_df(completed_exp_list)
+    qc_plots.plot_impacted_data_outcomes_matrix(data_outcomes_df,
                                              "ophys_experiment_id",
                                              ylabel="Experiment ID")
     
