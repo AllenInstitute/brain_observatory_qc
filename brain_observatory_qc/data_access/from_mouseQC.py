@@ -448,10 +448,17 @@ def get_experiment_metadata_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     pd.DataFrame
         dataframe with basic info for ophys experiments
         columns:
+            genotype,
+            mouse_id,
+            project,
+            stimulus,
             ophys_experiment_id,
             ophys_session_id,
             area,
-            depth
+            depth,
+            datetime,
+            date,
+            week,
     """
     exp_info = metrics_records.aggregate([
         {'$match': {
@@ -488,6 +495,7 @@ def get_experiment_metadata_for_ids(experiment_ids_list:list)-> pd.DataFrame:
     ])
     exp_df = query_results_to_df(exp_info)
     exp_df = clean_metadata_records_df(exp_df,
+                                       date_col="datetime",
                                        project_col= None)
     return exp_df
 
@@ -1238,12 +1246,14 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
                                      "genotype",
                                      "ophys_session_id",
                                      "ophys_experiment_id",
+                                     "date",
                                      "area",
                                      "depth",
                                      "generation_status",
                                      "review_status",
                                      "qc_outcome",
                                      "stimulus",
+                                     "week",
                                      "datetime",
                                      "project"]]
     
