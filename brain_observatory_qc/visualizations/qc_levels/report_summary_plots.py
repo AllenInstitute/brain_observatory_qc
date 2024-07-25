@@ -122,6 +122,7 @@ def create_qc_status_bar_plot(df:pd.DataFrame,
 def plot_status_by_id_matrix(df: pd.DataFrame,
                              id_col: str,
                              color_mapping: dict,
+                             week_col: str = None,
                              save_path: str = None,
                              save_name: str = None,
                              xlabel: str = None,
@@ -129,30 +130,33 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
                              title: str = None,
                              figsize: tuple = (10, 8),
                              show_labels: bool = True):
-    """a generic function that will take a dataframe of a specific structure
-    and create a colored grid plot based on the values in the dataframe
-    y axis: ids 
-    x axis: all other columns in the dataframe
+    """
+    A generic function that will take a dataframe of a specific structure
+    and create a colored grid plot based on the values in the dataframe.
+    Y axis: ids 
+    X axis: all other columns in the dataframe.
 
     Parameters
     ----------
     df : pd.DataFrame
-        a dataframe with a specific structure:
-        - first column is an id column (e.g. ophys_session_id, ophys_experiment_id)
-        - all remaining columns contain string values that are keys in the color_mapping dictionary
-        the strings represent the status of the given column
+        A dataframe with a specific structure:
+        - id_col: a column (e.g. ophys_session_id, ophys_experiment_id)
+        - all remaining columns contain string values that are keys in the color_mapping dictionary.
+          The strings represent the status of the given column.
 
-        example: df with columns: ophys_session_id, data_stream_1, data_stream_2, data_stream_3
+        Example: df with columns: ophys_session_id, data_stream_1, data_stream_2, data_stream_3
         where all the string data_stream columns can be "pass", "flag", "fail"
 
     color_mapping : dict
-        the color mapping dictionary that maps the string values in the dataframe to colors
+        The color mapping dictionary that maps the string values in the dataframe to colors.
+    week_col : str, optional
+        Column name for weeks. If provided, session ids will be grouped by week.
     figsize : tuple, optional
-        size of the figure, by default (10,8)
+        Size of the figure, by default (10,8).
     save_path : str, optional
-        location to save the plot, by default None
+        Location to save the plot, by default None.
     show_labels : bool, optional
-        whether to show labels on the patches, by default True
+        Whether to show labels on the patches, by default True.
     """
     # Define default color for NaN values
     default_color = color_mapping.get('missing', '#D3D3D3')  # Light gray as default
@@ -162,6 +166,16 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
 
     # Plotting the colored grid
     fig, ax = plt.subplots(figsize=figsize)
+
+    # If week_col is provided, group the session IDs by week
+    if week_col:
+        unique_weeks = df[week_col].unique()
+        id_labels = []
+        for week in unique_weeks:
+            week_ids = df[df[week_col] == week][id_col].tolist()
+            id_labels.extend([f"{id} ({week})" for id in week_ids])
+    else:
+        id_labels = df[id_col].tolist()
 
     # Create a grid of colored boxes
     for (row_idx, col_idx), val in np.ndenumerate(df.iloc[:, 1:].values):
@@ -174,7 +188,7 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
     ax.set_xticks(np.arange(len(df.columns[1:])) + 0.5)
     ax.set_yticks(np.arange(len(df)) + 0.5)
     ax.set_xticklabels(df.columns[1:], rotation=90)
-    ax.set_yticklabels(df[id_col])
+    ax.set_yticklabels(id_labels)
 
     # Add gridlines
     ax.hlines(np.arange(len(df) + 1), *ax.get_xlim(), color='gray')
@@ -300,6 +314,7 @@ def plot_qc_status_frequency(df,
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
                                        id_col: str = "data_id",
+                                       week_col: str = None,
                                        color_mapping:dict=pass_flag_fail_palette,
                                        save_path: str = None,
                                        save_name: str = "impacted_data_qc_outcomes_matrix_{}.png".format(TODAY),
@@ -336,6 +351,7 @@ def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame,
     """
     plot_status_by_id_matrix(data_stream_outcomes_df,
                              id_col=id_col,
+                             week_col = week_col,
                              color_mapping=color_mapping,
                              save_path=save_path,
                              save_name=save_name,
@@ -347,6 +363,7 @@ def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame,
 
 def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame, 
                                 id_col: str = "data_id",
+                                week_col: str = None,
                                 color_mapping:dict=qc_gen_sub_status_palette,
                                 save_path: str = None,
                                 save_name: str = "qc_submit_status_matrix_{}.png".format(TODAY),
@@ -383,6 +400,7 @@ def plot_qc_submit_status_matrix(submit_status_df:pd.DataFrame,
     """
     plot_status_by_id_matrix(submit_status_df,
                             id_col=id_col,
+                            week_col=week_col,
                             color_mapping=color_mapping,
                             save_path=save_path,
                             save_name=save_name,
