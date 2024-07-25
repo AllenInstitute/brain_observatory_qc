@@ -57,7 +57,7 @@ production_sessions = all_sessions[all_sessions['project_group'].isin(PRODUCTION
 # SESSIONS 
 # group by project
 for project_group, group_df in production_sessions.groupby('project_group'):
-    group_df = group_df[["ophys_session_id", "generation_status", "review_status", "qc_outcome"]]
+    group_df = group_df[["ophys_session_id", "week", "generation_status", "review_status", "qc_outcome"]]
     
     ################
     # SESSION PLOTS
@@ -70,6 +70,7 @@ for project_group, group_df in production_sessions.groupby('project_group'):
     plot_title = "{} Session QC Generation & Submission Status".format(project_group)
     qc_plots.plot_qc_submit_status_matrix(group_df,
                                           id_col = "ophys_session_id",
+                                          week_col = "week",
                                           ylabel = "Session ID",
                                           title = plot_title,
                                           show_labels = False,
@@ -95,6 +96,7 @@ for project_group, group_df in production_sessions.groupby('project_group'):
     data_outcomes_df = mqc.gen_session_impacted_data_outcome_df(completed_sess_list)
     qc_plots.plot_impacted_data_outcomes_matrix(data_outcomes_df,
                                              id_col = "ophys_session_id",
+                                             week_col = "week",
                                              save_name = plot_save_name,
                                              save_path = PLOT_SAVE_PATH,
                                              ylabel="Session ID")
@@ -113,7 +115,7 @@ for project_group, group_df in production_sessions.groupby('project_group'):
     # get experiments for sessions
     __, experiment_ids_list = mqc.get_experiment_ids_for_session_ids(group_df["ophys_session_id"].tolist())
     exp_info = mqc.gen_experiment_qc_info_for_ids(experiment_ids_list)
-    plot_df = exp_info[["ophys_session_id", "generation_status", "review_status", "qc_outcome"]]
+    plot_df = exp_info[["ophys_session_id", "week", "generation_status", "review_status", "qc_outcome"]]
 
 
     # plot qc status for each experiment
@@ -121,6 +123,7 @@ for project_group, group_df in production_sessions.groupby('project_group'):
     plot_title = "{} Experiment QC Generation & Submission Status".format(project_group)
     qc_plots.plot_qc_submit_status_matrix(plot_df,
                                           id_col = "ophys_experiment_id",
+                                          week_col = "week",
                                           save_name = plot_save_name,
                                           save_path = PLOT_SAVE_PATH,
                                           ylabel = "Experiment ID",
