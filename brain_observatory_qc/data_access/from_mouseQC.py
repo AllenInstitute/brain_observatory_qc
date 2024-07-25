@@ -430,7 +430,7 @@ def get_metadata_for_session_ids(session_ids_list:list)-> pd.DataFrame:
     sessions_df = query_results_to_df(session_records)
     sessions_df = sessions_df.rename(columns={"data_id":"ophys_session_id", 
                                               "date": "date_time"})
-    sessions_df = clean_session_records_df(sessions_df)
+    sessions_df = clean_metadata_records_df(sessions_df)
     return sessions_df
 
 
@@ -487,6 +487,8 @@ def get_experiment_metadata_for_ids(experiment_ids_list:list)-> pd.DataFrame:
             'datetime': 1}}
     ])
     exp_df = query_results_to_df(exp_info)
+    exp_df = clean_metadata_records_df(exp_df,
+                                       project_col= None)
     return exp_df
 
 
@@ -543,7 +545,7 @@ def session_metadata_within_dates(start_date:datetime,
     sessions_df = query_results_to_df(timed_records)
     sessions_df = sessions_df.rename(columns={"data_id":"ophys_session_id", 
                                               "date": "date_time"})
-    sessions_df = clean_session_records_df(sessions_df)
+    sessions_df = clean_metadata_records_df(sessions_df)
     return sessions_df
 
 
@@ -1004,6 +1006,7 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
             operator:          str
             rig:               str
             date_time:         datetime64[ns]
+            week:              str
     """
     
     start_date, end_date = set_date_range(end_date_str, range_in_days)
@@ -1036,6 +1039,7 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
                                              "mouse_id",
                                              "genotype",
                                              "date",
+                                             "week",
                                              "ophys_session_id",
                                              "stimulus",
                                              "generation_status",
@@ -1074,6 +1078,7 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
             mouse_id:          str
             genotype:          str
             date:              datetime.date
+            week:              str
             ophys_session_id:  int64
             stimulus:          str
             generation_status: str
@@ -1112,6 +1117,7 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
                                              "mouse_id",
                                              "genotype",
                                              "date",
+                                             "week",
                                              "ophys_session_id",
                                              "stimulus",
                                              "generation_status",
@@ -1743,6 +1749,7 @@ def set_date_range(end_date_str=None, range_in_days=21):
 
     return start_date, end_date
 
+
 def get_date_from_dttime(datetime_obj:datetime)-> datetime.date:
     """ strips the time from a datetime object and returns the date
 
@@ -1761,22 +1768,69 @@ def get_date_from_dttime(datetime_obj:datetime)-> datetime.date:
 
 
 def convert_str_to_dttime(date_str:str)-> datetime:
-    """_summary_
+    """ converts a string date to a datetime object
 
     Parameters
     ----------
     date_str : string
-        _description_
+        date in the format "mm-dd-yyyy"
 
     Returns
     -------
     date time object
-        _description_
+        datetime object of the date
     """
     return datetime.strptime(date_str, '%m-%d-%Y')
 
+def assign_week_range(df:pd.DataFrame, date_col:str)->pd.DataFrame:
+    """
+    Assigns a week range string in the format "mm_dd" - "mm_dd" to each row
+    in the DataFrame based on the date column and adds it as a new column named 'week'.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame containing the date column.
+    date_col : str
+        The name of the column containing the dates.
+        
+    Returns
+    -------
+    pd.DataFrame
+        The DataFrame with a new column 'week' containing the week range strings for each row.
+    """
+    # Ensure the DataFrame is a copy to avoid SettingWithCopyWarning
+    df = df.copy()
+    
+    # Convert the date column to datetime format
+    df[date_col] = pd.to_datetime(df[date_col])
+
+    # Get the start of the week for each date
+    df.loc[:, 'week_start'] = df[date_col] - pd.to_timedelta(df[date_col].dt.dayofweek, unit='d')
+    df.loc[:, 'week_end'] = df['week_start'] + pd.to_timedelta(6, unit='d')
+
+    # Format the week range as "mm_dd" - "mm_dd" and assign to new 'week' column
+    df.loc[:, 'week'] = df['week_start'].dt.strftime('%m_%d') + ' - ' + df['week_end'].dt.strftime('%m_%d')
+
+    # Drop the temporary columns
+    df = df.drop(columns=['week_start', 'week_end'])
+
+    return df
 
 def generate_project_group(project_code:str)-> str:
+    """ checks the project code against the project groups dictionary
+    and returns the group name
+
+    Parameters
+    ----------
+    project_code : str
+        project code from the database
+
+    Returns
+    -------
+    str
+        the project group name
+    """
     for key, value in PROJECT_GROUPS_DICT.items():
         if project_code in value:
             return key
@@ -1784,17 +1838,61 @@ def generate_project_group(project_code:str)-> str:
 
 
 def manual_override_qc_outcome(manual_override_tag:str)-> str:
+    """checks the manual override tag against the manual override outcomes
+    dictionary and returns the qc outcome
+
+    Parameters
+    ----------
+    manual_override_tag : str
+        the manual override tag from the database
+
+    Returns
+    -------
+    str
+        qc outcome
+    """
     for key, value in MANUAL_OVERRIDE_OUTCOMES_DICT.items():
         if manual_override_tag in value:
             return key
     return "Cannot find qc outcome for {}".format(manual_override_tag)
 
 
-def clean_session_records_df(sessions_df:pd.DataFrame)-> pd.DataFrame:
-    sessions_df['date'] = sessions_df['date_time'].apply(get_date_from_dttime)
-    sessions_df["project_group"] = sessions_df["project"].apply(generate_project_group)
-    return sessions_df
+def clean_metadata_records_df(df: pd.DataFrame, 
+                              date_col: str = "date_time",
+                              project_col: str = "project") -> pd.DataFrame:
+    """
+    Adds a date column to the sessions dataframe and generates a project group
+    and assigns a week range to each session if the respective columns are provided.
 
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame of session records
+    date_col : str, optional
+        Column name containing datetime information, by default None
+    project_col : str, optional
+        Column name containing project information, by default None
+        
+    Returns
+    -------
+    pd.DataFrame
+        The input dataframe with the following columns added (if respective columns are provided):
+            date: datetime.date
+            project_group: str
+            week: str
+    """
+    df = df.copy()
+    
+    # Add date column if date_col is provided
+    if date_col:
+        df['date'] = df[date_col].apply(get_date_from_dttime)
+        df = assign_week_range(df, 'date')
+    
+    # Add project_group column if project_col is provided
+    if project_col:
+        df['project_group'] = df[project_col].apply(generate_project_group)
+    
+    return df
 
 def replace_all_nan_with_missing(df):
     """
