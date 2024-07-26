@@ -1714,21 +1714,26 @@ def get_active_data_streams()-> pd.DataFrame:
 #####################################################################
 
 
-def query_results_to_df(query_results)-> pd.DataFrame:
-    """takes mongodb query results and puts them in a dataframe
+def query_results_to_df(query_results) -> pd.DataFrame:
+    """Takes MongoDB query results and puts them in a dataframe.
 
     Parameters
     ----------
-    query_results : _type_
-        _description_
+    query_results : list
+        A list of MongoDB query results.
 
     Returns
     -------
     pd.DataFrame
-        a dataframe of the query results
+        A dataframe of the query results.
     """
+    # Convert query results to DataFrame
     df = pd.DataFrame(list(query_results))
-    df = df.drop(['_id'], axis=1)
+
+    # Drop '_id' column if it exists
+    if '_id' in df.columns:
+        df = df.drop(['_id'], axis=1)
+
     return df
 
 
