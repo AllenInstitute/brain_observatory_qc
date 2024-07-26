@@ -733,20 +733,22 @@ def generate_qc_status_df_for_ids(id_list:list)-> pd.DataFrame:
 #
 ##################################
 
-def get_tags_for_ids(ids_list:list)-> pd.DataFrame:
-    """gets all controlled langaugae tags
-    associated with the listed ids
+def get_tags_for_ids(ids_list: list,
+                     id_type: str = None) -> pd.DataFrame:
+    """Gets all controlled language tags associated with the listed IDs.
 
     Parameters
     ----------
     ids_list : list
-        ids- ophys session or ophys experiment
+        IDs - ophys session or ophys experiment
+    id_type : str, optional
+        If provided, renames the 'data_id' column to this value
 
     Returns
     -------
     pd.DataFrame
-        table with the following columns:
-            data_id,
+        Table with the following columns:
+            data_id or id_type,
             qc_tag,
             qc_outcome,
             impacted_data
@@ -777,16 +779,21 @@ def get_tags_for_ids(ids_list:list)-> pd.DataFrame:
                            left_on = "qc_tag",
                            right_on = "qc_tag")
     # just one qc_tags column
-    tags_df['metric_name']= tags_df['metric_name'].fillna(tags_df['qc_tag'])
+    tags_df['metric_name'] = tags_df['metric_name'].fillna(tags_df['qc_tag'])
     tags_df = tags_df.drop(columns=['qc_tag'])
-    tags_df = tags_df.rename(columns={"metric_name":"qc_tag"})
+    tags_df = tags_df.rename(columns={"metric_name": "qc_tag"})
     
     # merge with impacted data
     tags_df = tags_df.merge(impacted_data,
                             how = "left",
                             left_on = "qc_tag",
                             right_on = "qc_tag")
-    tags_df = tags_df[["data_id", 'qc_tag',"qc_outcome", "impacted_data"]]
+    tags_df = tags_df[["data_id", 'qc_tag', "qc_outcome", "impacted_data"]]
+
+    # Rename the 'data_id' column if id_type is provided
+    if id_type:
+        tags_df = tags_df.rename(columns={"data_id": id_type})
+
     return tags_df
 
 
@@ -947,7 +954,7 @@ def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
     for data in impacted_data:
         result_df[data] = 'pass'
     
-    # Iterate through each row in the session_qc_outcome DataFrame
+    # Iterate through each row in the qc_outcome DataFrame
     for index, row in qc_outcome_df.iterrows():
         data_id = row[id_column]
         qc_outcome = row['qc_outcome']
@@ -956,7 +963,7 @@ def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
         if qc_outcome == 'pass':
             continue
         
-        # If qc_outcome is "flag" or "fail", update outcomes based on session_tags
+        # If qc_outcome is "flag" or "fail", update outcomes based on tags df
         tag_rows = tags_df[tags_df[id_column] == data_id]
         for _, tag_row in tag_rows.iterrows():
             impacted_data_field = tag_row['impacted_data']
