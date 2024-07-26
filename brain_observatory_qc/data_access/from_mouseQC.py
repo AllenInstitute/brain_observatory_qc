@@ -563,7 +563,8 @@ def session_metadata_within_dates(start_date:datetime,
 #
 #####################################################################
 
-def get_report_generation_status(id_list:list)-> pd.DataFrame:
+def get_report_generation_status(id_list:list,
+                                 id_type:str = None)-> pd.DataFrame:
     """gets the report generation status from the database
     for a list of ids
 
@@ -588,6 +589,10 @@ def get_report_generation_status(id_list:list)-> pd.DataFrame:
             'status' : 1}}
     ])
     gen_df = query_results_to_df(gen_status)
+    # Rename the 'data_id' column if id_type is provided
+    if id_type:
+        gen_df = gen_df.rename(columns={"data_id": id_type})
+
     gen_df = gen_df.rename(columns={"status" : "generation_status"})
     gen_df.loc[gen_df["generation_status"] == "ready", "generation_status"] = "complete"
     gen_df = replace_all_nan_with_missing(gen_df)
@@ -647,7 +652,8 @@ def map_qc_outcome_status(qc_submit_status:str)-> str:
     return "Cannot find review status for {}".format(qc_submit_status)
 
 
-def gen_review_status_and_qc_outcomes(id_list:list)-> pd.DataFrame:
+def gen_review_status_and_qc_outcomes(id_list:list,
+                                      id_type:str = None)-> pd.DataFrame:
     """pulls the review status from the DB,
     creates a new column "review status" that separates whether the 
     review process is complete from the qc outcome.
@@ -679,8 +685,12 @@ def gen_review_status_and_qc_outcomes(id_list:list)-> pd.DataFrame:
             'status' : 1}}
     ])
     rvw_df = query_results_to_df(rvw_status)
+    
 
     # clean up and rename columns
+    # Rename the 'data_id' column if id_type is provided
+    if id_type:
+        rvw_df = rvw_df.rename(columns={"data_id": id_type})
     rvw_df = rvw_df.rename(columns={"status" : "qc_status"})
 
     # map review status from db to complete, incomplete, error
@@ -693,7 +703,8 @@ def gen_review_status_and_qc_outcomes(id_list:list)-> pd.DataFrame:
     return rvw_df
 
 
-def generate_qc_status_df_for_ids(id_list:list)-> pd.DataFrame:
+def generate_qc_status_df_for_ids(id_list:list,
+                                  id_type: str = None)-> pd.DataFrame:
     """pulls the qc generation status and the review status
     for a list of ids
 
@@ -711,8 +722,8 @@ def generate_qc_status_df_for_ids(id_list:list)-> pd.DataFrame:
             review_status,
             qc_outcome
     """
-    qc_gen_status_df = get_report_generation_status(id_list)
-    rev_status_df    = gen_review_status_and_qc_outcomes(id_list)
+    qc_gen_status_df = get_report_generation_status(id_list, id_type=id_type)
+    rev_status_df    = gen_review_status_and_qc_outcomes(id_list, id_type=id_type)
     report_status_df = qc_gen_status_df.merge(rev_status_df,
                                               how = "left",
                                               left_on="data_id",
@@ -797,7 +808,8 @@ def get_tags_for_ids(ids_list: list,
     return tags_df
 
 
-def get_other_tags_for_ids(ids_list:list)-> pd.DataFrame:
+def get_other_tags_for_ids(ids_list:list,
+                           id_type: str = None)-> pd.DataFrame:
     """gets all other tags for the listed ids "other" tags are tags that
     are not distinct controlled language tags yet- so the notes column describes
     the issue
@@ -831,10 +843,14 @@ def get_other_tags_for_ids(ids_list:list)-> pd.DataFrame:
             'note'   : 1}}
     ])
     other_tags_df = query_results_to_df(other_tags)
+    # Rename the 'data_id' column if id_type is provided
+    if id_type:
+        other_tags_df = other_tags_df.rename(columns={"data_id": id_type})
     return other_tags_df
 
 
-def get_manual_overrides_for_ids(ids_list:list)-> pd.DataFrame:
+def get_manual_overrides_for_ids(ids_list:list,
+                                 id_type: str = None)-> pd.DataFrame:
     """gets all manual override tags for the listed ids
 
     Parameters
@@ -865,10 +881,14 @@ def get_manual_overrides_for_ids(ids_list:list)-> pd.DataFrame:
     ])
     
     overrides_df = pd.DataFrame(list(manual_overrides))
+    # Rename the 'data_id' column if id_type is provided
+    if id_type:
+        overrides_df = overrides_df.rename(columns={"data_id": id_type})
     return overrides_df
 
 
-def get_all_tags_for_ids(ids_list:list)->tuple:
+def get_all_tags_for_ids(ids_list:list,
+                         id_type: str = None)->tuple:
     """gets all controlled langauge tags, other tags and manual override
     tags for the listed ids
 
@@ -900,9 +920,9 @@ def get_all_tags_for_ids(ids_list:list)->tuple:
             qc_tag,
             module
     """
-    tags_df = get_tags_for_ids(ids_list)
-    other_tags_df = get_other_tags_for_ids(ids_list)
-    overrides_df = get_manual_overrides_for_ids(ids_list)
+    tags_df = get_tags_for_ids(ids_list, id_type = id_type)
+    other_tags_df = get_other_tags_for_ids(ids_list, id_type = id_type)
+    overrides_df = get_manual_overrides_for_ids(ids_list, id_type = id_type)
     return tags_df, other_tags_df, overrides_df
 
 
@@ -1228,10 +1248,10 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
 
     metadata_df = get_experiment_metadata_for_ids(experiment_ids_list)
     
-    qc_gen_status_df = get_report_generation_status(experiment_ids_list)
+    qc_gen_status_df = get_report_generation_status(experiment_ids_list, id_type="ophys_experiment_id")
     qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_experiment_id"})
     
-    qc_rev_status_df = gen_review_status_and_qc_outcomes(experiment_ids_list)
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(experiment_ids_list, id_type="ophys_experiment_id")
     qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_experiment_id"})
     
     exp_qc_info_df = metadata_df.merge(qc_gen_status_df,
@@ -1378,13 +1398,13 @@ def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
             "mouse_behavior"
     """
     qc_outcome_df = generate_qc_status_df_for_ids(ophys_session_ids)
-    tags_df, _, _ = get_all_tags_for_ids(ophys_session_ids)
+    tags_df, _, _ = get_all_tags_for_ids(ophys_session_ids,
+                                         id_type="ophys_session_id")
     impacted_data = OPHYS_SESSION_IMPACTED_DATA
     session_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
                                                     tags_df,
-                                                    impacted_data)
-    
-    session_impacted_data_df = session_impacted_data_df.rename(columns={"data_id":"ophys_session_id"})
+                                                    impacted_data,
+                                                    id_column="ophys_session_id")
     
     # Save as CSV if a path is provided
     if csv_path:
@@ -1418,11 +1438,13 @@ def gen_experiment_impacted_data_outcome_df(ophys_experiment_ids:list,
             "FOV_matching"
     """
     qc_outcome_df = gen_experiment_qc_info_for_ids(ophys_experiment_ids)
-    tags_df, _, _ = get_all_tags_for_ids(ophys_experiment_ids)
+    tags_df, _, _ = get_all_tags_for_ids(ophys_experiment_ids,
+                                         id_type="ophys_experiment_id")
     impacted_data = OPHYS_EXPERIMENT_IMPACTED_DATA
     experiment_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
                                                        tags_df,
-                                                       impacted_data)
+                                                       impacted_data,
+                                                       id_column="ophys_experiment_id")
     # Save as CSV if a path is provided
     if csv_path:
         full_path = os.path.join(csv_path, csv_name)
