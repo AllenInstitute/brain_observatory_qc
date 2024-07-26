@@ -722,12 +722,16 @@ def generate_qc_status_df_for_ids(id_list:list,
             review_status,
             qc_outcome
     """
+    if id_type:
+        id_col = id_type
+    else: 
+        id_col = "data_id"
     qc_gen_status_df = get_report_generation_status(id_list, id_type=id_type)
     rev_status_df    = gen_review_status_and_qc_outcomes(id_list, id_type=id_type)
     report_status_df = qc_gen_status_df.merge(rev_status_df,
                                               how = "left",
-                                              left_on="data_id",
-                                              right_on = "data_id")
+                                              left_on=id_col,
+                                              right_on = id_col)
     report_status_df = replace_all_nan_with_missing(report_status_df)
     return report_status_df
 
@@ -880,7 +884,7 @@ def get_manual_overrides_for_ids(ids_list:list,
             'module' : 1}}
     ])
     
-    overrides_df = pd.DataFrame(list(manual_overrides))
+    overrides_df = query_results_to_df(manual_overrides)
     # Rename the 'data_id' column if id_type is provided
     if id_type:
         overrides_df = overrides_df.rename(columns={"data_id": id_type})
@@ -1397,9 +1401,8 @@ def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
             "task_performance",
             "mouse_behavior"
     """
-    qc_outcome_df = generate_qc_status_df_for_ids(ophys_session_ids)
-    tags_df, _, _ = get_all_tags_for_ids(ophys_session_ids,
-                                         id_type="ophys_session_id")
+    qc_outcome_df = generate_qc_status_df_for_ids(ophys_session_ids, id_type="ophys_session_id")
+    tags_df, _, _ = get_all_tags_for_ids(ophys_session_ids, id_type="ophys_session_id")
     impacted_data = OPHYS_SESSION_IMPACTED_DATA
     session_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
                                                     tags_df,
