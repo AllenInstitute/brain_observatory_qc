@@ -41,7 +41,8 @@ general_qc_status_palette = {
 ######################################
 def create_qc_tag_bar_plot(df:pd.DataFrame, 
                            ax:matplotlib.axes.Axes, 
-                           title:str):
+                           title:str,
+                           palette:dict=pass_flag_fail_palette,):
     """Create a qc tag frequency bar plot for the given DataFrame.
 
     Parameters
@@ -68,9 +69,14 @@ def create_qc_tag_bar_plot(df:pd.DataFrame,
     # Order by frequency
     merged_df = merged_df.sort_values('frequency', ascending=False)
 
+    if palette is None:
+        palette = {'pass': '#4CAF50', 
+                   'flag': '#FFC107',
+                   'fail': '#F44336'}
+
     # Create a bar plot
     sns.barplot(x='frequency', y='qc_tag', hue='qc_outcome', data=merged_df,
-                palette={'fail': 'red', 'flag': 'yellow'}, dodge=False, ax=ax)
+                palette=palette, dodge=False, ax=ax)
     ax.set_title(title)
     ax.set_xlabel('Frequency')
     ax.set_ylabel('QC Tag')
@@ -80,7 +86,7 @@ def create_qc_status_bar_plot(df:pd.DataFrame,
                               status_col:str,
                               ax:matplotlib.axes.Axes,
                               title:str,
-                              palette:dict=general_qc_status_palette):
+                              palette:dict = None):
     """Create a qc status frequency bar plot for the given DataFrame.
 
     Parameters
@@ -161,8 +167,14 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
     # Define default color for NaN values
     default_color = color_mapping.get('missing', '#D3D3D3')  # Light gray as default
 
+    # Exclude the week column from the plotted matrix
+    if week_col:
+        plot_df = df.drop(columns=[week_col])
+    else:
+        plot_df = df
+
     # Create a color matrix based on the DataFrame values
-    color_matrix = df.iloc[:, 1:].applymap(lambda x: color_mapping.get(x, default_color))
+    color_matrix = plot_df.iloc[:, 1:].applymap(lambda x: color_mapping.get(x, default_color))
 
     # Plotting the colored grid
     fig, ax = plt.subplots(figsize=figsize)
@@ -178,21 +190,21 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
         id_labels = df[id_col].tolist()
 
     # Create a grid of colored boxes
-    for (row_idx, col_idx), val in np.ndenumerate(df.iloc[:, 1:].values):
+    for (row_idx, col_idx), val in np.ndenumerate(plot_df.iloc[:, 1:].values):
         color = color_mapping.get(val, default_color)
         ax.add_patch(plt.Rectangle((col_idx, row_idx), 1, 1, color=color))
         if show_labels:
             ax.text(col_idx + 0.5, row_idx + 0.5, str(val), ha='center', va='center', color='black')
 
     # Set ticks and labels
-    ax.set_xticks(np.arange(len(df.columns[1:])) + 0.5)
-    ax.set_yticks(np.arange(len(df)) + 0.5)
-    ax.set_xticklabels(df.columns[1:], rotation=90)
+    ax.set_xticks(np.arange(len(plot_df.columns[1:])) + 0.5)
+    ax.set_yticks(np.arange(len(plot_df)) + 0.5)
+    ax.set_xticklabels(plot_df.columns[1:], rotation=90)
     ax.set_yticklabels(id_labels)
 
     # Add gridlines
-    ax.hlines(np.arange(len(df) + 1), *ax.get_xlim(), color='gray')
-    ax.vlines(np.arange(len(df.columns[1:]) + 1), *ax.get_ylim(), color='gray')
+    ax.hlines(np.arange(len(plot_df) + 1), *ax.get_xlim(), color='gray')
+    ax.vlines(np.arange(len(plot_df.columns[1:]) + 1), *ax.get_ylim(), color='gray')
 
     # Remove the default spines
     ax.spines['top'].set_visible(False)
@@ -229,7 +241,8 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
 ######################################
 def plot_qc_tag_frequency(df,
                           save_path:str=None,
-                          save_name:str="qc_tag_frequency_{}.png".format(TODAY)):
+                          save_name:str="qc_tag_frequency_{}.png".format(TODAY),
+                          palette:dict=pass_flag_fail_palette):
     """_summary_
 
     Parameters
@@ -245,6 +258,9 @@ def plot_qc_tag_frequency(df,
         Directory path to save the plot, by default None
     save_name : str, optional
         _description_, by default None
+    palette : dict, optional
+        dictionary with following structure: {status_string: color, status_string: color},
+        by default pass_flag_fail_palette
     """
     # Split the DataFrame by report_type
     session_df = df[df['report_type'] == 'session']
@@ -254,8 +270,8 @@ def plot_qc_tag_frequency(df,
     fig, axs = plt.subplots(1, 2, figsize=(16, 8), sharey=False)
 
     # Create plots for session and experiment data
-    create_qc_tag_bar_plot(session_df, axs[0], 'Session QC Tag Frequency')
-    create_qc_tag_bar_plot(experiment_df, axs[1], 'Experiment QC Tag Frequency')
+    create_qc_tag_bar_plot(session_df, axs[0], 'Session QC Tag Frequency', palette=palette)
+    create_qc_tag_bar_plot(experiment_df, axs[1], 'Experiment QC Tag Frequency', palette=palette)
 
     plt.tight_layout()
 
@@ -269,7 +285,9 @@ def plot_qc_tag_frequency(df,
 
 def plot_qc_status_frequency(df,
                              save_path:str=None,
-                             save_name:str="qc_status_frequency_{}.png".format(TODAY)):
+                             save_name:str="qc_status_frequency_{}.png".format(TODAY),
+                             palette:dict=general_qc_status_palette,
+                             title:str=None):
     """
 
     Parameters
@@ -284,20 +302,25 @@ def plot_qc_status_frequency(df,
         Directory path to save the plot, by default None
     save_name : str, optional
         _description_, by default None
+    palette : dict, optional
+        dictionary with following structure: {status_string: color, status_string: color},
+        by default general_qc_status_palette
     """
 
     # Plot settings
     fig, axs = plt.subplots(1, 3, figsize=(16, 8), sharey=False)
 
     # Create plots for session and experiment data
-    create_qc_status_bar_plot(df, "generation_status", axs[0], 'Generation Status Frequency')
-    create_qc_status_bar_plot(df, "review_status", axs[1], 'Review Status Frequency')
-    create_qc_status_bar_plot(df, "qc_outcome", axs[2], 'QC Outcome Frequency')
+    create_qc_status_bar_plot(df, "generation_status", axs[0], 'Generation Status Frequency', palette=palette)
+    create_qc_status_bar_plot(df, "review_status", axs[1], 'Review Status Frequency', palette=palette)
+    create_qc_status_bar_plot(df, "qc_outcome", axs[2], 'QC Outcome Frequency', palette=palette)
     
     # add figure title 
-    data_type = identify_experiment_or_session(df)
-    fig.suptitle('{} qc status frequency'.format(data_type), 
-                 fontsize=16)
+    if title is None:
+        data_type = identify_experiment_or_session(df)
+        title = '{} qc status frequency'.format(data_type)
+    
+    fig.suptitle(title, fontsize=16)
 
 
     plt.tight_layout()
