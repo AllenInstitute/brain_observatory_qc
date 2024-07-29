@@ -748,9 +748,9 @@ def generate_qc_status_df_for_ids(id_list:list,
 #
 ##################################
 
-def get_tags_for_ids(ids_list: list,
-                     id_type: str = None) -> pd.DataFrame:
-    """Gets all controlled language tags associated with the listed IDs.
+def get_cl_tags_for_ids(ids_list: list, id_type: str = None) -> pd.DataFrame:
+    """Gets all controlled language tags and numeric metric's that
+    have broken thresholds, associated with the listed IDs.
 
     Parameters
     ----------
@@ -784,15 +784,20 @@ def get_tags_for_ids(ids_list: list,
         {'$project': {
             'data_id'    : 1, 
             'qc_tag'     : 1, 
-            'metric_name': 1}}
+            'metric_name': {'$ifNull': ['$metric_name', None]}}}
     ])
     tags_records = query_results_to_df(id_tags)
+
+    # Ensure 'metric_name' column exists
+    if 'metric_name' not in tags_records.columns:
+        tags_records['metric_name'] = None
 
     # merge tag records with outcomes
     tags_df = tags_records.merge(clt_outcomes,
                            how = "left", 
                            left_on = "qc_tag",
                            right_on = "qc_tag")
+
     # just one qc_tags column
     tags_df['metric_name'] = tags_df['metric_name'].fillna(tags_df['qc_tag'])
     tags_df = tags_df.drop(columns=['qc_tag'])
@@ -810,6 +815,7 @@ def get_tags_for_ids(ids_list: list,
         tags_df = tags_df.rename(columns={"data_id": id_type})
 
     return tags_df
+
 
 
 def get_other_tags_for_ids(ids_list:list,
@@ -924,10 +930,10 @@ def get_all_tags_for_ids(ids_list:list,
             qc_tag,
             module
     """
-    tags_df = get_tags_for_ids(ids_list, id_type = id_type)
+    cl_tags_df = get_cl_tags_for_ids(ids_list, id_type = id_type)
     other_tags_df = get_other_tags_for_ids(ids_list, id_type = id_type)
     overrides_df = get_manual_overrides_for_ids(ids_list, id_type = id_type)
-    return tags_df, other_tags_df, overrides_df
+    return cl_tags_df, other_tags_df, overrides_df
 
 
 ##################################
@@ -1351,7 +1357,7 @@ def gen_tags_df_for_ids(ophys_session_ids:list,
     experiment_other_tags_df["report_type"] = "experiment"
     experiment_overrides_df["report_type"] = "experiment"
 
-    tags_df = pd.concat([session_tags_df, \
+    cl_tags_df = pd.concat([session_tags_df, \
                          experiment_tags_df],\
                         ignore_index=True)
     
@@ -1362,8 +1368,8 @@ def gen_tags_df_for_ids(ophys_session_ids:list,
     overrides_df = pd.concat([session_overrides_df,\
                               experiment_overrides_df],\
                              ignore_index=True)
-    
-    return tags_df, other_tags_df, overrides_df
+
+    return cl_tags_df, other_tags_df, overrides_df
 
 
 def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
@@ -1402,10 +1408,10 @@ def gen_session_impacted_data_outcome_df(ophys_session_ids:list,
             "mouse_behavior"
     """
     qc_outcome_df = generate_qc_status_df_for_ids(ophys_session_ids, id_type="ophys_session_id")
-    tags_df, _, _ = get_all_tags_for_ids(ophys_session_ids, id_type="ophys_session_id")
+    cl_tags_df = get_cl_tags_for_ids(ophys_session_ids, id_type="ophys_session_id")
     impacted_data = OPHYS_SESSION_IMPACTED_DATA
     session_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
-                                                    tags_df,
+                                                    cl_tags_df,
                                                     impacted_data,
                                                     id_column="ophys_session_id")
     
@@ -1441,11 +1447,11 @@ def gen_experiment_impacted_data_outcome_df(ophys_experiment_ids:list,
             "FOV_matching"
     """
     qc_outcome_df = gen_experiment_qc_info_for_ids(ophys_experiment_ids)
-    tags_df, _, _ = get_all_tags_for_ids(ophys_experiment_ids,
-                                         id_type="ophys_experiment_id")
+    cl_tags_df = get_cl_tags_for_ids(ophys_experiment_ids,
+                                     id_type="ophys_experiment_id")
     impacted_data = OPHYS_EXPERIMENT_IMPACTED_DATA
     experiment_impacted_data_df = gen_impacted_data_df(qc_outcome_df,
-                                                       tags_df,
+                                                       cl_tags_df,
                                                        impacted_data,
                                                        id_column="ophys_experiment_id")
     # Save as CSV if a path is provided
