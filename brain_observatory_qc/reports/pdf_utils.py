@@ -1,4 +1,4 @@
-"""
+d"""
 Helper class for generating PDF reports (using the fpdf2 library)
 """
 
@@ -104,3 +104,21 @@ class PdfReport(FPDF):
                 row = table.row()
                 for datum in data_row:
                     row.cell(datum)
+
+    def add_plot(self, plot_path:str, title:str=None):
+        """
+        Add an image plot from a file path to the PDF
+
+        Parameters
+        ----------
+        plot_path : str
+            Path to the image file
+        title : str, optional
+            Title for the plot, by default None
+        """
+        self.add_page()
+        if title:
+            self.set_font("helvetica", "B", 12)
+            self.cell(0, 10, title, align="C")
+            self.ln(10)
+        self.image(plot_path, x=10, y=30, w=190)
