@@ -1,12 +1,14 @@
-d"""
+"""
 Helper class for generating PDF reports (using the fpdf2 library)
 """
 
 import os
 import platform
+import pandas as pd
 import numpy as np
 from fpdf import FPDF
 from PIL import Image
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
@@ -24,20 +26,6 @@ class PdfReport(FPDF):
         super().__init__()
         self.title = title
         self.set_matplotlib_defaults()
-
-    def header(self):
-        """
-        Add a header with the Neural Dynamics logo and a running title
-        """
-        self.image(
-            os.path.join(os.path.dirname(__file__), "images", "aind-logo.png"),
-            x=150,
-            y=10,
-            w=50,
-        )
-        self.set_font("courier", "", 9)
-        self.cell(30, 15, self.title, align="L")
-        self.ln(20)
 
     def footer(self):
         """
@@ -58,7 +46,8 @@ class PdfReport(FPDF):
         else:
             plt.rcParams["font.sans-serif"] = ["Arial"]  # pragma: no cover
 
-    def embed_figure(self, fig, width=190):
+
+    def embed_figure(self, fig:matplotlib.figure.Figure, width=190):
         """
         Convert a matplotlib figure to an image and embed it in the PDF
 
@@ -75,37 +64,38 @@ class PdfReport(FPDF):
         img = Image.fromarray(np.asarray(canvas.buffer_rgba()))
         self.image(img, w=width)
 
-    def embed_table(self, df, width=190):
+    def embed_table(self, dataframe:pd.DataFrame, table_width=190, column_widths=None):
         """
-        Create a table out of a pandas DataFrame and embed it in the PDF
+        Embed a pandas DataFrame as a table in the PDF.
 
         Parameters
         ----------
-        df : pandas.DataFrame
-            The table to embed
-        width : int
-            The width of the image in the PDF
+        dataframe : pandas.DataFrame
+            The DataFrame to embed.
+        table_width : int
+            The width of the table in the PDF.
+        column_widths : list of int, optional
+            List of column widths. If None, widths are evenly distributed.
         """
+        # Set default column widths if not provided
+        if column_widths is None:
+            column_widths = [table_width / len(dataframe.columns)] * len(dataframe.columns)
+        
+        # Set the font for the table
+        self.set_font("courier", size=8)
 
-        DF = df.astype(str)  # convert all elements to string
-        DATA = [
-            list(DF)
-        ] + DF.values.tolist()  # Combine columns and rows in one list
+        # Column headers
+        for column_index, column_name in enumerate(dataframe.columns):
+            self.cell(column_widths[column_index], 10, column_name, border=1, align='C')
+        self.ln()
 
-        with self.table(
-            borders_layout="SINGLE_TOP_LINE",
-            cell_fill_color=240,
-            cell_fill_mode="ROWS",
-            line_height=self.font_size * 2,
-            text_align="CENTER",
-            width=width,
-        ) as table:
-            for data_row in DATA:
-                row = table.row()
-                for datum in data_row:
-                    row.cell(datum)
+        # Data rows
+        for row in dataframe.itertuples(index=False):
+            for column_index, cell_value in enumerate(row):
+                self.cell(column_widths[column_index], 10, str(cell_value), border=1, align='C')
+            self.ln()
 
-    def add_plot(self, plot_path:str, title:str=None):
+    def add_plot_from_filepath(self, plot_path:str, title:str=None):
         """
         Add an image plot from a file path to the PDF
 
