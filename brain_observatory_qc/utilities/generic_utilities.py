@@ -3,6 +3,7 @@ import uuid
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import pre_post_conditions as pre_post
 
 
 def is_int(n):
@@ -87,7 +88,15 @@ def save_df_to_csv(df:pd.DataFrame,
     csv_path : str
         path to save the csv file
         defaults to current working directory if no path is provided
+    index : bool
+        whether to include the index in the csv file
+        defaults to False
     """
+    # validate inputs
+    pre_post.validate_not_none(df, "Dataframe")
+    pre_post.validate_not_none(csv_name, "csv_name")
+    pre_post.validate_string_not_empty(csv_name, "csv_name")
+
     if csv_path:
         csv_path = correct_filepath(csv_path) # ensure filepath is proper format for operating system
     else:       
