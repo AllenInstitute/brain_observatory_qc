@@ -1,8 +1,35 @@
+#####################################################################
+#
+#           DESCRIPTION
+#
+#####################################################################
+
+# This module contains functions to query the mouseQC database for
+# the QC status of ophys sessions and experiments.
+#
+# QC Information can be looked up for a list of ids (mouse ids, ophys session ids, 
+# ophys experiment ids) or for a date range.
+
+# The module also contains functions to get metadata for ophys sessions and experiments
+# and to get fine level QC details such as controlled language tags and data stream outcomes.
+
+#####################################################################
+#
+#         IMPORTS
+#
+#####################################################################                                  # noqa: E266
+
+
+# External Imports
 import os
 import time
 import pandas as pd
 from pymongo import MongoClient
 from datetime import datetime, timedelta,  timezone
+
+# Internal Imports
+import brain_observatory_qc.utilities.pre_post_conditions as pre_post
+from brain_observatory_qc.utilities.generic_utilities import correct_filepath, save_df_to_csv
 
 
 #####################################################################
@@ -1011,10 +1038,173 @@ def gen_impacted_data_df(qc_outcome_df:pd.DataFrame,
 #
 #####################################################################
 
+def get_session_qc_info_for_mouse_id(mouse_id:str,
+                                     save_csv:bool = False,
+                                     csv_name: str = None,
+                                     csv_path: str = None)-> pd.DataFrame:
+    """gets metadata and qc status information for ophys sessions
+    associated with a mouse id
+
+    Parameters
+    ----------
+    mouse_id : str
+        mouse id
+    save_csv : bool, optional
+        whether to save the dataframe as a csv, by default False
+    csv_name : str, optional
+        name of the csv file, 
+        by default "mouse_MOUSEID_session_qc_info_TODAYSDATE.csv"
+    csv_path : str, optional
+        path to save the csv file, by default None
+        if None, will save in the current working directory
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of basic info and qc status for ophys sessions
+        columns:
+            project_group:     str
+            project:           str
+            mouse_id:          str
+            genotype:          str
+            date:              datetime.date
+            ophys_session_id:  int64
+            stimulus:          str
+            generation_status: str
+            review_status:     str
+            qc_outcome:        str
+            operator:          str
+            rig:               str
+            date_time:         datetime64[ns]
+            week:              str
+    """
+
+    
+    session_ids_df = get_session_ids_for_mouse_ids([mouse_id])
+    session_ids_list = session_ids_df["ophys_session_id"].tolist()
+    
+    qc_gen_status_df = get_report_generation_status(session_ids_list)
+    qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_session_id"})
+    
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(session_ids_list)
+    qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_session_id"})
+    
+    session_qc_info_df = session_ids_df.merge(qc_gen_status_df,
+                                           how = "left",
+                                           left_on="ophys_session_id",
+                                           right_on = "ophys_session_id")
+    
+    session_qc_info_df = session_qc_info_df.merge(qc_rev_status_df,
+                                                  how = "left",
+                                                  left_on= "ophys_session_id",
+                                                  right_on= "ophys_session_id")
+    
+    # clean up final dataframe
+    session_qc_info_df = replace_all_nan_with_missing(session_qc_info_df)
+    session_qc_info_df.sort_values(by=["date"], inplace=True)
+    session_qc_info_df = session_qc_info_df[["date",
+                                             "week",
+                                             "ophys_session_id",
+                                             "stimulus",
+                                             "rig",
+                                             "generation_status",
+                                             "review_status",
+                                             "qc_outcome"]]
+    session_qc_info_df.reset_index(drop=True, inplace=True)
+
+    # IF SAVING TO CSV
+    # Set save name if save_csv is True but name not provided
+    if save_csv and not csv_name:
+        csv_name = "mouse_{}_session_qc_info_{}.csv".format(mouse_id, TODAY)
+
+    # Save as CSV
+    if save_csv:
+        save_df_to_csv(session_qc_info_df, csv_path, csv_name)
+
+    return session_qc_info_df
+
+def get_experiment_qc_info_for_mouse_id(mouse_id:str,
+                                        save_csv:bool = False,
+                                        csv_path: str = None,
+                                        csv_name: str = None)-> pd.DataFrame:
+    """
+    gets metadata and qc status information for ophys experiments
+    associated with a mouse id
+
+    Parameters
+    ----------
+    mouse_id : str
+        mouse id
+    save_csv : bool, optional
+        whether to save the df to csv, by default False
+    csv_path : str, optional
+        path to save csv file, by default None
+    csv_name : str, optional
+        csv name, by default None
+
+    Returns
+    -------
+    pd.DataFrame
+        dataframe of basic info and qc status for ophys experiments
+        columns:
+            date,
+            week,
+            ophys_experiment_id,
+            stimulus,
+            rig,
+            generation_status,
+            review_status,
+            qc_outcome
+    """
+    exp_ids_df = get_experiment_ids_for_mouse_ids([mouse_id])
+    exp_ids_list = exp_ids_df["ophys_experiment_id"].tolist()
+
+    qc_gen_status_df = get_report_generation_status(exp_ids_list)
+    qc_gen_status_df = qc_gen_status_df.rename(columns={"data_id":"ophys_experiment_id"})
+
+    qc_rev_status_df = gen_review_status_and_qc_outcomes(exp_ids_list)
+    qc_rev_status_df = qc_rev_status_df.rename(columns={"data_id":"ophys_experiment_id"})
+
+    exp_qc_info_df = exp_ids_df.merge(qc_gen_status_df,
+                                      how = "left",
+                                      left_on="ophys_experiment_id",
+                                      right_on = "ophys_experiment_id")
+    
+    exp_qc_info_df = exp_qc_info_df.merge(qc_rev_status_df,
+                                          how = "left",
+                                          left_on= "ophys_experiment_id",
+                                          right_on= "ophys_experiment_id")
+    
+    # clean up final dataframe
+    exp_qc_info_df = replace_all_nan_with_missing(exp_qc_info_df)
+    exp_qc_info_df.sort_values(by=["date"], inplace=True)
+    exp_qc_info_df = exp_qc_info_df[["date",
+                                    "week",
+                                    "ophys_experiment_id",
+                                    "stimulus",
+                                    "rig",
+                                    "generation_status",
+                                    "review_status",
+                                    "qc_outcome"]]
+    exp_qc_info_df.reset_index(drop=True, inplace=True)
+
+    
+    # IF SAVING TO CSV
+    # Set save name if save_csv is True but name not provided
+    if save_csv and not csv_name:
+        csv_name = "mouse_{}_experiment_qc_info_{}.csv".format(mouse_id, TODAY)
+
+    # Save as CSV
+    if save_csv:
+        save_df_to_csv(exp_qc_info_df, csv_path, csv_name)
+
+    return exp_qc_info_df    
+                                 
 
 def gen_session_qc_info_for_date_range(end_date_str:int = None, 
                                        range_in_days:int = 21,
-                                       csv_name: str = "session_qc_info_{}.csv".format(TODAY),
+                                       save_csv:bool = False,
+                                       csv_name: str = None,
                                        csv_path: str = None)-> pd.DataFrame:
     """gets metadata and qc status information for ophys sessions
     within a date range. 
@@ -1027,11 +1217,14 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
         last date, by default None- will use today's date
     range_in_days : int, optional
         number of days before the end date, by default 21
+    save_csv : bool, optional
+        whether to save the df to csv, by default False
     csv_name : str, optional
         name of the csv file, 
-        by default "session_qc_info_{todays date}.csv"
+        by default "session_qc_info_STARTDATE_ENDDATE.csv"
     csv_path : str, optional
         path to save the csv file, by default None
+        if None, will save in the current working directory
 
     Returns
     -------
@@ -1095,15 +1288,20 @@ def gen_session_qc_info_for_date_range(end_date_str:int = None,
                                              "date_time"]]
     session_qc_info_df.reset_index(drop=True, inplace=True)
 
-    # Save as CSV if a path is provided
-    if csv_path:
-        full_path = os.path.join(csv_path, csv_name)
-        session_qc_info_df.to_csv(full_path, index=False)
+    # IF SAVING TO CSV
+    # Set save name if save_csv is True but name not provided
+    if save_csv and not csv_name:
+        csv_name = "session_qc_info_{}-{}.csv".format(start_date, end_date)
+    
+    # Save as CSV
+    if save_csv:
+        save_df_to_csv(session_qc_info_df, csv_path, csv_name)
 
     return session_qc_info_df
 
 
 def gen_session_qc_info_for_ids(session_ids_list:list,
+                                save_csv:bool = False,
                                 csv_name: str = "session_qc_info_{}.csv".format(TODAY),
                                 csv_path: str = None)-> pd.DataFrame:
     """table with basic information/metadata and qc status for ophys sessions
@@ -1112,6 +1310,13 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
     ----------
     session_ids_list : list
         ophys session ids
+    save_csv : bool, optional
+        whether to save the df to csv, by default False
+    csv_name : str, optional
+        name of the csv file, by default "session_qc_info_TODAYSDATE.csv"
+    csv_path : str, optional
+        path to save the csv file, by default None
+        if None, will save in the current working directory
 
     Returns
     -------
@@ -1173,15 +1378,16 @@ def gen_session_qc_info_for_ids(session_ids_list:list,
                                              "date_time"]]
     session_qc_info_df.reset_index(drop=True, inplace=True)
     
-    # Save as CSV if a path is provided
-    if csv_path:
-        full_path = os.path.join(csv_path, csv_name)
-        session_qc_info_df.to_csv(full_path, index=False)
+    # IF SAVING TO CSV
+    if save_csv:
+        save_df_to_csv(session_qc_info_df, csv_path, csv_name)
+    
 
     return session_qc_info_df
 
 
 def current_mice_df(df:pd.DataFrame,
+                    save_csv:bool = False,
                     csv_name: str = "active_mouse_summary_{}.csv".format(TODAY),
                     csv_path: str = None)-> pd.DataFrame:
     """ takes the session_qc_info_df and returns the
@@ -1218,15 +1424,15 @@ def current_mice_df(df:pd.DataFrame,
                            'stimulus']]
     result = result.sort_values(by=['project_group', 'project', 'genotype']).reset_index(drop=True)
     
-    # Save as CSV if a path is provided
-    if csv_path:
-        full_path = os.path.join(csv_path, csv_name)
-        result.to_csv(full_path, index=False)
+    # IF SAVING TO CSV
+    if save_csv:
+        save_df_to_csv(result, csv_path, csv_name)
     
     return result
 
 
 def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
+                                   save_csv:bool = False,
                                    csv_name: str = "experiment_qc_info_{}.csv".format(TODAY),
                                    csv_path: str = None)-> pd.DataFrame:
     """gets basic information for ophys experiments
@@ -1294,10 +1500,9 @@ def gen_experiment_qc_info_for_ids(experiment_ids_list:list,
                                      "datetime",
                                      "project"]]
     
-    # Save as CSV if a path is provided
-    if csv_path:
-        full_path = os.path.join(csv_path, csv_name)
-        exp_qc_info_df.to_csv(full_path, index=False)
+    # IF SAVING TO CSV
+    if save_csv:
+        save_df_to_csv(exp_qc_info_df, csv_path, csv_name)
 
     return exp_qc_info_df
 
@@ -1959,3 +2164,35 @@ def replace_all_nan_with_missing(df):
     """
     df = df.fillna('missing')
     return df
+
+def save_df_to_csv(df:pd.DataFrame, 
+                   csv_name:str = None,
+                   csv_path:str = None,
+                   index:bool = False)-> None:
+    """saves a dataframe as a csv file.
+    Checks that filepath is proper format for os
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        dataframe to save
+    csv_name : str
+        name of the csv file
+    csv_path : str
+        path to save the csv file
+        defaults to current working directory if no path is provided
+    """
+    if csv_path:
+        csv_path = correct_filepath(csv_path) # ensure filepath is proper format for operating system
+    else:       
+        csv_path = os.getcwd()  # Set path to current working directory if not provided
+
+    # check if csv_name ends with ".csv"
+    if csv_name.endswith(".csv"):
+        full_path = os.path.join(csv_path, csv_name)
+    else:
+        csv_name = csv_name + ".csv"
+        full_path = os.path.join(csv_path, csv_name)
+
+    # save dat data!
+    df.to_csv(full_path, index = index)
