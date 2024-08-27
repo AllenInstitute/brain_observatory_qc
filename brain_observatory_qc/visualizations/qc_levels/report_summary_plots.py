@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.table import Table
 import matplotlib.patches as patches
 
+import brain_observatory_qc.utilities.pre_post_conditions as pre_post
+import brain_observatory_qc.visualizations.generic_utilities as gen_utils
+
 TODAY = datetime.today().date() # today's date
 
 
@@ -507,6 +510,7 @@ def plot_qc_tag_frequency(df:pd.DataFrame,
 def plot_qc_generation_status(df: pd.DataFrame,
                               palette: dict = general_qc_status_palette,
                               title: str = "QC Status Frequency",
+                              save_fig: bool = False,
                               save_path: str = None,
                               save_name: str = "qc_gen_status_test_{}.png".format(TODAY),
                               figsize: tuple = None,
@@ -534,12 +538,11 @@ def plot_qc_generation_status(df: pd.DataFrame,
     plt.tight_layout()
 
     # Save the plot if a save path and name are provided
-    if save_path and save_name:
-        save_file = os.path.join(save_path, save_name)
-        plt.savefig(save_file)
-        print(f'Saved plot to {save_file}')
-
+    if save_fig:
+        save_fig_as_png(fig, save_path, save_name)
+    
     plt.show()
+
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
                                        id_col: str = "data_id",
@@ -640,3 +643,39 @@ def identify_experiment_or_session(df:pd.DataFrame, id_column:str=None)->str:
         result = 'session'
     
     return result
+
+def save_fig_as_png(fig:matplotlib.figure.Figure,
+                    save_path:str,
+                    save_name:str):
+    """Save a matplotlib figure to a png file.
+
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        The figure to save.
+    save_path : str
+        Path to the directory where the figure will be saved.
+    save_name : str
+        Name of the saved figure.
+    """
+    # Ensure proper inputs
+    pre_post.validate_not_none(fig, "figure")
+    pre_post.validate_not_none(save_name, "save_name")
+
+    # ensure proper save name
+    if not save_name.endswith(".png"):
+        save_name = save_name + ".png"
+    
+    # Ensure proper save path
+    if save_path:
+        save_path = gen_utils.correct_filepath(save_path)
+        
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+    # Set path to current working directory if not provided
+    else:
+        save_path = os.getcwd()
+
+    save_file = os.path.join(save_path, save_name)
+    fig.savefig(save_file)
+    print(f'Saved plot to {save_file}')
