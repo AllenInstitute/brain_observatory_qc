@@ -47,6 +47,20 @@ general_qc_status_palette = {
     'missing': '#D3D3D3', # Light gray
 }
 
+project_group_palette = {
+    "learning_mfish": "#1b9e77", # dark teal
+    "omFISH_V1_U01" : "#d95f02", # dark orange
+    "open_scope"    : "#e7298a", # hot pink
+    "hardware_dev"  : "#7570b3", # greyish purplish bluish
+}
+
+mouse_table_column_widths = {
+    'mouse_id': 0.2,
+    'date': 0.2,
+    'genotype': 0.8,
+    'project': 0.5,
+    'stimulus': 0.6
+}
 ######################################
 #
 #          GENERIC PLOTTING FUNCTIONS
@@ -151,6 +165,51 @@ def create_qc_status_bar_plot(df:pd.DataFrame,
 
     # remove legend because it is redundant
     ax.legend_.remove()
+    plt.tight_layout()
+
+
+def create_mouse_project_group_bar_plot(df: pd.DataFrame,
+                                        ax:matplotlib.axes.Axes = None,
+                                        palette: dict = project_group_palette,
+                                        title:str = "Number of Mice by Project Group"):
+    """creates a bar plot of the number of mice by project group
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        mouse dataframe, must contain at least "mouse_id" and "project_group" columns
+        but frequently has the following columns:
+            - project_group
+            - project
+            - mouse_id
+            - genotype
+            - date
+            - stimulus
+    ax : matplotlib.axes.Axes
+        axes object to plot on
+    palette : dict, optional
+        maps values of "project_group" column to colors,
+        by default project_group_palette
+    title : str, optional
+        plot title, by default "Number of Mice by Project Group"
+    """
+    # Get the number of mice in each project group
+    mouse_count_df = df['project_group'].value_counts().reset_index()
+    mouse_count_df.columns = ['project_group', 'count']
+
+    # order by count
+    mouse_count_df = mouse_count_df.sort_values('count', ascending=False)
+
+    # if ax is None, create a new figure and axis
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    # Create a bar plot
+    sns.barplot(x='project_group', y='count', data=mouse_count_df, palette=palette, ax=ax)
+    ax.set_title(title)
+    ax.set_xlabel('Project Group')
+    ax.set_ylabel('Number of Mice')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
     plt.tight_layout()
 
 
@@ -279,6 +338,82 @@ def plot_status_by_id_matrix(df: pd.DataFrame,
         print(f'Saved plot to {save_file_path}')
 
     plt.show()
+
+
+def plot_colored_mouse_df_table(df: pd.DataFrame, 
+                                palette: dict = project_group_palette, 
+                                border_thickness: float = 2.0,
+                                ax=None,
+                                column_widths: dict = mouse_table_column_widths,
+                                default_width: float = 0.3,
+                                cell_height: float = 0.3,
+                                font_size: int = 16):
+    """
+    Displays a DataFrame as a table with colored cells based on the cell values and draws thicker
+    boundaries around entries within the same week.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame to be displayed as a table.
+    palette : dict
+        A dictionary mapping cell values to colors.
+        by default project_group_palette
+    border_thickness : float, optional
+        The thickness of the boundaries between weeks, by default 2.0.
+    ax : matplotlib.axes.Axes, optional
+        Axes object to plot on. If None, a new figure and axes are created.
+    column_widths : dict, optional
+        A dictionary mapping column names to their respective widths, by default None.
+    default_width : float, optional
+        Default width for columns not specified in `column_widths`, by default 0.3.
+    cell_height : float, optional
+        The height of each table cell, by default 0.3.
+    font_size : int, optional
+        The font size for the text in each cell, by default 12.
+    """
+    # Sort the DataFrame by the "date" column
+    df = df.sort_values(by=["project_group", "last_date"])
+    
+    # Extract the 'project_group' column and exclude it from the final displayed columns
+    display_df = df.drop(columns=['project_group'])
+
+    # Create figure and axis if not provided
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, len(df) * cell_height))
+
+    ax.axis('tight')
+    ax.axis('off')
+    tbl = Table(ax, bbox=[0, 0, 1, 1])
+
+    # Determine column widths
+    if column_widths is None:
+        column_widths = {}
+
+    # Adding table headers
+    for col_idx, col_name in enumerate(display_df.columns):
+        width = column_widths.get(col_name, default_width)
+        cell = tbl.add_cell(0, col_idx, width=width, height=cell_height, text=col_name, loc='center', facecolor='lightgrey')
+        cell.get_text().set_fontsize(font_size)
+
+    # Adding data to the table with colored cells based on 'project_group'
+    for row_idx, (row_label, row) in enumerate(display_df.iterrows()):
+        for col_idx, val in enumerate(row):
+            width = column_widths.get(display_df.columns[col_idx], default_width)
+            if display_df.columns[col_idx] == 'project':
+                # Get the corresponding 'project_group' value for this row
+                project_group = df.loc[row_label, 'project_group']
+                color = palette.get(project_group, 'white')  # Color based on 'project_group'
+            else:
+                color = 'white'  # Default to white for other columns
+            cell = tbl.add_cell(row_idx + 1, col_idx, width=width, height=cell_height, text=val, loc='center', facecolor=color)
+            cell.get_text().set_fontsize(font_size)
+    
+    ax.add_table(tbl)
+    plt.tight_layout()
+
+    if ax is None:
+        plt.show()
 
 
 def plot_colored_qc_generation_status_table(df: pd.DataFrame, 
@@ -458,6 +593,7 @@ def plot_qc_status_frequency(df: pd.DataFrame,
 #          MAIN PLOTTING FUNCTIONS
 ######################################
 def plot_qc_tag_frequency(df:pd.DataFrame,
+                          save_fig:bool=False,
                           save_path:str=None,
                           save_name:str="qc_tag_frequency_{}.png".format(TODAY),
                           palette:dict=pass_flag_fail_palette,
@@ -499,10 +635,9 @@ def plot_qc_tag_frequency(df:pd.DataFrame,
     plt.tight_layout() 
 
     # Save the plot if a save path and name are provided
-    if save_path and save_name:
-        save_file = os.path.join(save_path, save_name)
+    if save_fig:
+        save_file = validate_png_save_info(save_path, save_name)
         plt.savefig(save_file)
-        print(f'Saved plot to {save_file}')
 
     plt.show()
 
@@ -537,11 +672,61 @@ def plot_qc_generation_status(df: pd.DataFrame,
 
     plt.tight_layout()
 
-    # Save the plot if a save path and name are provided
+    # save
     if save_fig:
-        save_fig_as_png(fig, save_path, save_name)
+        save_file = validate_png_save_info(save_path, save_name)
+        plt.savefig(save_file)
     
     plt.show()
+
+
+def create_combined_mouse_plot(df: pd.DataFrame, 
+                               palette: dict = project_group_palette, 
+                               fig_title: str = "Mouse Data Overview",
+                               width_ratios: list = [4, 1],
+                               save_fig: bool = False,
+                               save_path: str = None,
+                               save_name: str = "current_mouse_overview_{}.png".format(TODAY),):
+    """
+    Creates a figure with a colored table on the left and a bar plot on the right.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Mouse DataFrame, must contain at least "mouse_id" and "project_group" columns
+    table_palette : dict, optional
+        A dictionary mapping cell values to colors for the table,
+        by default the provided project_group_palette
+    bar_palette : dict, optional
+        A dictionary mapping project_group values to colors for the bar plot,
+        by default the provided project_group_palette
+    table_border_thickness : float, optional
+        The thickness of the boundaries between weeks in the table, by default 2.0
+    fig_title : str, optional
+        Title for the entire figure, by default "Mouse Data Overview"
+    width_ratios : list, optional
+        A list specifying the width ratio between the table and bar plot, by default [2, 1]
+    """
+
+    # Create the figure with two subplots, using the provided width ratios
+    fig, axs = plt.subplots(1, 2, figsize=(16, 8), gridspec_kw={'width_ratios': width_ratios})
+    fig.suptitle(fig_title, fontsize=16)
+
+    # Plot the colored table on the left subplot
+    plot_colored_mouse_df_table(df, palette=palette, border_thickness=2.0, ax=axs[0])
+
+    # Plot the bar plot on the right subplot
+    create_mouse_project_group_bar_plot(df, ax=axs[1], palette=palette)
+
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    
+    # save
+    if save_fig:
+        save_file = validate_png_save_info(save_path, save_name)
+        plt.savefig(save_file)
+    
+    plt.show()  
 
 
 def plot_impacted_data_outcomes_matrix(data_stream_outcomes_df: pd.DataFrame, 
@@ -644,9 +829,8 @@ def identify_experiment_or_session(df:pd.DataFrame, id_column:str=None)->str:
     
     return result
 
-def save_fig_as_png(fig:matplotlib.figure.Figure,
-                    save_path:str,
-                    save_name:str):
+
+def validate_png_save_info(save_path: str, save_name: str):
     """Save a matplotlib figure to a png file.
 
     Parameters
@@ -659,10 +843,9 @@ def save_fig_as_png(fig:matplotlib.figure.Figure,
         Name of the saved figure.
     """
     # Ensure proper inputs
-    pre_post.validate_not_none(fig, "figure")
     pre_post.validate_not_none(save_name, "save_name")
 
-    # ensure proper save name
+    # Ensure proper save name
     if not save_name.endswith(".png"):
         save_name = save_name + ".png"
     
@@ -677,5 +860,5 @@ def save_fig_as_png(fig:matplotlib.figure.Figure,
         save_path = os.getcwd()
 
     save_file = os.path.join(save_path, save_name)
-    fig.savefig(save_file)
-    print(f'Saved plot to {save_file}')
+    return save_file
+    
