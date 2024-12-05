@@ -8,7 +8,7 @@ import multiprocessing as mp
 from functools import partial
 
 from allensdk.brain_observatory.behavior.behavior_project_cache import VisualBehaviorOphysProjectCache as bpc
-# In case where timestamps from lims does not match with dff length
+from visual_behavior.data_access import utilities as vba_utils
 
 from brain_observatory_qc.data_access import from_lims
 
@@ -37,11 +37,13 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
         Path to the saved file
     """
     new_dff_array = np.zeros((len(new_dff_df), len(timestamps)))
-    old_dff_array = np.zeros((len(new_dff_df), len(timestamps)))
+    if 'old_dff' in new_dff_df.keys():
+        old_dff_array = np.zeros((len(new_dff_df), len(timestamps)))
     np_corrected_array = np.zeros((len(new_dff_df), len(timestamps)))
     for i, row in new_dff_df.iterrows():
         new_dff_array[i, :] = row.new_dff
-        old_dff_array[i, :] = row.old_dff
+        if 'old_dff' in new_dff_df.keys():
+            old_dff_array[i, :] = row.old_dff
         np_corrected_array[i, :] = row.np_corrected
     save_fn = save_dir / f'{oeid}_new_dff.h5'
     with h5py.File(save_fn, 'w') as hf:
@@ -50,7 +52,8 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
         hf.create_dataset('r', data=new_dff_df.r)
         hf.create_dataset('r_out_of_range', data=new_dff_df.r_out_of_range)
         hf.create_dataset('new_dff', data=new_dff_array)
-        hf.create_dataset('old_dff', data=old_dff_array)
+        if 'old_dff' in new_dff_df.keys():
+            hf.create_dataset('old_dff', data=old_dff_array)
         hf.create_dataset('np_corrected', data=np_corrected_array)
         hf.create_dataset('timestamps', data=timestamps)
 
@@ -58,7 +61,7 @@ def save_new_dff_h5(save_dir, new_dff_df, timestamps, oeid):
 
 
 def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percentile=10,
-                   use_valid_rois=True, parallel=True, num_core=0, tmp_dir=None):
+                   use_valid_rois=True, parallel=True, num_core=0, tmp_dir=None, get_old_dff=False):
     """ Get the new dff from an experiment, along with the old one
     TODO: Dealing with variable noise S.D. within a session
     TODO: Dealing with variable baseline change rate
@@ -84,6 +87,8 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         Number of cores to use, by default 0 (use all available cores)
     tmp_dir : Path, optional
         Temporary directory to save the results, by default None
+    get_old_dff : bool, optional
+        Whether to get the old dff, by default False
 
     Returns
     -------
@@ -94,7 +99,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
         Ophys timestamps
     """
     # Get the correct frame rate along with the timestamps
-    frame_rate, timestamps = get_correct_frame_rate(ophys_experiment_id)
+    frame_rate, ophys_timestamps = get_correct_frame_rate(ophys_experiment_id)
 
     # Define filter lengths (int was necessary in HPC)
     long_filter_length = int(round(frame_rate * 60 * inactive_kernel_size))
@@ -107,8 +112,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
     new_dff_all = []
     old_dff_all = []
     crid_all = []
-    dff_h = h5py.File(from_lims.get_dff_traces_filepath(
-        ophys_experiment_id), 'r')
+    
     if parallel and (tmp_dir is not None):
         func = partial(tmp_save_new_dff_each_cell,
                        long_filter_length=long_filter_length,
@@ -117,7 +121,7 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
                        frame_rate=frame_rate,
                        tmp_dir=tmp_dir)
         if num_core == 0:
-            num_core = mp.cpu_count()
+            num_core = mp.cpu_count() - 1
         print(f'Running multiprocessing with {num_core} cores')
         with mp.Pool(num_core) as p:
             p.starmap(func,
@@ -138,26 +142,37 @@ def get_new_dff_df(ophys_experiment_id, inactive_kernel_size=30, inactive_percen
             crid_all.append(row.cell_roi_id)
 
     # Load old dff
-    for crid in crid_all:
-        roi_ind = np.where(
-            [int(rn) == crid for rn in dff_h['roi_names']])[0][0]
-        old_dff = dff_h['data'][roi_ind]
-        old_dff_all.append(old_dff)
-    assert len(old_dff_all[0]) == len(new_dff_all[0])
+    if get_old_dff:
+        dff_h = h5py.File(from_lims.get_dff_traces_filepath(
+            ophys_experiment_id), 'r')
+        for crid in crid_all:
+            roi_ind = np.where(
+                [int(rn) == crid for rn in dff_h['roi_names']])[0][0]
+            old_dff = dff_h['data'][roi_ind]
+            old_dff_all.append(old_dff)
+        assert len(old_dff_all[0]) == len(new_dff_all[0])
     # collect dffs
     temp_df = pd.DataFrame()
     temp_df['cell_roi_id'] = crid_all
     temp_df['new_dff'] = new_dff_all
-    temp_df['old_dff'] = old_dff_all
+    if get_old_dff:
+        temp_df['old_dff'] = old_dff_all
     # merge with np_corrected_df, check one-to-one
     np_corrected_df = np_corrected_df.merge(temp_df, on='cell_roi_id', how='left', validate='one_to_one')
-    # Add timestamps
-    ophys_timestamps = timestamps.ophys_frames.timestamps
-
+    # Add timestamps    
     if len(ophys_timestamps) != len(new_dff_all[0]):  # In some cases, the length is different
-        cache = bpc.from_lims()
-        exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
-        ophys_timestamps = exp.ophys_timestamps
+        try:
+            # It only works with behavior (so not working with pilot data)
+            cache = bpc.from_lims()
+            exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+            ophys_timestamps = exp.ophys_timestamps
+        except:
+            # Just start with 0
+            # And set frame_rate as the one from platform json file
+            frame_rate = from_lims.get_platform_frame_rate_for_oeid(ophys_experiment_id)
+            dff_len = len(new_dff_all[0])
+            time_interval = 1/frame_rate
+            ophys_timestamps = np.linspace(0,dff_len*time_interval,dff_len)
     assert len(ophys_timestamps) == len(new_dff_all[0])
     return np_corrected_df, ophys_timestamps
 
@@ -617,9 +632,11 @@ def get_correct_frame_rate(ophys_experiment_id):
         float: frame rate
         np.array: timestamps
     """
-    cache = bpc.from_lims()
-    exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
-    timestamps = exp.ophys_timestamps
+    # cache = bpc.from_lims()
+    # exp = cache.get_behavior_ophys_experiment(ophys_experiment_id)
+    # timestamps = exp.ophys_timestamps
+    lims_data = vba_utils.get_lims_data(ophys_experiment_id)
+    timestamps = vba_utils.get_timestamps(lims_data).ophys_frames.values[0]
     frame_rate = 1 / np.mean(np.diff(timestamps))
     return frame_rate, timestamps
 
@@ -633,9 +650,10 @@ def draw_fig_new_dff(save_dir, new_dff_df, timestamps, oeid):
         ax[0].plot(timestamps, row.np_corrected, 'g',
                    label='corrected', linewidth=0.5)
         ax[0].legend()
-        ax[1].plot(timestamps, row.old_dff, 'k',
-                   label='old dff', linewidth=0.5)
-        ax[1].legend()
+        if 'old_dff' in row.keys():
+            ax[1].plot(timestamps, row.old_dff, 'k',
+                    label='old dff', linewidth=0.5)
+            ax[1].legend()
         ax[2].plot(timestamps, row.new_dff, 'b',
                    label='new dff', linewidth=0.5)
         ax[2].legend()
